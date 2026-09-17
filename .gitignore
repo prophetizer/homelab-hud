@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+web/dist/
+
+# Runtime data — never commit
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local config and secrets
+/config/secrets.yaml
+*.local.yaml
+.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Planning docs — local only, never committed (see the Cowork project for the synced copy)
+/CLAUDE.md
+/docs/PLAN.md
+/docs/KICKOFF.md
