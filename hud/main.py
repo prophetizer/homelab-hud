@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from hud import __version__
 from hud.api import api_v1
 from hud.api.spa import mount_spa
-from hud.collector import LiveCache
+from hud.collector import LiveCache, StoreWriter
 from hud.collector.scheduler import Collector
 from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver
 from hud.providers import ProviderContext, ProviderRegistry
@@ -69,10 +69,12 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
             context_factory=lambda name: ProviderContext.create(name, secrets, environ),
         )
         cache = LiveCache()
-        collector = Collector(registry, cache)
+        writer = StoreWriter(app.state.engine)
+        collector = Collector(registry, cache, sinks=[writer])
         app.state.registry = registry
         app.state.cache = cache
         app.state.collector = collector
+        app.state.writer = writer
         await registry.apply(snap)
 
         async def reconcile(new_snapshot: ConfigSnapshot) -> None:

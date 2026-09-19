@@ -3,5 +3,13 @@
 
 from hud.collector.cache import STATE_SEVERITY, LiveCache, ResourceFilter
 from hud.collector.normalize import Normalized, normalize
+from hud.collector.persist import StoreWriter
 
-__all__ = ["STATE_SEVERITY", "LiveCache", "Normalized", "ResourceFilter", "normalize"]
+__all__ = [
+    "STATE_SEVERITY",
+    "LiveCache",
+    "Normalized",
+    "ResourceFilter",
+    "StoreWriter",
+    "normalize",
+]
