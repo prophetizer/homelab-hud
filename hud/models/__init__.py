@@ -6,7 +6,7 @@ from hud.models.enums import Severity, State, Unit
 from hud.models.event import Event
 from hud.models.metric import Metric
 from hud.models.resource import Resource, make_uid
-from hud.models.units import SourceUnit, canonical_unit, normalize
+from hud.models.units import SourceUnit, canonical_unit, normalize, source_unit_from_alias
 
 __all__ = [
     "Action",
@@ -20,4 +20,5 @@ __all__ = [
     "canonical_unit",
     "make_uid",
     "normalize",
+    "source_unit_from_alias",
 ]

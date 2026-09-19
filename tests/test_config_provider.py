@@ -83,7 +83,7 @@ def test_minimal_defaults(manager: ConfigManager, config_dir: Path) -> None:
     assert doc.spec.transport.timeout_seconds == 10
     assert doc.spec.resources[0].request.method == "GET"
     assert doc.spec.resources[0].select == "$"
-    assert doc.spec.resources[0].map.state == "'unknown'"
+    assert doc.spec.resources[0].map.state == "unknown"
 
 
 def test_literal_bearer_token_refused(manager: ConfigManager, config_dir: Path) -> None:

@@ -97,3 +97,69 @@ def normalize(value: float, source: SourceUnit) -> tuple[float, Unit]:
         return (value - 32.0) * 5.0 / 9.0, Unit.CELSIUS
     unit, factor = _LINEAR[source]
     return value * factor, unit
+
+
+# Provider-reported unit spellings → SourceUnit. Lower-cased, whitespace-stripped lookup.
+# Home Assistant, the *arr stack, Docker stats and Proxmox between them cover this table.
+_ALIASES: dict[str, SourceUnit] = {
+    "%": SourceUnit.PCT,
+    "pct": SourceUnit.PCT,
+    "percent": SourceUnit.PCT,
+    "ratio": SourceUnit.RATIO,
+    "b": SourceUnit.BYTES,
+    "byte": SourceUnit.BYTES,
+    "bytes": SourceUnit.BYTES,
+    "kb": SourceUnit.KB,
+    "mb": SourceUnit.MB,
+    "gb": SourceUnit.GB,
+    "tb": SourceUnit.TB,
+    "kib": SourceUnit.KIB,
+    "mib": SourceUnit.MIB,
+    "gib": SourceUnit.GIB,
+    "tib": SourceUnit.TIB,
+    "bit/s": SourceUnit.BPS,
+    "bps": SourceUnit.BPS,
+    "kbit/s": SourceUnit.KBPS,
+    "kbps": SourceUnit.KBPS,
+    "mbit/s": SourceUnit.MBPS,
+    "mbps": SourceUnit.MBPS,
+    "gbit/s": SourceUnit.GBPS,
+    "gbps": SourceUnit.GBPS,
+    "b/s": SourceUnit.BYTES_PER_SEC,
+    "bytes/s": SourceUnit.BYTES_PER_SEC,
+    "s": SourceUnit.SECONDS,
+    "sec": SourceUnit.SECONDS,
+    "seconds": SourceUnit.SECONDS,
+    "ms": SourceUnit.MILLISECONDS,
+    "min": SourceUnit.MINUTES,
+    "minutes": SourceUnit.MINUTES,
+    "h": SourceUnit.HOURS,
+    "hours": SourceUnit.HOURS,
+    "°c": SourceUnit.CELSIUS,
+    "c": SourceUnit.CELSIUS,
+    "celsius": SourceUnit.CELSIUS,
+    "°f": SourceUnit.FAHRENHEIT,
+    "f": SourceUnit.FAHRENHEIT,
+    "fahrenheit": SourceUnit.FAHRENHEIT,
+    "w": SourceUnit.WATTS,
+    "watts": SourceUnit.WATTS,
+    "kw": SourceUnit.KILOWATTS,
+    "count": SourceUnit.COUNT,
+    "": SourceUnit.NONE,
+    "none": SourceUnit.NONE,
+}
+
+
+def source_unit_from_alias(text: str) -> SourceUnit | None:
+    """Map a provider's unit spelling (``"°C"``, ``"MiB"``, ``"%"``) to a :class:`SourceUnit`.
+
+    Exact :class:`SourceUnit` values match too. Returns None for anything unknown so the
+    caller decides between "dimensionless" and "skip" — never a silent wrong conversion.
+    """
+    key = text.strip().lower()
+    if key in _ALIASES:
+        return _ALIASES[key]
+    try:
+        return SourceUnit(key)
+    except ValueError:
+        return None

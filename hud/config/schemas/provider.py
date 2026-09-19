@@ -231,7 +231,7 @@ class ResourceMap(_Spec):
     uid: str
     kind: str
     name: str
-    state: str = "'unknown'"
+    state: str = "unknown"
     attrs: dict[str, str] = Field(default_factory=dict)
     links: dict[str, str] = Field(default_factory=dict)
     parent_uid: str | None = None

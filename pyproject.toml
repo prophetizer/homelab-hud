@@ -57,6 +57,11 @@ strict = true
 warn_unreachable = true
 files = ["hud"]
 
+[[tool.mypy.overrides]]
+# jsonpath-ng ships no stubs or py.typed; it is used only behind providers/declarative/select.py.
+module = ["jsonpath_ng.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
