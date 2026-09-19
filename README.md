@@ -4,10 +4,13 @@ A self-hosted homelab dashboard with three things the category is missing:
 a **reporting engine** that keeps history, a **wizard** that connects any JSON API
 without writing YAML, and a **unified shell** for embedded apps.
 
-> **Status: Phase 0 — foundation.** What exists today is a running container skeleton:
-> configuration loading with hot reload and comment-preserving write-back, the canonical
-> data model, the SQLite schema, a health endpoint and a one-tile React shell.
-> No providers, widgets, reports or wizard yet. Nothing below claims otherwise.
+> **Status: Phase 1 — core dashboard.** What exists today: declarative providers from
+> YAML alone, two packaged Python plugins (`docker`, `sonarr`) plus drop-ins, a scheduler
+> with jitter, timeouts and circuit breakers, a live cache that keeps last-known-good and
+> says so, raw sample/event history in SQLite, and boards with `static`, `resource`,
+> `list`, `metric` and `embed` widgets. No auth yet (single implicit operator — keep it
+> on a trusted network), no layout editor, no reports, no wizard. Nothing below claims
+> otherwise.
 
 Licensed under [Apache-2.0](LICENSE). No CLA.
 
@@ -20,7 +23,27 @@ docker compose up --build
 
 Then open <http://localhost:8080>. An empty `./config` gets a commented `settings.yaml`
 written on first start. `GET /api/v1/health` reports the app version, config version
-(a hash of every loaded YAML file), database size and uptime.
+(a hash of every loaded YAML file), database size, uptime and per-provider health.
+
+Three minutes to a live tile: copy `templates/providers/home-assistant.yaml` to
+`./config/providers/`, set `HA_BASE_URL` in the container environment, put a long-lived
+token at `./config/secrets.yaml` as `home_assistant_token: …` (or `HUD_SECRET_HOME_ASSISTANT_TOKEN`),
+and drop a board in `./config/boards/`:
+
+```yaml
+apiVersion: hud/v1
+kind: Board
+metadata: { name: home, title: Home }
+spec:
+  widgets:
+    - id: sensors
+      type: list
+      grid: { col: 1, row: 1, w: 2, h: 2 }
+      source: { select: { kind: sensor } }
+      display: { fields: [metric.value] }
+```
+
+No restart needed: providers and boards are hot-reloaded when the files change.
 
 `./config` must exist before `up`: the container runs as uid 1000 with a read-only
 root filesystem and cannot write into a directory Docker created as root.
@@ -39,8 +62,8 @@ root filesystem and cannot write into a directory Docker created as root.
 ### Configuration
 
 Everything authored lives in `/config/*.yaml`; the UI is an editor for those files, never
-the only copy. Every file is an `apiVersion: hud/v1` document with a `kind`. Phase 0 knows
-one kind:
+the only copy. Every file is an `apiVersion: hud/v1` document with a `kind`:
+`Settings` (`settings.yaml`), `Provider` (`providers/*.yaml`) and `Board` (`boards/*.yaml`).
 
 ```yaml
 apiVersion: hud/v1
@@ -64,7 +87,77 @@ spec:
 * Secrets never go in YAML. Write `${secret:name}` and provide the value as a Docker secret
   at `/run/secrets/name`, the env var `HUD_SECRET_NAME`, or a key in `/config/secrets.yaml`
   (mode 0600, last resort). The validator hard-fails on anything that looks like a literal
-  token.
+  token. `${VAR}` in a provider's transport or config is substituted from the environment.
+
+### Providers
+
+Two tiers, one contract: both produce the same canonical `Resource` / `Metric` / `Event`
+objects, so any widget works with any provider.
+
+**Declarative** (`spec.transport` + `spec.resources[]`) — for any JSON-over-HTTP API, no
+code. Each `resources[]` entry is one request, a JSONPath `select`, and a `map` block of
+sandboxed Jinja expressions over `item`. `templates/providers/home-assistant.yaml` is the
+worked example; every bundled template ships with a response fixture and a CI test.
+
+**Plugin** (`spec.plugin` + `spec.config`) — Python, for anything the declarative tier
+cannot express. Packaged: `docker` (via `linuxserver/socket-proxy`, never the socket;
+`GET` only) and `sonarr`. Drop-ins go in `/config/plugins/<name>/provider.py`:
+
+```yaml
+apiVersion: hud/v1
+kind: Provider
+metadata: { name: docker }
+spec:
+  plugin: docker
+  config: { base_url: ${DOCKER_HOST} }   # tcp://socket-proxy:2375 is rewritten to http://
+```
+
+```python
+# /config/plugins/hello/provider.py
+from hud.providers.sdk import PluginConfig, PluginProvider, Resource, State, register
+from datetime import UTC, datetime
+
+class Config(PluginConfig):
+    greeting: str = "hi"
+
+@register("hello", config_model=Config)
+class Hello(PluginProvider):
+    async def discover(self) -> list[Resource]:          # every 5 min
+        return [Resource(uid=f"{self.name}:thing:one", provider=self.name, kind="thing",
+                         name=self.config.greeting, state=State.UP, fetched_at=datetime.now(UTC))]
+    # collect(resources) -> PollResult runs at spec.defaults.interval; default keeps state only
+```
+
+Each poll group runs under a timeout; three consecutive failures open a circuit breaker
+that backs off to five minutes. A failing provider keeps its last-known-good resources,
+flagged `stale`, with the error shown on its tiles and in `GET /api/v1/providers`.
+`POST /api/v1/providers/{name}/reload` rebuilds one provider and polls it immediately.
+
+### Boards
+
+```yaml
+apiVersion: hud/v1
+kind: Board
+metadata: { name: media, title: Media Stack }
+spec:
+  layout: { columns: { sm: 1, md: 2, lg: 4 }, gap: 12 }
+  widgets:
+    - { id: note,  type: static,   grid: { col: 1, row: 1 }, display: { text: Hello } }
+    - { id: plex,  type: resource, grid: { col: 2, row: 1 }, source: { resource: "docker:container:plex" },
+        display: { fields: [state, attrs.image, metric.cpu_pct] } }
+    - { id: down,  type: list,     grid: { col: 3, row: 1, w: 2 },
+        source: { select: { kind: container, state: [down, degraded] } } }
+    - { id: queue, type: metric,   grid: { col: 1, row: 2 },
+        source: { metric: queue_size, resource: "sonarr:service:main" },
+        display: { sparkline: { range: 6h }, thresholds: [{ gte: 50, state: warn }] } }
+    - { id: grafana, type: embed,  grid: { col: 2, row: 2, w: 3, h: 3 },
+        source: { url: "https://grafana.lab/" } }
+```
+
+`grid` positions apply at the `lg` breakpoint; smaller screens reflow in order. An `embed`
+whose target sends `X-Frame-Options` or a CSP `frame-ancestors` renders an honest card with
+an *Open* button instead of a grey box. `chart`, `uptime`, `report`, `action` and
+`composite` are recognised but render "arrives in Phase N" until that phase.
 
 ## Develop
 
@@ -92,11 +185,14 @@ They run automatically at startup; a non-trivial upgrade first copies the file t
 ```
 hud/                 backend package (FastAPI)
   api/               routers under /api/v1, SPA serving
-  config/            loader, schemas, secrets, round-trip writer, manager
-  models/            canonical Resource / Metric / Event / Action
+  config/            loader, schemas (Settings/Provider/Board), secrets, round-trip writer
+  models/            canonical Resource / Metric / Event / Action, unit normalization
+  providers/         registry, declarative engine, plugin SDK + loader, builtin plugins
+  collector/         APScheduler poll loops, circuit breaker, live cache, store writer
+  widgets/           widget engine, framing probe, sparkline sample reads
   store/             SQLAlchemy Core tables, engines, Alembic migrations
-  providers/ collector/ reporting/   placeholders for later phases
-web/                 React + Vite + TypeScript shell
-templates/providers/ bundled provider templates (empty until Phase 1)
+  reporting/         placeholder for Phase 2
+web/                 React + Vite + TypeScript: router, board renderer, widgets
+templates/providers/ bundled provider templates + response fixtures + expected mappings
 tests/
 ```
