@@ -1,0 +1,24 @@
+# Top-of-file comment that must survive a write-back.
+# Second comment line, with trailing spaces preserved?   
+apiVersion: hud/v1
+kind: Settings
+metadata:
+  name: main        # an inline comment on metadata
+spec:
+  title: "Quoted Title"   # quotes must stay quotes
+  timezone: &tz America/Chicago
+  theme: dark
+
+  # blank line above and this comment belong to retention
+  retention:
+    samples: 48h
+    rollup_5m: 14d
+    rollup_1h: 180d
+    rollup_1d: forever
+  # a key the Phase 0 schema does not know about; it must be preserved verbatim
+  experimental:
+    fancy_feature: true
+    aliased_tz: *tz
+    list_of_things:
+      - one
+      - two   # comment on a list item
