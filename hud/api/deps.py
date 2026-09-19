@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from hud.collector.scheduler import Collector
     from hud.config import ConfigManager
     from hud.providers import ProviderRegistry
+    from hud.widgets import WidgetEngine
 
 
 def cache(request: Request) -> LiveCache:
@@ -28,3 +29,7 @@ def registry(request: Request) -> ProviderRegistry:
 
 def config(request: Request) -> ConfigManager:
     return cast("ConfigManager", request.app.state.config)
+
+
+def widgets(request: Request) -> WidgetEngine:
+    return cast("WidgetEngine", request.app.state.widgets)

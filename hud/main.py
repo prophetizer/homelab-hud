@@ -24,6 +24,7 @@ from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
+from hud.widgets import WidgetEngine
 
 log = logging.getLogger("hud")
 
@@ -76,6 +77,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.cache = cache
         app.state.collector = collector
         app.state.writer = writer
+        app.state.widgets = WidgetEngine(cache, app.state.engine)
         await registry.apply(snap)
 
         async def reconcile(new_snapshot: ConfigSnapshot) -> None:

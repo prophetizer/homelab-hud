@@ -132,3 +132,47 @@ def test_providers_endpoints(client: TestClient) -> None:
     assert client.post("/api/v1/providers/nope/reload").status_code == 404
     health = client.get("/api/v1/health").json()
     assert health["providers"][0]["status"] == "ok"
+
+
+BOARD = """\
+apiVersion: hud/v1
+kind: Board
+metadata: { name: demo, title: Demo Board }
+spec:
+  widgets:
+    - id: alpha
+      type: resource
+      grid: { col: 1, row: 1 }
+      source: { resource: demo:thing:alpha }
+    - id: all
+      type: list
+      grid: { col: 2, row: 1 }
+      source: { select: { provider: demo } }
+    - id: later
+      type: uptime
+      grid: { col: 3, row: 1 }
+"""
+
+
+def test_boards_endpoints(client: TestClient) -> None:
+    config_dir = Path(client.app.state.env.config_dir)  # type: ignore[attr-defined]
+    (config_dir / "boards").mkdir()
+    (config_dir / "boards" / "demo.yaml").write_text(BOARD)
+    assert client.get("/api/v1/boards").json() == {"boards": []}
+    # Hot reload: the board appears without a restart once the watcher picks it up.
+    client.app.state.config.load()  # type: ignore[attr-defined]
+    (summary,) = client.get("/api/v1/boards").json()["boards"]
+    assert summary == {
+        "name": "demo",
+        "title": "Demo Board",
+        "icon": None,
+        "widgets": 3,
+        "unsupported": 1,
+    }
+    body = client.get("/api/v1/boards/demo").json()
+    assert body["title"] == "Demo Board" and body["generation"] >= 1
+    w = {x["id"]: x for x in body["widgets"]}
+    assert w["alpha"]["state"] == "up" and w["alpha"]["data"]["resource"]["name"] == "alpha"
+    assert w["all"]["state"] == "down" and w["all"]["data"]["total"] == 2
+    assert w["later"]["error"] == "widget type 'uptime' arrives in Phase 2"
+    assert client.get("/api/v1/boards/nope").status_code == 404
