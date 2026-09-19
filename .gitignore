@@ -17,8 +17,9 @@ web/dist/
 *.db-wal
 *.db-shm
 
-# Local config and secrets
-/config/secrets.yaml
+# Local config and secrets — ./config is the dev bind mount; only the placeholder is tracked
+/config/*
+!/config/.gitkeep
 *.local.yaml
 .env
 
@@ -31,3 +32,6 @@ web/dist/
 /CLAUDE.md
 /docs/PLAN.md
 /docs/KICKOFF.md
+
+# Claude Code local session config
+.claude/

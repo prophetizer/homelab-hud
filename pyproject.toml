@@ -1,0 +1,67 @@
+[project]
+name = "homelab-hud"
+version = "0.0.1"
+description = "HUD — Homelab Ultimate Dashboard"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.53.0",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "sqlalchemy==2.0.54",
+    "alembic==1.20.0",
+    "ruamel.yaml==0.19.1",
+    "httpx==0.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff==0.16.8",
+    "mypy==2.3.1",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "respx==0.23.1",
+    "httpx2==2.13.0",  # starlette>=1.6 TestClient; runtime stays on httpx 0.x
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hud"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "ANN", "PL", "N", "S"]
+ignore = [
+    "PLR2004",  # magic values are fine in unit conversion tables and tests
+    "S101",     # assert is the pytest idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "PLR0913", "S105", "S106"]
+"hud/store/migrations/**" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+files = ["hud"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error",
+    # Upstream: starlette 1.6 testclient still imports the deprecated anyio.abc alias.
+    # Scoped to that one message; drop when starlette catches up.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
