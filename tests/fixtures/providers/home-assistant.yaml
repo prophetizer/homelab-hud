@@ -1,0 +1,56 @@
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: home-assistant
+  labels: { category: automation }
+spec:
+  transport:
+    base_url: ${HA_BASE_URL}            # env substitution
+    auth:
+      type: bearer
+      token: ${secret:home_assistant_token}   # resolved from secrets store, never inlined
+    timeout: 5s
+    verify_tls: true
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    - name: sensors
+      request: { method: GET, path: /api/states }
+      select: "$[?(@.entity_id =~ '^sensor\\.')]"   # JSONPath filter over the array
+      map:
+        uid:   "home-assistant:sensor:{{ item.entity_id }}"
+        kind:  sensor
+        name:  "{{ item.attributes.friendly_name | default(item.entity_id) }}"
+        state: "{{ 'up' if item.state not in ['unavailable','unknown'] else 'down' }}"
+        attrs:
+          device_class: "{{ item.attributes.device_class }}"
+          raw_state:    "{{ item.state }}"
+        links:
+          ui: "${HA_BASE_URL}/history?entity_id={{ item.entity_id }}"
+      metrics:
+        - name: value
+          when: "{{ item.state | is_number }}"
+          value: "{{ item.state | float }}"
+          unit_from: "{{ item.attributes.unit_of_measurement }}"   # mapped via unit alias table
+
+    - name: automations
+      request: { method: GET, path: /api/states }
+      select: "$[?(@.entity_id =~ '^automation\\.')]"
+      interval: 5m
+      map:
+        uid:   "home-assistant:automation:{{ item.entity_id }}"
+        kind:  automation
+        name:  "{{ item.attributes.friendly_name }}"
+        state: "{{ 'up' if item.state == 'on' else 'paused' }}"
+
+  actions:
+    - verb: toggle
+      applies_to: { kind: automation }
+      request:
+        method: POST
+        path: /api/services/automation/toggle
+        body: { entity_id: "{{ resource.attrs.entity_id }}" }
+      confirm: false
+      required_permission: actions:automation

@@ -68,13 +68,13 @@ def test_wrong_api_version(manager: ConfigManager, config_dir: Path) -> None:
 def test_unknown_kind(manager: ConfigManager, config_dir: Path) -> None:
     (config_dir / "settings.yaml").write_text(GOOD)
     (config_dir / "boards").mkdir()
-    (config_dir / "boards" / "x.yaml").write_text("apiVersion: hud/v1\nkind: Board\nspec: {}\n")
+    (config_dir / "boards" / "x.yaml").write_text("apiVersion: hud/v1\nkind: Report\nspec: {}\n")
     with pytest.raises(ConfigError) as ei:
         manager.load()
     (issue,) = ei.value.issues
     assert issue.file.name == "x.yaml"
     assert issue.line == 2
-    assert "unsupported kind 'Board'" in issue.message
+    assert "unsupported kind 'Report' (known: Board, Provider, Settings)" in issue.message
 
 
 def test_unknown_spec_key_warns_but_loads(manager: ConfigManager, config_dir: Path) -> None:

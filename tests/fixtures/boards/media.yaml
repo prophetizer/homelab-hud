@@ -1,0 +1,61 @@
+apiVersion: hud/v1
+kind: Board
+metadata:
+  name: media
+  title: Media Stack
+  icon: mdi:filmstrip
+  visible_to: [ admins, household ]
+spec:
+  layout:
+    columns: { sm: 1, md: 2, lg: 4 }
+    gap: 12
+
+  widgets:
+    - id: arr-health
+      type: list
+      title: "*arr Services"
+      grid: { col: 1, row: 1, w: 2, h: 2 }
+      source:
+        select: { provider: [sonarr, radarr, lidarr, prowlarr], kind: service }
+        sort: [ "-state_severity", "name" ]
+      display:
+        fields: [ name, state, attrs.version ]
+        empty_text: "No services discovered"
+
+    - id: queue-depth
+      type: metric
+      title: "Download Queue"
+      grid: { col: 3, row: 1, w: 1, h: 1 }
+      source: { metric: queue_size, resource: "sabnzbd:service:main" }
+      display:
+        format: { unit: count, precision: 0 }
+        sparkline: { range: 6h, tier: auto }
+        thresholds:
+          - { gte: 50, state: warn }
+          - { gte: 200, state: error }
+
+    - id: plex-uptime
+      type: uptime
+      title: "Plex — 90 days"
+      grid: { col: 4, row: 1, w: 1, h: 1 }
+      source: { resource: "plex:service:main" }
+      display: { range: 90d, buckets: 90, show_sla: true, exclude_unknown: true }
+
+    - id: net-throughput
+      type: chart
+      title: "WAN Throughput"
+      grid: { col: 1, row: 3, w: 4, h: 2 }
+      source:
+        series:
+          - { metric: rx_bps, resource: "opnsense:interface:wan", label: "Down" }
+          - { metric: tx_bps, resource: "opnsense:interface:wan", label: "Up" }
+        range: 24h
+        tier: auto          # picks samples/5m/1h by range width
+      display: { kind: area, stacked: false, unit: bps }
+
+    - id: tautulli
+      type: embed
+      title: Tautulli
+      grid: { col: 1, row: 5, w: 4, h: 6 }
+      source: { url: "https://tautulli.lab.internal/", sandbox: strict }
+      display: { open_in: workspace, fallback: new_tab }

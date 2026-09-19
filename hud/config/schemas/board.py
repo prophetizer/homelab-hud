@@ -1,0 +1,295 @@
+# SPDX-License-Identifier: Apache-2.0
+"""``kind: Board`` — a grid of widgets (PLAN.md §8.2).
+
+Widgets discriminate on ``type``. Phase 1 renders ``static``, ``resource``, ``list``,
+``metric`` and ``embed``; the other types in the §8.1 taxonomy validate as
+:class:`UnsupportedWidget` and render as an honest "not available yet" tile rather than
+failing the whole board. A board from a newer image therefore still loads on an older one
+(PLAN.md §11.3), and an unknown type degrades one tile, never the dashboard (invariant 6).
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Annotated, Any, Literal, Self
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    Tag,
+    field_validator,
+    model_validator,
+)
+
+from hud.config.schemas.base import Document, Metadata
+from hud.config.schemas.settings import parse_duration
+from hud.models.enums import State
+
+PHASE1_WIDGET_TYPES: frozenset[str] = frozenset({"static", "resource", "list", "metric", "embed"})
+# Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
+LATER_WIDGET_TYPES: dict[str, str] = {
+    "chart": "Phase 2",
+    "uptime": "Phase 2",
+    "report": "Phase 2",
+    "action": "Phase 3",
+    "composite": "Phase 3",
+}
+
+
+_SORT_KEY = re.compile(r"-?(name|state|state_severity|kind|provider|attrs\.[A-Za-z0-9_.-]+)")
+
+
+class _Spec(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+# ----------------------------------------------------------------------------- layout
+
+
+class Columns(_Spec):
+    sm: int = Field(default=1, ge=1, le=12)
+    md: int = Field(default=2, ge=1, le=12)
+    lg: int = Field(default=4, ge=1, le=12)
+
+
+class Layout(_Spec):
+    columns: Columns = Columns()
+    gap: int = Field(default=12, ge=0, le=64)
+
+
+class Grid(BaseModel):
+    """1-based cell position on the ``lg`` grid; smaller breakpoints reflow in the SPA."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    col: int = Field(ge=1, le=12)
+    row: int = Field(ge=1)
+    w: int = Field(default=1, ge=1, le=12)
+    h: int = Field(default=1, ge=1, le=24)
+
+
+# ----------------------------------------------------------------------------- sources
+
+
+class Link(_Spec):
+    title: str
+    url: str
+
+
+class StaticDisplay(_Spec):
+    text: str | None = None
+    links: list[Link] = Field(default_factory=list)
+
+
+class ResourceSource(_Spec):
+    resource: str  # canonical uid
+
+
+class ResourceDisplay(_Spec):
+    fields: list[str] = Field(default_factory=lambda: ["state", "name"])
+
+
+class Select(_Spec):
+    provider: str | list[str] | None = None
+    kind: str | list[str] | None = None
+    state: State | list[State] | None = None
+    label: dict[str, str] | None = None  # matches provider metadata.labels
+
+
+class ListSource(_Spec):
+    select: Select = Select()
+    sort: list[str] = Field(default_factory=lambda: ["-state_severity", "name"])
+    limit: int | None = Field(default=None, ge=1, le=500)
+
+    @field_validator("sort")
+    @classmethod
+    def _sort_keys(cls, v: list[str]) -> list[str]:
+        for key in v:
+            if not _SORT_KEY.fullmatch(key):
+                msg = f"unsupported sort key {key!r}"
+                raise ValueError(msg)
+        return v
+
+
+class ListDisplay(_Spec):
+    fields: list[str] = Field(default_factory=lambda: ["name", "state"])
+    empty_text: str = "Nothing to show"
+
+
+class MetricSource(_Spec):
+    metric: str
+    resource: str
+
+
+class Format(_Spec):
+    unit: str | None = None  # display unit override; storage unit is canonical
+    precision: int = Field(default=1, ge=0, le=6)
+
+
+class Sparkline(_Spec):
+    range: str = "6h"
+    tier: Literal["auto", "samples", "5m", "1h", "1d"] = "auto"
+
+    @field_validator("range")
+    @classmethod
+    def _dur(cls, v: str) -> str:
+        parse_duration(v)
+        return v
+
+
+class Threshold(_Spec):
+    gte: float | None = None
+    lte: float | None = None
+    state: Literal["warn", "error"]
+
+    @model_validator(mode="after")
+    def _one_bound(self) -> Self:
+        if (self.gte is None) == (self.lte is None):
+            msg = "exactly one of gte or lte is required"
+            raise ValueError(msg)
+        return self
+
+
+class MetricDisplay(_Spec):
+    format: Format = Format()
+    sparkline: Sparkline | None = None
+    thresholds: list[Threshold] = Field(default_factory=list)
+
+
+class EmbedSource(_Spec):
+    url: str
+    sandbox: Literal["strict", "relaxed"] = "strict"
+
+    @field_validator("url")
+    @classmethod
+    def _absolute(cls, v: str) -> str:
+        if not re.match(r"^https?://", v):
+            msg = "embed url must be absolute http(s)"
+            raise ValueError(msg)
+        return v
+
+
+class EmbedDisplay(_Spec):
+    open_in: Literal["workspace", "inline"] = "inline"
+    fallback: Literal["card", "new_tab"] = "card"
+
+
+# ----------------------------------------------------------------------------- widgets
+
+
+class _Widget(_Spec):
+    id: str
+    title: str | None = None
+    grid: Grid
+
+    @field_validator("id")
+    @classmethod
+    def _id_shape(cls, v: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", v):
+            msg = "widget id must be [A-Za-z0-9_-]"
+            raise ValueError(msg)
+        return v
+
+
+class StaticWidget(_Widget):
+    type: Literal["static"]
+    display: StaticDisplay = StaticDisplay()
+
+
+class ResourceWidget(_Widget):
+    type: Literal["resource"]
+    source: ResourceSource
+    display: ResourceDisplay = ResourceDisplay()
+
+
+class ListWidget(_Widget):
+    type: Literal["list"]
+    source: ListSource = ListSource()
+    display: ListDisplay = ListDisplay()
+
+
+class MetricWidget(_Widget):
+    type: Literal["metric"]
+    source: MetricSource
+    display: MetricDisplay = MetricDisplay()
+
+
+class EmbedWidget(_Widget):
+    type: Literal["embed"]
+    source: EmbedSource
+    display: EmbedDisplay = EmbedDisplay()
+
+
+class UnsupportedWidget(_Widget):
+    """Any type this build cannot render. Kept verbatim so write-back preserves it."""
+
+    type: str
+    source: dict[str, Any] | None = None
+    display: dict[str, Any] | None = None
+
+    @property
+    def reason(self) -> str:
+        phase = LATER_WIDGET_TYPES.get(self.type)
+        if phase:
+            return f"widget type '{self.type}' arrives in {phase}"
+        return f"unknown widget type '{self.type}'"
+
+
+def _widget_tag(value: Any) -> str:  # noqa: ANN401
+    t = value.get("type") if isinstance(value, dict) else getattr(value, "type", None)
+    return t if isinstance(t, str) and t in PHASE1_WIDGET_TYPES else "unsupported"
+
+
+Widget = Annotated[
+    Annotated[StaticWidget, Tag("static")]
+    | Annotated[ResourceWidget, Tag("resource")]
+    | Annotated[ListWidget, Tag("list")]
+    | Annotated[MetricWidget, Tag("metric")]
+    | Annotated[EmbedWidget, Tag("embed")]
+    | Annotated[UnsupportedWidget, Tag("unsupported")],
+    Discriminator(_widget_tag),
+]
+
+
+# ----------------------------------------------------------------------------- document
+
+
+class BoardMetadata(Metadata):
+    name: str
+    icon: str | None = None
+    visible_to: list[str] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def _name_shape(cls, v: str) -> str:
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", v):
+            msg = "board name must be lowercase [a-z0-9_-] (it is the URL slug)"
+            raise ValueError(msg)
+        return v
+
+
+class BoardSpec(_Spec):
+    layout: Layout = Layout()
+    widgets: list[Widget] = Field(default_factory=list)
+
+    @field_validator("widgets")
+    @classmethod
+    def _unique_ids(cls, v: list[Widget]) -> list[Widget]:
+        ids = [w.id for w in v]
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        if dupes:
+            msg = f"duplicate widget ids: {', '.join(dupes)}"
+            raise ValueError(msg)
+        return v
+
+
+class BoardDocument(Document):
+    kind: Literal["Board"]
+    metadata: BoardMetadata
+    spec: BoardSpec = BoardSpec()
+
+    @property
+    def unsupported_widgets(self) -> list[UnsupportedWidget]:
+        return [w for w in self.spec.widgets if isinstance(w, UnsupportedWidget)]

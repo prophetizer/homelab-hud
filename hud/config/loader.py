@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from types import UnionType
+from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 from pydantic import BaseModel, ValidationError
 from ruamel.yaml import YAML
@@ -135,6 +136,54 @@ def _collect_unknown(
             dotted = ".".join((*path, key))
             out.append(ConfigIssue(file, f"unknown key '{dotted}' (ignored)", line + 1, col + 1))
             continue
-        sub = declared[name].annotation
-        if isinstance(sub, type) and issubclass(sub, BaseModel):
-            _collect_unknown(node[key], sub, file, (*path, key), out)
+        _descend(node[key], declared[name].annotation, file, (*path, key), out)
+
+
+def _descend(
+    node: Any,  # noqa: ANN401
+    annotation: Any,  # noqa: ANN401
+    file: Path,
+    path: tuple[str, ...],
+    out: list[ConfigIssue],
+) -> None:
+    """Follow ``annotation`` into ``node``: a model, a list of models, or a union of models
+    discriminated on a ``type`` literal (the Board widget shape)."""
+    origin = get_origin(annotation)
+    if origin is Annotated:
+        _descend(node, get_args(annotation)[0], file, path, out)
+    elif origin is list and isinstance(node, CommentedSeq):
+        (elem,) = get_args(annotation)
+        for i, item in enumerate(node):
+            _descend(item, elem, file, (*path, str(i)), out)
+    elif origin in (Union, UnionType):
+        member = _pick_union_member(node, get_args(annotation))
+        if member is not None:
+            _collect_unknown(node, member, file, path, out)
+    elif isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        _collect_unknown(node, annotation, file, path, out)
+
+
+def _pick_union_member(node: Any, members: tuple[Any, ...]) -> type[BaseModel] | None:  # noqa: ANN401
+    """The union member whose ``type`` literal matches ``node['type']``; the single model
+    member when the union is ``Model | None``; otherwise None (do not guess)."""
+    models: list[type[BaseModel]] = []
+    for m in members:
+        inner = get_args(m)[0] if get_origin(m) is Annotated else m
+        if isinstance(inner, type) and issubclass(inner, BaseModel):
+            models.append(inner)
+    if len(models) == 1:
+        return models[0]
+    tag = node.get("type") if isinstance(node, CommentedMap) else None
+    if not isinstance(tag, str):
+        return None
+    fallback: type[BaseModel] | None = None
+    for m in models:
+        f = m.model_fields.get("type")
+        if f is None:
+            continue
+        if get_origin(f.annotation) is Literal:
+            if tag in get_args(f.annotation):
+                return m
+        elif f.annotation is str:
+            fallback = m  # open-ended member (UnsupportedWidget): catch-all
+    return fallback
