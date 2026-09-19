@@ -1,0 +1,14 @@
+[
+  {
+    "source": "IndexerStatusCheck",
+    "type": "warning",
+    "message": "Indexers unavailable due to failures: NZBgeek",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#indexers-are-unavailable-due-to-failures"
+  },
+  {
+    "source": "UpdateCheck",
+    "type": "notice",
+    "message": "New update is available: 4.0.10.2544",
+    "wikiUrl": "https://wiki.servarr.com/sonarr/system#new-update-is-available"
+  }
+]
