@@ -16,6 +16,7 @@ dependencies = [
     "httpx==0.28.1",
     "jinja2==3.1.6",
     "jsonpath-ng==1.8.0",
+    "apscheduler==3.11.3",
 ]
 
 [dependency-groups]
@@ -58,8 +59,9 @@ warn_unreachable = true
 files = ["hud"]
 
 [[tool.mypy.overrides]]
-# jsonpath-ng ships no stubs or py.typed; it is used only behind providers/declarative/select.py.
-module = ["jsonpath_ng.*"]
+# Neither ships stubs or py.typed. jsonpath-ng is used only behind
+# providers/declarative/select.py, apscheduler only behind collector/scheduler.py.
+module = ["jsonpath_ng.*", "apscheduler.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
