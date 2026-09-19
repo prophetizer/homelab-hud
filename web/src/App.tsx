@@ -1,75 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0
-import { useEffect, useState } from "react";
-import { fetchHealth, formatBytes, formatUptime, type Health } from "./api/health";
-import { Tile, type TileState } from "./components/Tile";
+import { fetchBoards } from "./api/client";
+import { fetchHealth } from "./api/health";
+import { BoardView } from "./components/Board";
+import { Overview } from "./components/Overview";
+import { Sidebar } from "./components/Sidebar";
+import { usePoll } from "./hooks/usePoll";
+import { useRoute } from "./router";
 
-const POLL_MS = 15_000;
-
-interface HealthView {
-  health: Health | null;
-  error: string | null;
-  fetchedAt: Date | null;
-}
+const HEALTH_MS = 15_000;
+const BOARDS_MS = 30_000;
 
 export function App() {
-  const [view, setView] = useState<HealthView>({ health: null, error: null, fetchedAt: null });
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const tick = async () => {
-      try {
-        const health = await fetchHealth(ctrl.signal);
-        setView({ health, error: null, fetchedAt: new Date() });
-      } catch (err) {
-        if (ctrl.signal.aborted) return;
-        // Keep the last good payload; surface the error next to it.
-        setView((prev) => ({ ...prev, error: err instanceof Error ? err.message : String(err) }));
-      }
-      if (!ctrl.signal.aborted) timer = setTimeout(tick, POLL_MS);
-    };
-    void tick();
-
-    return () => {
-      ctrl.abort();
-      if (timer !== undefined) clearTimeout(timer);
-    };
-  }, []);
-
-  const { health, error, fetchedAt } = view;
-  const state: TileState = error ? "down" : health?.status === "degraded" ? "degraded" : health ? "up" : "unknown";
+  const route = useRoute();
+  const health = usePoll("health", fetchHealth, HEALTH_MS);
+  const boards = usePoll("boards", fetchBoards, BOARDS_MS);
+  const providers = health.data?.providers ?? [];
+  const unhealthy = providers.filter((p) => p.status === "degraded" || p.status === "error").length;
 
   return (
     <div className="shell">
-      <aside className="sidebar">
-        <div className="sidebar__brand">HUD</div>
-        <nav className="sidebar__nav" aria-label="Boards">
-          <a href="/" aria-current="page">
-            Overview
-          </a>
-        </nav>
-      </aside>
+      <Sidebar boards={boards.data?.boards ?? null} boardsError={boards.error} route={route} />
       <main className="main">
-        <div className="board">
-          <Tile
-            title="HUD"
-            state={state}
-            rows={[
-              ["Version", health?.app_version ?? "—"],
-              ["Uptime", health ? formatUptime(health.uptime_seconds) : "—"],
-              ["Config", health?.config.version ?? "—"],
-              ["Database", health ? formatBytes(health.db.size_bytes) : "—"],
-              ["Fetched", fetchedAt ? fetchedAt.toLocaleTimeString() : "—"],
-            ]}
-            error={error ?? health?.config.error ?? undefined}
-          />
-        </div>
+        {route.kind === "overview" ? (
+          <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />
+        ) : route.kind === "board" ? (
+          <BoardView name={route.name} />
+        ) : (
+          <div className="board-status" role="alert">
+            Nothing at {route.path}.
+          </div>
+        )}
       </main>
       <footer className="footer">
-        <span>config {health?.config.version ?? "—"}</span>
-        <span>v{health?.app_version ?? "—"}</span>
-        {health && health.config.warnings > 0 ? <span>{health.config.warnings} config warning(s)</span> : null}
+        <span>config {health.data?.config.version ?? "—"}</span>
+        <span>v{health.data?.app_version ?? "—"}</span>
+        <span>
+          {providers.length} provider{providers.length === 1 ? "" : "s"}
+          {unhealthy > 0 ? <span className="footer__warn"> · {unhealthy} failing</span> : null}
+        </span>
+        {health.data && health.data.config.warnings > 0 ? <span>{health.data.config.warnings} config warning(s)</span> : null}
+        {health.error ? <span className="footer__warn">api: {health.error}</span> : null}
       </footer>
     </div>
   );

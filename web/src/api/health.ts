@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-// Mirrors hud/api/health.py. Keep the two in step by hand until Phase 1 generates types.
+// Mirrors hud/api/health.py. Kept in step by hand.
+import type { ProviderHealth } from "./types";
 
 export interface Health {
   status: "ok" | "degraded";
@@ -16,6 +17,7 @@ export interface Health {
     size_bytes: number;
     revisions: Record<string, string>;
   };
+  providers: ProviderHealth[];
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<Health> {

@@ -176,3 +176,20 @@ def test_boards_endpoints(client: TestClient) -> None:
     assert w["all"]["state"] == "down" and w["all"]["data"]["total"] == 2
     assert w["later"]["error"] == "widget type 'uptime' arrives in Phase 2"
     assert client.get("/api/v1/boards/nope").status_code == 404
+
+
+def test_index_carries_frame_src_allowlist(client: TestClient, tmp_path: Path) -> None:
+    config_dir = Path(client.app.state.env.config_dir)  # type: ignore[attr-defined]
+    (config_dir / "boards").mkdir(exist_ok=True)
+    (config_dir / "boards" / "embeds.yaml").write_text(
+        "apiVersion: hud/v1\nkind: Board\nmetadata: {name: embeds}\nspec:\n  widgets:\n"
+        "    - {id: a, type: embed, grid: {col: 1, row: 1}, source: {url: 'https://grafana.lab/d/x'}}\n"
+        "    - {id: b, type: embed, grid: {col: 2, row: 1}, source: {url: 'http://portainer.lab:9000/'}}\n"
+    )
+    client.app.state.config.load()  # type: ignore[attr-defined]
+    r = client.get("/boards/embeds")
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["content-security-policy"] == (
+        "frame-src 'self' http://portainer.lab:9000 https://grafana.lab"
+    )
