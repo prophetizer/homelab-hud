@@ -35,3 +35,4 @@ web/dist/
 
 # Claude Code local session config
 .claude/
+*.tsbuildinfo
