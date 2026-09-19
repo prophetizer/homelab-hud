@@ -176,7 +176,8 @@ def test_missing_env_and_secret_fail_the_build(factory: ProviderFactory, config_
 
 def test_unknown_plugin_lists_available(factory: ProviderFactory, config_dir: Path) -> None:
     doc = plugin_doc(config_dir, ECHO_DOC.replace("plugin: echo", "plugin: nope"))
-    with pytest.raises(ProviderBuildError, match=r"unknown plugin 'nope' \(available: echo\)"):
+    # Packaged plugins (entry points) are listed alongside anything added directly.
+    with pytest.raises(ProviderBuildError, match=r"unknown plugin 'nope' \(available: .*echo"):
         factory(doc, ctx_for(config_dir, "e1", {}))
 
 
@@ -208,7 +209,7 @@ def _dropin(config_dir: Path, name: str, body: str) -> PluginLoader:
 
 async def test_dropin_plugin_loads_from_config_dir(config_dir: Path) -> None:
     loader = _dropin(config_dir, "dropin", DROPIN.format(sdk=""))
-    assert loader.available() == ["dropin"]
+    assert "dropin" in loader.available()
     cls = loader.get("d1", "dropin")
     assert cls.plugin_name == "dropin" and loader.get("d1", "dropin") is cls  # cached
     doc = plugin_doc(

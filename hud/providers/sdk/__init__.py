@@ -141,7 +141,7 @@ __all__ = [
 
 def register(
     name: str, *, config_model: type[PluginConfig], sdk_version: str = SDK_VERSION
-) -> type[PluginProvider] | _Register:
+) -> _Register:
     """Class decorator declaring a plugin: ``@register("docker", config_model=DockerConfig)``.
 
     Registration is recorded on the class; the loader (``hud.providers.sdk.loader``)
@@ -156,7 +156,7 @@ class _Register:
         self.config_model = config_model
         self.sdk_version = sdk_version
 
-    def __call__(self, cls: type[PluginProvider]) -> type[PluginProvider]:
+    def __call__[P: PluginProvider](self, cls: type[P]) -> type[P]:
         # A drop-in author is not bound by our annotations; check at runtime too.
         _require_plugin_subclass(cls)
         cls.plugin_name = self.name

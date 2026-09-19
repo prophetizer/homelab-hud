@@ -1,0 +1,22 @@
+{
+  "read": "2026-09-19T12:00:01.000000000Z",
+  "cpu_stats": {
+    "cpu_usage": {"total_usage": 2600000000},
+    "system_cpu_usage": 84000000000,
+    "online_cpus": 4
+  },
+  "precpu_stats": {
+    "cpu_usage": {"total_usage": 2500000000},
+    "system_cpu_usage": 80000000000,
+    "online_cpus": 4
+  },
+  "memory_stats": {
+    "usage": 268435456,
+    "limit": 2147483648,
+    "stats": {"inactive_file": 67108864, "active_file": 1048576}
+  },
+  "networks": {
+    "eth0": {"rx_bytes": 1000000, "tx_bytes": 500000},
+    "eth1": {"rx_bytes": 1000, "tx_bytes": 2000}
+  }
+}

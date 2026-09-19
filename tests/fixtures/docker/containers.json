@@ -1,0 +1,45 @@
+[
+  {
+    "Id": "8dfafdbc3a40e1b5c1f8a4f5c9e2d3b4a5f6e7d8c9b0a1f2e3d4c5b6a7f8e9d0",
+    "Names": ["/hud"],
+    "Image": "ghcr.io/prophetizer/homelab-hud:edge",
+    "ImageID": "sha256:1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+    "Command": "python -m hud",
+    "Created": 1758240000,
+    "Ports": [{"IP": "0.0.0.0", "PrivatePort": 8080, "PublicPort": 8080, "Type": "tcp"},
+              {"IP": "::", "PrivatePort": 8080, "PublicPort": 8080, "Type": "tcp"}],
+    "Labels": {"com.docker.compose.project": "hud", "com.docker.compose.service": "hud"},
+    "State": "running",
+    "Status": "Up 3 hours (healthy)"
+  },
+  {
+    "Id": "3176a2479c92a4b8c3d5e7f9a1b3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9",
+    "Names": ["/sonarr"],
+    "Image": "lscr.io/linuxserver/sonarr:4.0.9",
+    "Created": 1758100000,
+    "Ports": [{"PrivatePort": 8989, "Type": "tcp"}],
+    "Labels": {},
+    "State": "running",
+    "Status": "Up 2 days (unhealthy)"
+  },
+  {
+    "Id": "4cb07b47f9fb2b8b1a9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6",
+    "Names": ["/backup"],
+    "Image": "restic/restic:0.17.3",
+    "Created": 1758000000,
+    "Ports": [],
+    "Labels": {},
+    "State": "exited",
+    "Status": "Exited (0) 5 hours ago"
+  },
+  {
+    "Id": "5d2f1e0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1",
+    "Names": ["/paused-thing"],
+    "Image": "alpine:3.20",
+    "Created": 1758000000,
+    "Ports": [],
+    "Labels": {},
+    "State": "paused",
+    "Status": "Up 1 hour (Paused)"
+  }
+]

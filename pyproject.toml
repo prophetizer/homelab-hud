@@ -31,6 +31,7 @@ dev = [
 
 # Packaged Tier 2 plugins. Drop-ins live in /config/plugins/<name>/provider.py.
 [project.entry-points."hud.providers"]
+docker = "hud.providers.builtin.docker:DockerProvider"
 
 [build-system]
 requires = ["hatchling"]
