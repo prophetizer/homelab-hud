@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``GET /api/v1/health`` — config version, DB size, uptime (PLAN.md Appendix A).
+"""``GET /api/v1/health`` — config version, provider health, DB size, uptime (App. A).
 
-Provider health joins this payload in Phase 1.
+``status`` describes HUD itself (config and database). A provider that is down shows in
+``providers[]`` and on its tiles; it does not make the container unhealthy.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hud import __version__
+from hud.providers import ProviderHealth
 
 router = APIRouter(tags=["health"])
 
@@ -37,6 +39,7 @@ class Health(BaseModel):
     uptime_seconds: float
     config: ConfigHealth
     db: DbHealth
+    providers: list[ProviderHealth]
 
 
 @router.get("/health", response_model=Health)
@@ -56,4 +59,5 @@ async def health(request: Request) -> Health:
             error=str(error) if error else None,
         ),
         db=DbHealth(size_bytes=state.store_paths.size_bytes(), revisions=state.db_revisions),
+        providers=state.collector.health(),
     )

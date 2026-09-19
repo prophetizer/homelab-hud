@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -15,7 +16,11 @@ from fastapi import FastAPI
 from hud import __version__
 from hud.api import api_v1
 from hud.api.spa import mount_spa
-from hud.config import ConfigError, ConfigManager
+from hud.collector import LiveCache
+from hud.collector.scheduler import Collector
+from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver
+from hud.providers import ProviderContext, ProviderRegistry
+from hud.providers.factory import build_provider
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
 
@@ -56,6 +61,26 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.store_paths = paths
         app.state.engine = create_store_engine(paths)
 
+        # Providers: registry builds instances from config, collector owns their time.
+        secrets = SecretResolver(env.config_dir)
+        environ = dict(os.environ)
+        registry = ProviderRegistry(
+            factory=build_provider,
+            context_factory=lambda name: ProviderContext.create(name, secrets, environ),
+        )
+        cache = LiveCache()
+        collector = Collector(registry, cache)
+        app.state.registry = registry
+        app.state.cache = cache
+        app.state.collector = collector
+        await registry.apply(snap)
+
+        async def reconcile(new_snapshot: ConfigSnapshot) -> None:
+            await registry.apply(new_snapshot)
+
+        config.on_reload(reconcile)
+        collector.start()
+
         async with asyncio.TaskGroup() as tg:
             watcher = tg.create_task(config.watch(), name="config-watcher")
             log.info("HUD %s ready on port %d", __version__, env.port)
@@ -63,6 +88,8 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
                 yield
             finally:
                 watcher.cancel()
+                await collector.stop()
+                await registry.shutdown()
         app.state.engine.dispose()
 
     app = FastAPI(

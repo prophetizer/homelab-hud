@@ -117,3 +117,22 @@ def test_health_degraded_after_bad_reload(tmp_path: Path) -> None:
         assert body["status"] == "degraded"
         assert "settings.yaml:3" in body["config"]["error"]
         assert len(body["config"]["version"]) == 12, "last good version still served"
+
+
+def test_health_lists_providers_and_build_failures(tmp_path: Path) -> None:
+    env = _env(tmp_path)
+    providers = env.config_dir / "providers"
+    providers.mkdir(parents=True)
+    (providers / "broken.yaml").write_text(
+        "apiVersion: hud/v1\nkind: Provider\nmetadata: {name: broken}\nspec:\n"
+        "  transport: {base_url: '${NOT_SET_ANYWHERE}'}\n"
+        "  resources:\n"
+        "    - name: x\n      request: {path: /x}\n"
+        "      map: {uid: 'broken:x:{{ item.n }}', kind: x, name: '{{ item.n }}'}\n"
+    )
+    with TestClient(create_app(env)) as client:
+        body = client.get("/api/v1/health").json()
+        assert body["status"] == "ok"  # HUD itself is fine; the provider is not
+        (p,) = body["providers"]
+        assert p["name"] == "broken" and p["status"] == "error"
+        assert "NOT_SET_ANYWHERE" in p["last_error"]
