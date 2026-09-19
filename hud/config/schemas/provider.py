@@ -283,9 +283,32 @@ class ActionSpec(_Spec):
 # ----------------------------------------------------------------------------- document
 
 
+class Requirement(BaseModel):
+    """One placeholder the user must supply before a template works."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str  # env var name, or secret name for kind: secret
+    kind: Literal["env", "secret"]
+    hint: str
+
+
+class TemplateInfo(BaseModel):
+    """Display metadata a bundled template carries (PLAN.md §8.5.1). Harmless on a
+    hand-written provider; the wizard catalog reads it in Phase 3."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    service: str
+    icon: str | None = None
+    docs: str | None = None
+    requires: list[Requirement] = Field(default_factory=list)
+
+
 class ProviderMetadata(Metadata):
     name: str
     labels: dict[str, str] = Field(default_factory=dict)
+    template: TemplateInfo | None = None
 
     @field_validator("name")
     @classmethod

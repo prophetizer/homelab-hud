@@ -1,0 +1,58 @@
+[
+  {
+    "entity_id": "sensor.living_room_temperature",
+    "state": "21.5",
+    "attributes": {
+      "unit_of_measurement": "°C",
+      "device_class": "temperature",
+      "friendly_name": "Living Room Temperature"
+    },
+    "last_changed": "2026-09-19T10:00:00+00:00",
+    "last_updated": "2026-09-19T10:00:00+00:00",
+    "context": { "id": "01J8ZQ9K8Y6X5W4V3U2T1S0R9Q", "parent_id": null, "user_id": null }
+  },
+  {
+    "entity_id": "sensor.rack_power",
+    "state": "412",
+    "attributes": {
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Rack Power"
+    }
+  },
+  {
+    "entity_id": "sensor.nas_free_space",
+    "state": "1843.2",
+    "attributes": { "unit_of_measurement": "GiB", "friendly_name": "NAS Free Space" }
+  },
+  {
+    "entity_id": "sensor.outdoor_humidity",
+    "state": "unavailable",
+    "attributes": { "unit_of_measurement": "%", "friendly_name": "Outdoor Humidity" }
+  },
+  {
+    "entity_id": "sensor.last_boot",
+    "state": "2026-09-12T04:12:00+00:00",
+    "attributes": { "device_class": "timestamp" }
+  },
+  {
+    "entity_id": "sensor.air_quality_index",
+    "state": "37",
+    "attributes": { "unit_of_measurement": "AQI", "friendly_name": "Air Quality Index" }
+  },
+  {
+    "entity_id": "automation.night_lights",
+    "state": "on",
+    "attributes": { "friendly_name": "Night lights", "last_triggered": "2026-09-18T21:00:00+00:00" }
+  },
+  {
+    "entity_id": "automation.vacation_mode",
+    "state": "off",
+    "attributes": { "friendly_name": "Vacation mode" }
+  },
+  {
+    "entity_id": "light.kitchen",
+    "state": "on",
+    "attributes": { "friendly_name": "Kitchen", "brightness": 200 }
+  }
+]

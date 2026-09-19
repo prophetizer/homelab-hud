@@ -1,0 +1,25 @@
+{
+  "sensors": {
+    "resources": {
+      "home-assistant:sensor:sensor.living_room_temperature": "up",
+      "home-assistant:sensor:sensor.rack_power": "up",
+      "home-assistant:sensor:sensor.nas_free_space": "up",
+      "home-assistant:sensor:sensor.outdoor_humidity": "down",
+      "home-assistant:sensor:sensor.last_boot": "up",
+      "home-assistant:sensor:sensor.air_quality_index": "up"
+    },
+    "metrics": {
+      "home-assistant:sensor:sensor.living_room_temperature/value": [21.5, "celsius"],
+      "home-assistant:sensor:sensor.rack_power/value": [412.0, "watts"],
+      "home-assistant:sensor:sensor.nas_free_space/value": [1979121893376.0, "bytes"],
+      "home-assistant:sensor:sensor.air_quality_index/value": [37.0, "none"]
+    }
+  },
+  "automations": {
+    "resources": {
+      "home-assistant:automation:automation.night_lights": "up",
+      "home-assistant:automation:automation.vacation_mode": "paused"
+    },
+    "metrics": {}
+  }
+}
