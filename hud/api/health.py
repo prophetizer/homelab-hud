@@ -15,6 +15,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hud import __version__
+from hud.api import deps
 from hud.providers import ProviderHealth
 
 router = APIRouter(tags=["health"])
@@ -59,5 +60,5 @@ async def health(request: Request) -> Health:
             error=str(error) if error else None,
         ),
         db=DbHealth(size_bytes=state.store_paths.size_bytes(), revisions=state.db_revisions),
-        providers=state.collector.health(),
+        providers=deps.collector(request).health(),
     )

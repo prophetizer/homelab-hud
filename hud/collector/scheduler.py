@@ -217,6 +217,10 @@ class Collector:
             run.breaker.record_success()
         return {g: await self.run_group(name, g) for g in list(runs.groups)}
 
+    def groups_of(self, name: str) -> list[str]:
+        runs = self._runs.get(name)
+        return list(runs.groups) if runs else []
+
     # ------------------------------------------------------------------ health
 
     def health(self) -> list[ProviderHealth]:
