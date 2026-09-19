@@ -45,6 +45,8 @@ class DeclarativeProvider(Provider):
     def __init__(self, ctx: ProviderContext, doc: ProviderDocument) -> None:
         super().__init__(ctx, doc.metadata.labels)
         self.doc = doc
+        if doc.spec.transport is None:  # the schema guarantees this for Tier 1 documents
+            raise ProviderBuildError(ctx.name, "not a declarative provider (no transport)")
         self._http = build_http_options(ctx, doc.spec.transport)
         self._client: httpx.AsyncClient | None = None
         self._groups: dict[str, _Group] = {}

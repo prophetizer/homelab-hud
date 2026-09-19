@@ -20,7 +20,8 @@ from hud.collector import LiveCache, StoreWriter
 from hud.collector.scheduler import Collector
 from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver
 from hud.providers import ProviderContext, ProviderRegistry
-from hud.providers.factory import build_provider
+from hud.providers.factory import ProviderFactory
+from hud.providers.sdk.loader import PluginLoader
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
 
@@ -65,7 +66,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         secrets = SecretResolver(env.config_dir)
         environ = dict(os.environ)
         registry = ProviderRegistry(
-            factory=build_provider,
+            factory=ProviderFactory(PluginLoader(env.config_dir / "plugins")),
             context_factory=lambda name: ProviderContext.create(name, secrets, environ),
         )
         cache = LiveCache()

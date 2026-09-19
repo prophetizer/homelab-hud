@@ -297,10 +297,31 @@ class ProviderMetadata(Metadata):
 
 
 class ProviderSpec(_Spec):
-    transport: Transport
+    """Either tier, one envelope.
+
+    * Tier 1 (declarative): ``transport`` + ``resources[]``.
+    * Tier 2 (plugin): ``plugin`` (its registered name) + ``config`` (validated by the
+      plugin's own config model at build time; ``${secret:}`` and ``${VAR}`` apply).
+    """
+
+    transport: Transport | None = None
     defaults: Defaults = Defaults()
-    resources: list[ResourceSpec] = Field(min_length=1)
+    resources: list[ResourceSpec] = Field(default_factory=list)
     actions: list[ActionSpec] = Field(default_factory=list)
+    plugin: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def is_plugin(self) -> bool:
+        return self.plugin is not None
+
+    @field_validator("plugin")
+    @classmethod
+    def _plugin_name(cls, v: str | None) -> str | None:
+        if v is not None and not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", v):
+            msg = "plugin name must be lowercase [a-z0-9_-]"
+            raise ValueError(msg)
+        return v
 
     @field_validator("resources")
     @classmethod
@@ -311,6 +332,24 @@ class ProviderSpec(_Spec):
             msg = f"duplicate resource names: {', '.join(dupes)}"
             raise ValueError(msg)
         return v
+
+    @model_validator(mode="after")
+    def _one_tier(self) -> Self:
+        if self.plugin is not None:
+            if self.transport is not None or self.resources:
+                msg = "a plugin provider takes plugin + config; transport/resources are Tier 1"
+                raise ValueError(msg)
+            return self
+        if self.transport is None:
+            msg = "transport is required (or set plugin for a Tier 2 provider)"
+            raise ValueError(msg)
+        if not self.resources:
+            msg = "resources must list at least one entry"
+            raise ValueError(msg)
+        if self.config:
+            msg = "config applies to plugin providers only"
+            raise ValueError(msg)
+        return self
 
 
 class ProviderDocument(Document):
