@@ -9,8 +9,9 @@ without writing YAML, and a **unified shell** for embedded apps.
 > with jitter, timeouts and circuit breakers, a live cache that keeps last-known-good and
 > says so, raw sample/event history in SQLite, and boards with `static`, `resource`,
 > `list`, `metric` and `embed` widgets, and authentication with `local`, `forward` and
-> `oidc` backends behind RBAC enforced at the data layer, and a drag/resize layout
-> editor that writes the YAML back. No reports, no wizard. Nothing below claims otherwise.
+> `oidc` backends behind RBAC enforced at the data layer, a drag/resize layout editor
+> that writes the YAML back, and a workspace pane for embedded apps. No reports, no
+> wizard. Nothing below claims otherwise.
 
 Licensed under [Apache-2.0](LICENSE). No CLA.
 
@@ -220,6 +221,14 @@ spec:
 whose target sends `X-Frame-Options` or a CSP `frame-ancestors` renders an honest card with
 an *Open* button instead of a grey box. `chart`, `uptime`, `report`, `action` and
 `composite` are recognised but render "arrives in Phase N" until that phase.
+
+**Workspace pane.** An `embed` with `display: { open_in: workspace }` is an *app*: it
+appears under **Apps** in the sidebar (for callers who can view its board) and its tile
+becomes a launcher instead of a second copy of the iframe. `/apps/{board}/{widget}` fills
+the main pane with the framed app under the same sandbox and no-referrer rules. If the
+app refuses framing, the pane shows the probe's reason and an *Open* button — or, with
+`fallback: new_tab`, the launcher and sidebar entry skip the pane and open the app
+directly. `GET /api/v1/apps` lists them with their framing verdicts.
 
 **Layout editor.** A caller holding `boards:edit:<name>` sees *Edit layout* on the board
 (on a viewport wide enough for the `lg` grid). Drag and resize, then *Save layout* sends

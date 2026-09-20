@@ -1,20 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
-// Two routes do not justify a router dependency. Path-based so deep links survive a
+// Three routes do not justify a router dependency. Path-based so deep links survive a
 // reload (FastAPI serves index.html for any non-API path).
 import { useEffect, useState } from "react";
 
-export type Route = { kind: "overview" } | { kind: "board"; name: string } | { kind: "missing"; path: string };
+export type Route =
+  | { kind: "overview" }
+  | { kind: "board"; name: string }
+  | { kind: "app"; board: string; widget: string }
+  | { kind: "missing"; path: string };
 
 export function parseRoute(pathname: string): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return { kind: "overview" };
   const m = /^\/boards\/([A-Za-z0-9_-]+)$/.exec(path);
   if (m && m[1] !== undefined) return { kind: "board", name: decodeURIComponent(m[1]) };
+  const a = /^\/apps\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/.exec(path);
+  if (a && a[1] !== undefined && a[2] !== undefined) {
+    return { kind: "app", board: decodeURIComponent(a[1]), widget: decodeURIComponent(a[2]) };
+  }
   return { kind: "missing", path };
 }
 
 export function boardPath(name: string): string {
   return `/boards/${encodeURIComponent(name)}`;
+}
+
+export function appPath(board: string, widget: string): string {
+  return `/apps/${encodeURIComponent(board)}/${encodeURIComponent(widget)}`;
 }
 
 export function navigate(path: string): void {

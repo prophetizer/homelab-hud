@@ -129,3 +129,17 @@ export interface EmbedData {
   fallback: "card" | "new_tab";
   framing: Framing;
 }
+
+/** Mirrors hud/api/apps.py: an embed widget with `open_in: workspace`. */
+export interface App {
+  board: string;
+  board_title: string;
+  widget: string;
+  title: string;
+  url: string;
+  sandbox: "strict" | "relaxed";
+  fallback: "card" | "new_tab";
+  state: State;
+  error: string | null;
+  framing: Framing;
+}

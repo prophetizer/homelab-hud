@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { BoardSummary, Placement, ResolvedBoard } from "./types";
+import type { App, BoardSummary, Placement, ResolvedBoard } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -65,4 +65,12 @@ export function fetchBoard(name: string, signal?: AbortSignal): Promise<Resolved
 /** The layout editor's save. 409 means the file changed underneath; reload and retry. */
 export function patchBoard(name: string, revision: string, widgets: Placement[]): Promise<ResolvedBoard> {
   return sendJson("PATCH", `/api/v1/boards/${encodeURIComponent(name)}`, { revision, widgets });
+}
+
+export function fetchApps(signal?: AbortSignal): Promise<{ apps: App[] }> {
+  return getJson("/api/v1/apps", signal);
+}
+
+export function fetchApp(board: string, widget: string, signal?: AbortSignal): Promise<App> {
+  return getJson(`/api/v1/apps/${encodeURIComponent(board)}/${encodeURIComponent(widget)}`, signal);
 }

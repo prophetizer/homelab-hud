@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { fetchBoards } from "./api/client";
+import { fetchApps, fetchBoards } from "./api/client";
 import { fetchHealth } from "./api/health";
 import type { Me } from "./api/auth";
 import { BoardView } from "./components/Board";
 import { Login } from "./components/Login";
 import { Overview } from "./components/Overview";
 import { Sidebar } from "./components/Sidebar";
+import { Workspace } from "./components/Workspace";
 import { usePoll } from "./hooks/usePoll";
 import { useSession } from "./hooks/useSession";
 import { useRoute } from "./router";
@@ -35,17 +36,27 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   // Keyed on the subject so a different sign-in restarts every poll from scratch.
   const health = usePoll(`health:${me.subject}`, fetchHealth, HEALTH_MS);
   const boards = usePoll(`boards:${me.subject}`, fetchBoards, BOARDS_MS);
+  const apps = usePoll(`apps:${me.subject}`, fetchApps, BOARDS_MS);
   const providers = health.data?.providers ?? [];
   const unhealthy = providers.filter((p) => p.status === "degraded" || p.status === "error").length;
 
   return (
     <div className="shell">
-      <Sidebar boards={boards.data?.boards ?? null} boardsError={boards.error} route={route} me={me} onSignOut={onSignOut} />
-      <main className="main">
+      <Sidebar
+        boards={boards.data?.boards ?? null}
+        boardsError={boards.error}
+        apps={apps.data?.apps ?? null}
+        route={route}
+        me={me}
+        onSignOut={onSignOut}
+      />
+      <main className={route.kind === "app" ? "main main--workspace" : "main"}>
         {route.kind === "overview" ? (
           <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />
         ) : route.kind === "board" ? (
           <BoardView name={route.name} me={me} />
+        ) : route.kind === "app" ? (
+          <Workspace board={route.board} widget={route.widget} />
         ) : (
           <div className="board-status" role="alert">
             Nothing at {route.path}.

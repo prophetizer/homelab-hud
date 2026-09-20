@@ -84,7 +84,7 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
           : { gridColumn: `span ${span}`, gridRow: `span ${w.grid.h}` };
         return (
           <div key={w.id} className="board__cell" style={cell}>
-            <Widget widget={w} />
+            <Widget widget={w} board={board.name} />
           </div>
         );
       })}

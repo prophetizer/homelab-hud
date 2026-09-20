@@ -7,7 +7,7 @@ import { ResourceWidget } from "./widgets/ResourceWidget";
 import { StaticWidget } from "./widgets/StaticWidget";
 import { UnsupportedWidget } from "./widgets/UnsupportedWidget";
 
-export function Widget({ widget }: { widget: ResolvedWidget }) {
+export function Widget({ widget, board }: { widget: ResolvedWidget; board?: string | undefined }) {
   switch (widget.type) {
     case "static":
       return <StaticWidget widget={widget} />;
@@ -18,7 +18,7 @@ export function Widget({ widget }: { widget: ResolvedWidget }) {
     case "metric":
       return <MetricWidget widget={widget} />;
     case "embed":
-      return <EmbedWidget widget={widget} />;
+      return <EmbedWidget widget={widget} board={board} />;
     default:
       return <UnsupportedWidget widget={widget} />;
   }
