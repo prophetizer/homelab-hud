@@ -3,6 +3,9 @@
 
 Everything is served from the live cache: current state, ``stale`` flag and the group's
 last error alongside, so a caller can always tell fresh from last-known-good.
+
+Scope: a caller without ``resources:view`` sees only the uids its visible boards expose
+(PLAN.md §10.2 — the resources behind a hidden board never enter a response).
 """
 
 from __future__ import annotations
@@ -49,6 +52,7 @@ async def list_resources(
     state: Annotated[list[State] | None, Query()] = None,
     label: Annotated[list[str] | None, Query(description="key:value, all must match")] = None,
 ) -> ResourceList:
+    p = await deps.principal(request)
     cache = deps.cache(request)
     flt = ResourceFilter(
         provider=provider,
@@ -56,15 +60,19 @@ async def list_resources(
         state=state,
         labels=parse_labels(label) if label else None,
     )
-    items = sorted(cache.resources(flt), key=lambda r: (r.provider, r.kind, r.name))
+    allowed = deps.visible_uids(request, p)
+    items = [r for r in cache.resources(flt) if allowed is None or r.uid in allowed]
+    items.sort(key=lambda r: (r.provider, r.kind, r.name))
     return ResourceList(generation=cache.generation, resources=items)
 
 
 @router.get("/resources/{uid:path}", response_model=ResourceDetail)
 async def get_resource(request: Request, uid: str) -> ResourceDetail:
+    p = await deps.principal(request)
     cache = deps.cache(request)
     resource = cache.resource(uid)
-    if resource is None:
+    allowed = deps.visible_uids(request, p)
+    if resource is None or (allowed is not None and uid not in allowed):
         raise HTTPException(status_code=404, detail=f"no resource {uid!r}")
     error = None
     if resource.stale:

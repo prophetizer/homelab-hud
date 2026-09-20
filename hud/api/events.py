@@ -31,7 +31,9 @@ async def list_events(
     provider: Annotated[list[str] | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 100,
 ) -> EventList:
+    caller = await deps.principal(request)
     cache = deps.cache(request)
+    allowed = deps.visible_uids(request, caller)
     out: list[Event] = []
     prefixes = tuple(f"{p}:" for p in provider) if provider else None
     # Over-fetch from the ring, then filter: filters are cheap and the ring is bounded.
@@ -39,6 +41,8 @@ async def list_events(
         if severity is not None and e.severity not in severity:
             continue
         if prefixes is not None and not e.resource_uid.startswith(prefixes):
+            continue
+        if allowed is not None and e.resource_uid not in allowed:
             continue
         out.append(e)
         if len(out) >= limit:

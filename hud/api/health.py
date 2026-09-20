@@ -33,9 +33,14 @@ class DbHealth(BaseModel):
     revisions: dict[str, str]
 
 
-class Health(BaseModel):
+class PublicHealth(BaseModel):
+    """What the container healthcheck and an anonymous caller get: liveness, nothing else."""
+
     status: Literal["ok", "degraded"]
     app_version: str
+
+
+class Health(PublicHealth):
     started_at: datetime
     uptime_seconds: float
     config: ConfigHealth
@@ -43,13 +48,17 @@ class Health(BaseModel):
     providers: list[ProviderHealth]
 
 
-@router.get("/health", response_model=Health)
-async def health(request: Request) -> Health:
+@router.get("/health", response_model=Health | PublicHealth)
+async def health(request: Request) -> Health | PublicHealth:
     state = request.app.state
     snap = state.config.snapshot
     error = state.config.last_error
+    status: Literal["ok", "degraded"] = "degraded" if error else "ok"
+    caller = await deps.optional_principal(request)
+    if caller is None or not caller.has("providers:view"):
+        return PublicHealth(status=status, app_version=__version__)
     return Health(
-        status="degraded" if error else "ok",
+        status=status,
         app_version=__version__,
         started_at=state.started_at,
         uptime_seconds=round(time.monotonic() - state.started_monotonic, 3),

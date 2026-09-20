@@ -10,6 +10,7 @@ import respx
 from fastapi.testclient import TestClient
 
 from hud.main import create_app
+from tests.conftest import sign_in_admin
 from tests.test_api_health import _env
 
 DEMO = """\
@@ -56,6 +57,7 @@ def client(tmp_path: Path, mock: respx.MockRouter) -> Iterator[TestClient]:
     (env.config_dir / "providers").mkdir(parents=True)
     (env.config_dir / "providers" / "demo.yaml").write_text(DEMO)
     with TestClient(create_app(env)) as c:
+        sign_in_admin(c)
         # Deterministic: reload polls synchronously, whatever the scheduler is doing.
         r = c.post("/api/v1/providers/demo/reload")
         assert r.status_code == 200, r.text

@@ -8,6 +8,8 @@ the response already reflects the new state.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
@@ -28,11 +30,13 @@ class ReloadResult(BaseModel):
 
 @router.get("/providers", response_model=ProviderList)
 async def list_providers(request: Request) -> ProviderList:
+    await deps.require(request, "providers:view")
     return ProviderList(providers=deps.collector(request).health())
 
 
 @router.get("/providers/{name}", response_model=ProviderHealth)
 async def get_provider(request: Request, name: str) -> ProviderHealth:
+    await deps.require(request, "providers:view")
     health = deps.collector(request).provider_health(name)
     if health is None:
         raise HTTPException(status_code=404, detail=f"no provider {name!r}")
@@ -41,6 +45,10 @@ async def get_provider(request: Request, name: str) -> ProviderHealth:
 
 @router.post("/providers/{name}/reload", response_model=ReloadResult)
 async def reload_provider(request: Request, name: str) -> ReloadResult:
+    actor = await deps.require(request, "providers:reload")
+    await asyncio.to_thread(
+        deps.auth(request).store.audit, actor.subject, "providers.reload", name, "ok"
+    )
     coll = deps.collector(request)
     if not await deps.registry(request).rebuild(name, deps.config(request).snapshot):
         failed = coll.provider_health(name)

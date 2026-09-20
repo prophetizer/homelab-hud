@@ -12,10 +12,13 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from fastapi import FastAPI
+from sqlalchemy import Engine
 
 from hud import __version__
 from hud.api import api_v1
+from hud.api.auth import auth_error_response
 from hud.api.spa import mount_spa
+from hud.auth import AuthError, Authorizer, AuthService
 from hud.collector import LiveCache, StoreWriter
 from hud.collector.scheduler import Collector
 from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver
@@ -37,6 +40,30 @@ def configure_logging(level: str) -> None:
     )
 
 
+def _load_config(env: HudEnv) -> tuple[ConfigManager, ConfigSnapshot]:
+    config = ConfigManager(env.config_dir, poll_interval=env.config_poll_interval)
+    config.bootstrap()
+    try:
+        snap = config.load()
+    except ConfigError as exc:
+        # Refuse to start. Each line is file:line:col: message.
+        log.error("configuration is invalid; refusing to start:\n%s", exc)
+        raise
+    log.info("config loaded from %s, version %s", env.config_dir, snap.version)
+    return config, snap
+
+
+async def _start_auth(engine: Engine, secrets: SecretResolver, snap: ConfigSnapshot) -> AuthService:
+    auth = AuthService(engine, secrets, snap.settings.spec.auth, Authorizer(snap.rbac.spec))
+    log.info("auth backends: %s", ", ".join(snap.settings.spec.auth.backends))
+    if await auth.setup_required():
+        log.warning("no local account exists yet; open the UI to create the admin account")
+    purged = await auth.purge_expired()
+    if purged:
+        log.info("purged %d expired sessions", purged)
+    return auth
+
+
 def create_app(env: HudEnv | None = None) -> FastAPI:
     env = env or HudEnv()
     configure_logging(env.log_level)
@@ -47,15 +74,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.started_at = datetime.now(UTC)
         app.state.started_monotonic = time.monotonic()
 
-        config = ConfigManager(env.config_dir, poll_interval=env.config_poll_interval)
-        config.bootstrap()
-        try:
-            snap = config.load()
-        except ConfigError as exc:
-            # Refuse to start. Each line is file:line:col: message.
-            log.error("configuration is invalid; refusing to start:\n%s", exc)
-            raise
-        log.info("config loaded from %s, version %s", env.config_dir, snap.version)
+        config, snap = _load_config(env)
         app.state.config = config
 
         paths = StorePaths(env.data_dir)
@@ -78,9 +97,12 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.collector = collector
         app.state.writer = writer
         app.state.widgets = WidgetEngine(cache, app.state.engine)
+        auth = await _start_auth(app.state.engine, secrets, snap)
+        app.state.auth = auth
         await registry.apply(snap)
 
         async def reconcile(new_snapshot: ConfigSnapshot) -> None:
+            await auth.apply(new_snapshot)
             await registry.apply(new_snapshot)
 
         config.on_reload(reconcile)
@@ -106,6 +128,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         redoc_url=None,
     )
     app.include_router(api_v1)
+    app.add_exception_handler(AuthError, lambda _req, exc: auth_error_response(exc))
     mount_spa(app, env.static_dir)
     return app
 

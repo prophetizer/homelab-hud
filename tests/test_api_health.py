@@ -9,6 +9,7 @@ from hud import __version__
 from hud.config import ConfigError
 from hud.main import create_app
 from hud.settings import HudEnv
+from tests.conftest import ADMIN, sign_in_admin
 
 
 def _env(tmp_path: Path, static: bool = True) -> HudEnv:
@@ -31,7 +32,10 @@ def test_empty_config_boots_and_health_reports(tmp_path: Path) -> None:
     with TestClient(create_app(env)) as client:
         r = client.get("/api/v1/health")
         assert r.status_code == 200
-        body = r.json()
+        # Anonymous (the container healthcheck) gets liveness only.
+        assert r.json() == {"status": "ok", "app_version": __version__}
+        sign_in_admin(client)
+        body = client.get("/api/v1/health").json()
         assert body["status"] == "ok"
         assert body["app_version"] == __version__
         assert len(body["config"]["version"]) == 12
@@ -43,6 +47,7 @@ def test_empty_config_boots_and_health_reports(tmp_path: Path) -> None:
         }
         assert body["uptime_seconds"] >= 0
     assert (env.config_dir / "settings.yaml").exists(), "bootstrap must write settings.yaml"
+    assert (env.config_dir / "rbac.yaml").exists(), "bootstrap must write rbac.yaml"
     assert (env.data_dir / "dashboard.db").exists()
     assert (env.data_dir / "metrics.db").exists()
 
@@ -50,11 +55,17 @@ def test_empty_config_boots_and_health_reports(tmp_path: Path) -> None:
 def test_restart_preserves_state_and_config_version(tmp_path: Path) -> None:
     env = _env(tmp_path)
     with TestClient(create_app(env)) as client:
+        sign_in_admin(client)
         first = client.get("/api/v1/health").json()
     (env.config_dir / "settings.yaml").write_text(
         (env.config_dir / "settings.yaml").read_text().replace("theme: dark", "theme: light")
     )
     with TestClient(create_app(env)) as client:
+        # The admin account persisted; the session cookie carries over on this client.
+        r = client.post(
+            "/api/v1/auth/login", json={"username": "admin", "password": ADMIN["password"]}
+        )
+        assert r.status_code == 200, r.text
         second = client.get("/api/v1/health").json()
     assert second["config"]["version"] != first["config"]["version"]
     assert second["db"]["revisions"] == first["db"]["revisions"]
@@ -109,6 +120,7 @@ def test_unbuilt_frontend_degrades_loudly(tmp_path: Path) -> None:
 def test_health_degraded_after_bad_reload(tmp_path: Path) -> None:
     env = _env(tmp_path)
     with TestClient(create_app(env)) as client:
+        sign_in_admin(client)
         (env.config_dir / "settings.yaml").write_text(
             "kind: Settings\napiVersion: hud/v1\nspec: 3\n"
         )
@@ -131,6 +143,7 @@ def test_health_lists_providers_and_build_failures(tmp_path: Path) -> None:
         "      map: {uid: 'broken:x:{{ item.n }}', kind: x, name: '{{ item.n }}'}\n"
     )
     with TestClient(create_app(env)) as client:
+        sign_in_admin(client)
         body = client.get("/api/v1/health").json()
         assert body["status"] == "ok"  # HUD itself is fine; the provider is not
         (p,) = body["providers"]

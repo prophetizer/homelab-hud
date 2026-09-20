@@ -95,6 +95,24 @@ class WidgetEngine:
             unsupported=len(doc.unsupported_widgets),
         )
 
+    def referenced_uids(self, doc: BoardDocument) -> set[str]:
+        """Every resource uid a board would show right now. Used by RBAC to scope the
+        ``/resources`` and ``/events`` APIs to what the caller's boards expose."""
+        uids: set[str] = set()
+        for w in doc.spec.widgets:
+            if isinstance(w, ResourceWidget | MetricWidget):
+                uids.add(w.source.resource)
+            elif isinstance(w, ListWidget):
+                sel = w.source.select
+                flt = ResourceFilter(
+                    provider=_as_list(sel.provider),
+                    kind=_as_list(sel.kind),
+                    state=_as_list(sel.state),
+                    labels=sel.label,
+                )
+                uids.update(r.uid for r in self.cache.resources(flt))
+        return uids
+
     async def resolve_board(self, doc: BoardDocument, now: datetime) -> ResolvedBoard:
         widgets = await asyncio.gather(*(self.resolve(w, now) for w in doc.spec.widgets))
         return ResolvedBoard(
