@@ -74,7 +74,7 @@ def test_unknown_kind(manager: ConfigManager, config_dir: Path) -> None:
     (issue,) = ei.value.issues
     assert issue.file.name == "x.yaml"
     assert issue.line == 2
-    assert "unsupported kind 'Report' (known: Board, Provider, Settings)" in issue.message
+    assert "unsupported kind 'Report' (known: Board, Provider, RBAC, Settings)" in issue.message
 
 
 def test_unknown_spec_key_warns_but_loads(manager: ConfigManager, config_dir: Path) -> None:

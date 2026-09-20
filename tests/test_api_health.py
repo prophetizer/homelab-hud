@@ -38,7 +38,7 @@ def test_empty_config_boots_and_health_reports(tmp_path: Path) -> None:
         assert body["config"]["error"] is None
         assert body["db"]["size_bytes"] > 0
         assert body["db"]["revisions"] == {
-            "dashboard": "0001_baseline",
+            "dashboard": "0002_sessions",
             "metrics": "0001_baseline",
         }
         assert body["uptime_seconds"] >= 0

@@ -9,7 +9,7 @@ from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.store.tables import availability, dashboard_metadata, metrics_metadata, users
 
 METRICS_TABLES = {"series", "samples", "rollups", "availability", "events"}
-DASHBOARD_TABLES = {"users", "user_prefs", "audit_log"}
+DASHBOARD_TABLES = {"users", "user_prefs", "sessions", "audit_log"}
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def engine(paths: StorePaths) -> Engine:
 
 def test_upgrade_creates_both_files_at_head(paths: StorePaths) -> None:
     result = upgrade_all(paths)
-    assert result == {"dashboard": "0001_baseline", "metrics": "0001_baseline"}
+    assert result == {"dashboard": "0002_sessions", "metrics": "0001_baseline"}
     assert paths.dashboard_db.exists()
     assert paths.metrics_db.exists()
     assert not paths.backups_dir.exists(), "fresh files must not trigger a pre-migration backup"

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``kind`` → document schema. Report and RBAC arrive with the phases that implement them."""
+"""``kind`` → document schema. Report arrives with the phase that implements it."""
 
 from hud.config.schemas.base import API_VERSION, Document, Metadata
 from hud.config.schemas.board import (
@@ -14,8 +14,10 @@ from hud.config.schemas.board import (
     Widget,
 )
 from hud.config.schemas.provider import ProviderDocument, ProviderSpec, ResourceSpec
+from hud.config.schemas.rbac import DEFAULT_RBAC_YAML, RbacDocument, RbacSpec
 from hud.config.schemas.settings import (
     DEFAULT_SETTINGS_YAML,
+    AuthSettings,
     Retention,
     SettingsDocument,
     SettingsSpec,
@@ -26,12 +28,15 @@ KIND_SCHEMAS: dict[str, type[Document]] = {
     "Settings": SettingsDocument,
     "Provider": ProviderDocument,
     "Board": BoardDocument,
+    "RBAC": RbacDocument,
 }
 
 __all__ = [
     "API_VERSION",
+    "DEFAULT_RBAC_YAML",
     "DEFAULT_SETTINGS_YAML",
     "KIND_SCHEMAS",
+    "AuthSettings",
     "BoardDocument",
     "BoardSpec",
     "Document",
@@ -41,6 +46,8 @@ __all__ = [
     "MetricWidget",
     "ProviderDocument",
     "ProviderSpec",
+    "RbacDocument",
+    "RbacSpec",
     "ResourceSpec",
     "ResourceWidget",
     "Retention",

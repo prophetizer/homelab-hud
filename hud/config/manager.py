@@ -25,13 +25,21 @@ from ruamel.yaml.comments import CommentedMap
 
 from hud.config.errors import ConfigError, ConfigIssue
 from hud.config.loader import load_yaml, parse_yaml, unknown_keys, validate
-from hud.config.schemas import DEFAULT_SETTINGS_YAML, KIND_SCHEMAS, Document, SettingsDocument
+from hud.config.schemas import (
+    DEFAULT_RBAC_YAML,
+    DEFAULT_SETTINGS_YAML,
+    KIND_SCHEMAS,
+    Document,
+    RbacDocument,
+    SettingsDocument,
+)
 from hud.config.secrets import SECRETS_FILE_NAME, scan_literal_secrets
 from hud.config.writer import IndentStyle, atomic_write_text, dump_yaml, has_explicit_start
 
 log = logging.getLogger(__name__)
 
 SETTINGS_FILE = "settings.yaml"
+RBAC_FILE = "rbac.yaml"
 
 # Where documents live (PLAN.md §11.2). secrets.yaml is deliberately absent: it is read by
 # SecretResolver only and never validated as a document or written back.
@@ -43,6 +51,10 @@ DOCUMENT_GLOBS: tuple[str, ...] = (
 )
 
 ReloadHook = Callable[["ConfigSnapshot"], Awaitable[None]]
+
+_DEFAULT_RBAC = validate(
+    parse_yaml(DEFAULT_RBAC_YAML, Path(RBAC_FILE)), RbacDocument, Path(RBAC_FILE)
+)
 
 
 @dataclass(frozen=True)
@@ -67,6 +79,14 @@ class ConfigSnapshot:
                 return d.model
         msg = "snapshot has no Settings document"  # load() guarantees one exists
         raise RuntimeError(msg)
+
+    @property
+    def rbac(self) -> RbacDocument:
+        """The RBAC document, or the bundled default when ``/config`` has none."""
+        for d in self.documents:
+            if isinstance(d.model, RbacDocument):
+                return d.model
+        return _DEFAULT_RBAC
 
 
 Signature = dict[Path, tuple[int, int]]
@@ -102,14 +122,21 @@ class ConfigManager:
     # ------------------------------------------------------------------ bootstrap / load
 
     def bootstrap(self) -> bool:
-        """Create ``settings.yaml`` if the config dir has none. Returns True if written."""
+        """Create ``settings.yaml`` and ``rbac.yaml`` if the config dir lacks them (PLAN.md
+        §14.2: an empty ``/config`` must boot). Returns True if anything was written."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
-        target = self.config_dir / SETTINGS_FILE
-        if target.exists():
-            return False
-        atomic_write_text(target, DEFAULT_SETTINGS_YAML)
-        log.info("wrote %s (config directory had no settings)", target)
-        return True
+        written = False
+        for name, text, why in (
+            (SETTINGS_FILE, DEFAULT_SETTINGS_YAML, "config directory had no settings"),
+            (RBAC_FILE, DEFAULT_RBAC_YAML, "config directory had no RBAC document"),
+        ):
+            target = self.config_dir / name
+            if target.exists():
+                continue
+            atomic_write_text(target, text)
+            log.info("wrote %s (%s)", target, why)
+            written = True
+        return written
 
     def document_paths(self) -> list[Path]:
         seen: set[Path] = set()
@@ -150,6 +177,12 @@ class ConfigManager:
             issues.extend(
                 ConfigIssue(d.path, "more than one Settings document; keep only settings.yaml")
                 for d in settings_docs[1:]
+            )
+        rbac_docs = [d for d in docs if isinstance(d.model, RbacDocument)]
+        if len(rbac_docs) > 1:
+            issues.extend(
+                ConfigIssue(d.path, "more than one RBAC document; keep only rbac.yaml")
+                for d in rbac_docs[1:]
             )
         if issues:
             raise ConfigError(issues)

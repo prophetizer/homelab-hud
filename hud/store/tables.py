@@ -121,6 +121,21 @@ user_prefs = Table(
     PrimaryKeyConstraint("user_id", "key"),
 )
 
+sessions = Table(
+    "sessions",
+    dashboard_metadata,
+    # Only a SHA-256 of the cookie value is stored: reading the database must not yield a
+    # usable session.
+    Column("token_hash", Text, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("csrf_token", Text, nullable=False),
+    Column("created_at", Integer, nullable=False),
+    Column("expires_at", Integer, nullable=False),
+    Column("last_seen", Integer, nullable=False),
+    Index("ix_sessions_user", "user_id"),
+    Index("ix_sessions_expires", "expires_at"),
+)
+
 audit_log = Table(
     "audit_log",
     dashboard_metadata,
