@@ -17,6 +17,8 @@ dependencies = [
     "jinja2==3.1.6",
     "jsonpath-ng==1.8.0",
     "apscheduler==3.11.3",
+    "argon2-cffi==25.1.0",
+    "authlib==1.8.0",
 ]
 
 [dependency-groups]
@@ -64,9 +66,10 @@ warn_unreachable = true
 files = ["hud"]
 
 [[tool.mypy.overrides]]
-# Neither ships stubs or py.typed. jsonpath-ng is used only behind
-# providers/declarative/select.py, apscheduler only behind collector/scheduler.py.
-module = ["jsonpath_ng.*", "apscheduler.*"]
+# None ship stubs or py.typed. jsonpath-ng is used only behind
+# providers/declarative/select.py, apscheduler only behind collector/scheduler.py,
+# authlib only behind auth/backends/oidc.py.
+module = ["jsonpath_ng.*", "apscheduler.*", "authlib.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
