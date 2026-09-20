@@ -5,19 +5,21 @@ import type { ProviderHealth } from "./types";
 export interface Health {
   status: "ok" | "degraded";
   app_version: string;
-  started_at: string;
-  uptime_seconds: number;
-  config: {
+  // Everything below needs `providers:view`; anonymous and unprivileged callers get
+  // liveness only (hud/api/health.py PublicHealth).
+  started_at?: string;
+  uptime_seconds?: number;
+  config?: {
     version: string;
     loaded_at: string;
     warnings: number;
     error: string | null;
   };
-  db: {
+  db?: {
     size_bytes: number;
     revisions: Record<string, string>;
   };
-  providers: ProviderHealth[];
+  providers?: ProviderHealth[];
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<Health> {

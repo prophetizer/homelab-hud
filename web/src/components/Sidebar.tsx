@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import type { Me } from "../api/auth";
 import type { BoardSummary } from "../api/types";
 import { boardPath, onLinkClick, type Route } from "../router";
 
@@ -6,9 +7,11 @@ interface Props {
   boards: BoardSummary[] | null;
   boardsError: string | null;
   route: Route;
+  me: Me;
+  onSignOut: () => void;
 }
 
-export function Sidebar({ boards, boardsError, route }: Props) {
+export function Sidebar({ boards, boardsError, route, me, onSignOut }: Props) {
   const current = (kind: Route["kind"], name?: string) =>
     route.kind === kind && (kind !== "board" || (route.kind === "board" && route.name === name))
       ? "page"
@@ -40,6 +43,16 @@ export function Sidebar({ boards, boardsError, route }: Props) {
           </p>
         ) : null}
       </nav>
+      <div className="sidebar__account">
+        <span className="sidebar__user" title={`${me.subject} via ${me.source}`}>
+          {me.display_name}
+        </span>
+        {me.source === "forward" ? null : (
+          <button className="sidebar__signout" type="button" onClick={onSignOut}>
+            Sign out
+          </button>
+        )}
+      </div>
     </aside>
   );
 }

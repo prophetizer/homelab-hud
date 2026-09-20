@@ -437,3 +437,119 @@ a {
 .list__field[data-state="degraded"] {
   color: var(--status-degraded);
 }
+
+/* ---------------------------------------------------------------- sign-in gate */
+
+.gate {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.gate__card {
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.gate__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.gate__hint {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.gate__label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.gate__optional {
+  color: var(--fg-faint);
+}
+
+.gate__input {
+  padding: var(--space-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.gate__input:focus {
+  outline: 2px solid var(--status-paused);
+  outline-offset: -1px;
+}
+
+.gate__error {
+  margin: 0;
+  color: var(--status-down);
+}
+
+.gate__link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--fg-muted);
+  background: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.button--primary {
+  font: inherit;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: center;
+}
+
+.button--primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- sidebar account */
+
+.sidebar__account {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: var(--border-w) solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.sidebar__user {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__signout {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--fg-muted);
+  background: none;
+  text-decoration: underline;
+  cursor: pointer;
+}

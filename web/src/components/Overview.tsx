@@ -28,15 +28,15 @@ export function Overview({ health, error, fetchedAt }: Props) {
         state={state}
         rows={[
           ["Version", health?.app_version ?? "—"],
-          ["Uptime", health ? formatUptime(health.uptime_seconds) : "—"],
-          ["Config", health?.config.version ?? "—"],
-          ["Database", health ? formatBytes(health.db.size_bytes) : "—"],
-          ["Providers", health ? String(health.providers.length) : "—"],
+          ["Uptime", health?.uptime_seconds !== undefined ? formatUptime(health.uptime_seconds) : "—"],
+          ["Config", health?.config?.version ?? "—"],
+          ["Database", health?.db ? formatBytes(health.db.size_bytes) : "—"],
+          ["Providers", health?.providers ? String(health.providers.length) : "—"],
           ["Fetched", fetchedAt ? fetchedAt.toLocaleTimeString() : "—"],
         ]}
-        error={error ?? health?.config.error ?? undefined}
+        error={error ?? health?.config?.error ?? undefined}
       />
-      {health?.providers.map((p) => (
+      {health?.providers?.map((p) => (
         <Tile
           key={p.name}
           title={p.name}
@@ -52,8 +52,11 @@ export function Overview({ health, error, fetchedAt }: Props) {
           error={p.last_error ?? undefined}
         />
       ))}
-      {health && health.providers.length === 0 ? (
+      {health?.providers && health.providers.length === 0 ? (
         <p className="board-status">No providers configured. Add one under /config/providers/.</p>
+      ) : null}
+      {health && !health.providers ? (
+        <p className="board-status">Provider health needs the <code>providers:view</code> permission.</p>
       ) : null}
     </div>
   );
