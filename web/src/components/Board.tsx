@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
+import { type Me, hasPermission } from "../api/auth";
 import { fetchBoard } from "../api/client";
 import { formatAge } from "../api/format";
 import type { ResolvedBoard } from "../api/types";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
+import { LayoutEditor } from "./LayoutEditor";
 import { Widget } from "./Widget";
 
 const POLL_MS = 10_000;
 
-export function BoardView({ name }: { name: string }) {
-  const { data, error, fetchedAt } = usePoll(`board:${name}`, (signal) => fetchBoard(name, signal), POLL_MS);
+export function BoardView({ name, me }: { name: string; me: Me }) {
+  const { data, error, fetchedAt, refresh, accept } = usePoll(
+    `board:${name}`,
+    (signal) => fetchBoard(name, signal),
+    POLL_MS,
+  );
+  const [editing, setEditing] = useState(false);
+  const { placed } = useColumns(data?.layout ?? { columns: { sm: 1, md: 2, lg: 4 }, gap: 12 });
   if (!data) {
     return (
       <div className="board-status" role={error ? "alert" : undefined}>
@@ -18,6 +26,9 @@ export function BoardView({ name }: { name: string }) {
       </div>
     );
   }
+  // Editing is on the lg grid only: on narrower viewports the board reflows and a drag
+  // would not mean what it looks like.
+  const canEdit = placed && hasPermission(me, `boards:edit:${name}`);
   return (
     <>
       <header className="board__header">
@@ -25,9 +36,33 @@ export function BoardView({ name }: { name: string }) {
         <span className="board__meta">
           {error ? <span className="board__error">refresh failed: {error} · </span> : null}
           updated {formatAge(fetchedAt?.toISOString() ?? null)}
+          {canEdit && !editing ? (
+            <>
+              {" · "}
+              <button className="board__edit" type="button" onClick={() => setEditing(true)}>
+                Edit layout
+              </button>
+            </>
+          ) : null}
         </span>
       </header>
-      <BoardGrid board={data} />
+      {editing ? (
+        <LayoutEditor
+          key={data.revision}
+          board={data}
+          onSaved={(fresh) => {
+            accept(fresh);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+          onReload={() => {
+            refresh();
+            setEditing(false);
+          }}
+        />
+      ) : (
+        <BoardGrid board={data} />
+      )}
     </>
   );
 }

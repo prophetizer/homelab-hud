@@ -60,8 +60,14 @@ export interface ResolvedBoard {
   icon: string | null;
   layout: Layout;
   generation: number;
+  revision: string; // of the board's YAML file; PATCH must present it
   resolved_at: string;
   widgets: ResolvedWidget[];
+}
+
+export interface Placement {
+  id: string;
+  grid: Grid;
 }
 
 export interface BoardSummary {

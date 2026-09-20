@@ -45,7 +45,7 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
         {route.kind === "overview" ? (
           <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />
         ) : route.kind === "board" ? (
-          <BoardView name={route.name} />
+          <BoardView name={route.name} me={me} />
         ) : (
           <div className="board-status" role="alert">
             Nothing at {route.path}.

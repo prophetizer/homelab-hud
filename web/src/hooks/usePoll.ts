@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface Polled<T> {
   data: T | null;
   error: string | null;
   fetchedAt: Date | null;
+  /** Fetch now, outside the schedule (after a write, or when the user asks). */
+  refresh: () => void;
+  /** Replace the payload with one obtained elsewhere, e.g. a write's response. */
+  accept: (data: T) => void;
 }
 
 /**
@@ -17,7 +21,9 @@ export function usePoll<T>(
   load: (signal: AbortSignal) => Promise<T>,
   intervalMs: number,
 ): Polled<T> {
-  const [state, setState] = useState<Polled<T>>({ data: null, error: null, fetchedAt: null });
+  type Inner = Omit<Polled<T>, "refresh" | "accept">;
+  const [state, setState] = useState<Inner>({ data: null, error: null, fetchedAt: null });
+  const tickRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -25,6 +31,7 @@ export function usePoll<T>(
     setState({ data: null, error: null, fetchedAt: null });
 
     const tick = async () => {
+      if (timer !== undefined) clearTimeout(timer);
       try {
         const data = await load(ctrl.signal);
         if (ctrl.signal.aborted) return;
@@ -35,6 +42,7 @@ export function usePoll<T>(
       }
       if (!ctrl.signal.aborted) timer = setTimeout(tick, intervalMs);
     };
+    tickRef.current = () => void tick();
     void tick();
 
     return () => {
@@ -45,5 +53,7 @@ export function usePoll<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, intervalMs]);
 
-  return state;
+  const refresh = useCallback(() => tickRef.current(), []);
+  const accept = useCallback((data: T) => setState({ data, error: null, fetchedAt: new Date() }), []);
+  return { ...state, refresh, accept };
 }

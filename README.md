@@ -9,8 +9,8 @@ without writing YAML, and a **unified shell** for embedded apps.
 > with jitter, timeouts and circuit breakers, a live cache that keeps last-known-good and
 > says so, raw sample/event history in SQLite, and boards with `static`, `resource`,
 > `list`, `metric` and `embed` widgets, and authentication with `local`, `forward` and
-> `oidc` backends behind RBAC enforced at the data layer. No layout editor yet, no
-> reports, no wizard. Nothing below claims otherwise.
+> `oidc` backends behind RBAC enforced at the data layer, and a drag/resize layout
+> editor that writes the YAML back. No reports, no wizard. Nothing below claims otherwise.
 
 Licensed under [Apache-2.0](LICENSE). No CLA.
 
@@ -220,6 +220,17 @@ spec:
 whose target sends `X-Frame-Options` or a CSP `frame-ancestors` renders an honest card with
 an *Open* button instead of a grey box. `chart`, `uptime`, `report`, `action` and
 `composite` are recognised but render "arrives in Phase N" until that phase.
+
+**Layout editor.** A caller holding `boards:edit:<name>` sees *Edit layout* on the board
+(on a viewport wide enough for the `lg` grid). Drag and resize, then *Save layout* sends
+`PATCH /api/v1/boards/{name}` with only the widgets that moved, keyed by widget id, plus
+the file revision the board was loaded at. The write goes through the round-trip editor:
+comments, key order and anchors survive, untouched widgets are byte-identical, and `w`/`h`
+are only written when they were already present or are not the default. If the file
+changed on disk since the board was loaded — a hand edit, another tab — the save is
+refused with 409 and nothing is written; reload and try again. Every save writes an
+`audit_log` row. One known normalisation: ruamel writes flow mappings compact, so
+`{ col: 1 }` comes back as `{col: 1}` the first time a file is saved.
 
 ## Develop
 
