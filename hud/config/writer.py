@@ -14,7 +14,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from hud.config.loader import new_yaml
 
@@ -69,9 +69,19 @@ def dump_yaml(
     yaml.explicit_start = explicit_start
     style = indent or IndentStyle()
     yaml.indent(mapping=style.mapping, sequence=style.sequence, offset=style.offset)
+    _keep_anchors(doc)
     buf = io.StringIO()
     yaml.dump(doc, buf)
     return buf.getvalue()
+
+
+def _keep_anchors(node: object) -> None:
+    """ruamel drops an anchor nothing aliases; the user wrote it, so it stays (PLAN §8.3)."""
+    if isinstance(node, CommentedMap | CommentedSeq):
+        if node.anchor.value:
+            node.anchor.always_dump = True
+        for child in node.values() if isinstance(node, CommentedMap) else node:
+            _keep_anchors(child)
 
 
 def has_explicit_start(text: str) -> bool:

@@ -63,6 +63,19 @@ class LoadedDocument:
     doc: CommentedMap
     model: Document
     explicit_start: bool
+    revision: str = ""  # 12 hex chars of sha256 over this file's bytes; the edit precondition
+
+
+def document_revision(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
+class ConfigConflictError(Exception):
+    """An edit's precondition failed: the file on disk is not the revision the caller saw."""
+
+    def __init__(self, path: Path, expected: str, actual: str) -> None:
+        self.path, self.expected, self.actual = path, expected, actual
+        super().__init__(f"{path.name} is at revision {actual}, not {expected}; reload and retry")
 
 
 @dataclass(frozen=True)
@@ -167,7 +180,9 @@ class ConfigManager:
             hasher.update(b"\0")
             hasher.update(text.encode("utf-8"))
             hasher.update(b"\0")
-            docs.append(LoadedDocument(path, doc, loaded, has_explicit_start(text)))
+            docs.append(
+                LoadedDocument(path, doc, loaded, has_explicit_start(text), document_revision(text))
+            )
             warnings.extend(warns)
 
         settings_docs = [d for d in docs if isinstance(d.model, SettingsDocument)]
@@ -254,18 +269,28 @@ class ConfigManager:
 
     # ------------------------------------------------------------------ write-back
 
-    def edit(self, relative_path: str, mutate: Callable[[CommentedMap], None]) -> ConfigSnapshot:
+    def edit(
+        self,
+        relative_path: str,
+        mutate: Callable[[CommentedMap], None],
+        *,
+        expected_revision: str | None = None,
+    ) -> ConfigSnapshot:
         """Round-trip edit: load fresh from disk, ``mutate(doc)``, validate, write atomically.
 
         The mutation receives the live ruamel mapping, so comments, anchors and key order
         outside the touched region are preserved byte-for-byte. The write is refused (and
         nothing touched) if the result would fail validation or contain a literal secret.
+        With ``expected_revision`` the write is also refused when the file on disk is no
+        longer the revision the caller loaded — a hand edit in the meantime wins.
         """
         path = self.config_dir / relative_path
         if path.name == SECRETS_FILE_NAME:
             msg = "secrets.yaml is never written through the config manager"
             raise ValueError(msg)
         text = path.read_text(encoding="utf-8") if path.exists() else ""
+        if expected_revision is not None and document_revision(text) != expected_revision:
+            raise ConfigConflictError(path, expected_revision, document_revision(text))
         doc = parse_yaml(text, path) if text.strip() else CommentedMap()
         mutate(doc)
         self._validate_document(path, doc)
@@ -274,6 +299,26 @@ class ConfigManager:
         )
         atomic_write_text(path, rendered)
         return self.load()
+
+    async def edit_async(
+        self,
+        relative_path: str,
+        mutate: Callable[[CommentedMap], None],
+        *,
+        expected_revision: str | None = None,
+    ) -> ConfigSnapshot:
+        """:meth:`edit` under the reload lock and off the event loop, then the reload hooks,
+        so an API write behaves exactly like a file change the watcher noticed."""
+        async with self._lock:
+            snapshot = await asyncio.to_thread(
+                self.edit, relative_path, mutate, expected_revision=expected_revision
+            )
+        for hook in self._hooks:
+            try:
+                await hook(snapshot)
+            except Exception:
+                log.exception("reload hook %r failed", hook)
+        return snapshot
 
     def iter_documents(self, kind: str) -> Iterator[LoadedDocument]:
         return (d for d in self.snapshot.documents if d.model.kind == kind)
@@ -290,4 +335,11 @@ def _signature_of(paths: list[Path]) -> Signature:
     return sig
 
 
-__all__ = ["ConfigManager", "ConfigSnapshot", "LoadedDocument", "load_yaml"]
+__all__ = [
+    "ConfigConflictError",
+    "ConfigManager",
+    "ConfigSnapshot",
+    "LoadedDocument",
+    "document_revision",
+    "load_yaml",
+]

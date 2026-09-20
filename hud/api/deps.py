@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from hud.auth import AuthService, Principal
     from hud.collector import LiveCache
     from hud.collector.scheduler import Collector
-    from hud.config import ConfigManager
+    from hud.config import ConfigManager, LoadedDocument
     from hud.providers import ProviderRegistry
     from hud.widgets import WidgetEngine
 
@@ -67,12 +67,16 @@ async def require(request: Request, *permissions: str) -> Principal:
     return p
 
 
-def visible_boards(request: Request, p: Principal) -> list[BoardDocument]:
-    docs = [d.model for d in config(request).snapshot.documents]
-    boards = [d for d in docs if isinstance(d, BoardDocument)]
-    boards.sort(key=lambda d: d.metadata.name)
+def visible_board_files(request: Request, p: Principal) -> list[LoadedDocument]:
+    """Board documents the caller may view, with their file path and revision."""
+    loaded = [d for d in config(request).snapshot.documents if isinstance(d.model, BoardDocument)]
+    loaded.sort(key=lambda d: cast("BoardDocument", d.model).metadata.name)
     authz = auth(request).authorizer
-    return [b for b in boards if authz.can_view_board(p, b)]
+    return [d for d in loaded if authz.can_view_board(p, cast("BoardDocument", d.model))]
+
+
+def visible_boards(request: Request, p: Principal) -> list[BoardDocument]:
+    return [cast("BoardDocument", d.model) for d in visible_board_files(request, p)]
 
 
 def visible_uids(request: Request, p: Principal) -> set[str] | None:

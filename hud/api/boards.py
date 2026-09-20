@@ -1,18 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
-"""``GET /api/v1/boards`` and ``GET /api/v1/boards/{name}`` (PLAN.md Appendix A).
+"""``/api/v1/boards`` — list, resolve, and the layout editor's write path (Appendix A).
 
 A board the caller cannot view never enters a response: the list omits it and the detail
-route answers 404, not 403, so its existence is not disclosed (PLAN.md §10.2).
+route answers 404, not 403, so its existence is not disclosed (PLAN.md §10.2). Editing
+needs ``boards:edit:<name>`` on top of visibility.
+
+``PATCH`` carries widget placements keyed by widget id, not a positional JSON Patch: ids
+are stable across hand edits, array indices are not. The write goes through the
+round-trip editor (§8.3) so comments and key order survive, and it is refused with 409
+when the file on disk is no longer the revision the client loaded.
 """
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from ruamel.yaml.comments import CommentedMap
 
 from hud.api import deps
+from hud.auth import Principal
+from hud.config import ConfigConflictError, ConfigError, LoadedDocument
+from hud.config.schemas import BoardDocument
+from hud.config.schemas.board import Grid
 from hud.widgets import BoardSummary, ResolvedBoard
 
 router = APIRouter(tags=["boards"])
@@ -20,6 +32,26 @@ router = APIRouter(tags=["boards"])
 
 class BoardList(BaseModel):
     boards: list[BoardSummary]
+
+
+class Placement(BaseModel):
+    id: str
+    grid: Grid
+
+
+class BoardPatch(BaseModel):
+    revision: str = Field(min_length=12, max_length=12)
+    widgets: list[Placement] = Field(min_length=1)
+
+
+def _find(request: Request, p: Principal, name: str) -> LoadedDocument | None:
+    files = deps.visible_board_files(request, p)
+    return next((d for d in files if _model(d).metadata.name == name), None)
+
+
+def _model(d: LoadedDocument) -> BoardDocument:
+    assert isinstance(d.model, BoardDocument)
+    return d.model
 
 
 @router.get("/boards", response_model=BoardList)
@@ -32,7 +64,84 @@ async def list_boards(request: Request) -> BoardList:
 @router.get("/boards/{name}", response_model=ResolvedBoard)
 async def get_board(request: Request, name: str) -> ResolvedBoard:
     p = await deps.principal(request)
-    for doc in deps.visible_boards(request, p):
-        if doc.metadata.name == name:
-            return await deps.widgets(request).resolve_board(doc, datetime.now(UTC))
-    raise HTTPException(status_code=404, detail=f"no board {name!r}")
+    found = _find(request, p, name)
+    if found is None:
+        raise HTTPException(status_code=404, detail=f"no board {name!r}")
+    return await deps.widgets(request).resolve_board(
+        _model(found), datetime.now(UTC), revision=found.revision
+    )
+
+
+@router.patch(
+    "/boards/{name}",
+    response_model=ResolvedBoard,
+    responses={
+        409: {"description": "board changed since it was loaded; X-Board-Revision is current"}
+    },
+)
+async def patch_board(request: Request, name: str, body: BoardPatch) -> ResolvedBoard:
+    p = await deps.principal(request)
+    found = _find(request, p, name)
+    if found is None:
+        raise HTTPException(status_code=404, detail=f"no board {name!r}")
+    board = _model(found)
+    if not deps.auth(request).authorizer.can_edit_board(p, board):
+        raise HTTPException(status_code=403, detail=f"requires boards:edit:{name}")
+    known = {w.id for w in board.spec.widgets}
+    unknown = sorted({pl.id for pl in body.widgets} - known)
+    if unknown:
+        raise HTTPException(status_code=422, detail=f"no such widget(s): {', '.join(unknown)}")
+    ids = [pl.id for pl in body.widgets]
+    if len(set(ids)) != len(ids):
+        raise HTTPException(status_code=422, detail="a widget id is listed twice")
+
+    config = deps.config(request)
+    relative = str(found.path.relative_to(config.config_dir))
+    placements = {pl.id: pl.grid for pl in body.widgets}
+    try:
+        await config.edit_async(
+            relative, lambda doc: _apply(doc, placements), expected_revision=body.revision
+        )
+    except ConfigConflictError as exc:
+        # Someone edited the file (by hand, or in another tab) after this client loaded it.
+        raise HTTPException(
+            status_code=409, detail=str(exc), headers={"X-Board-Revision": exc.actual}
+        ) from exc
+    except ConfigError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    store = deps.auth(request).store
+    await asyncio.to_thread(
+        store.audit, p.subject, "boards.layout", name, "ok", {"widgets": sorted(placements)}
+    )
+    fresh = _find(request, p, name)
+    assert fresh is not None  # we just wrote it; visibility is unchanged by a grid edit
+    return await deps.widgets(request).resolve_board(
+        _model(fresh), datetime.now(UTC), revision=fresh.revision
+    )
+
+
+def _apply(doc: CommentedMap, placements: dict[str, Grid]) -> None:
+    """Set ``grid`` on each addressed widget in place. Existing ``grid`` mappings keep
+    their style (flow or block); ``w``/``h`` are written only when they are not the
+    default or were already present, so a minimal file stays minimal."""
+    spec = doc.get("spec")
+    widgets = spec.get("widgets") if isinstance(spec, CommentedMap) else None
+    if not widgets:
+        return
+    for entry in widgets:
+        if not isinstance(entry, CommentedMap):
+            continue
+        grid = placements.get(entry.get("id"))
+        if grid is None:
+            continue
+        target = entry.get("grid")
+        if not isinstance(target, CommentedMap):
+            target = CommentedMap()
+            target.fa.set_flow_style()
+            entry["grid"] = target
+        target["col"] = grid.col
+        target["row"] = grid.row
+        for key, value in (("w", grid.w), ("h", grid.h)):
+            if key in target or value != 1:
+                target[key] = value

@@ -61,6 +61,7 @@ class ResolvedBoard(BaseModel):
     icon: str | None
     layout: Layout
     generation: int
+    revision: str  # of the board's YAML file; PATCH must present it (optimistic concurrency)
     resolved_at: datetime
     widgets: list[ResolvedWidget]
 
@@ -113,7 +114,9 @@ class WidgetEngine:
                 uids.update(r.uid for r in self.cache.resources(flt))
         return uids
 
-    async def resolve_board(self, doc: BoardDocument, now: datetime) -> ResolvedBoard:
+    async def resolve_board(
+        self, doc: BoardDocument, now: datetime, *, revision: str = ""
+    ) -> ResolvedBoard:
         widgets = await asyncio.gather(*(self.resolve(w, now) for w in doc.spec.widgets))
         return ResolvedBoard(
             name=doc.metadata.name,
@@ -121,6 +124,7 @@ class WidgetEngine:
             icon=doc.metadata.icon,
             layout=doc.spec.layout,
             generation=self.cache.generation,
+            revision=revision,
             resolved_at=now,
             widgets=list(widgets),
         )
