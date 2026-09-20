@@ -3,6 +3,7 @@
 
 from fastapi import APIRouter, Depends
 
+from hud.api.apps import router as apps_router
 from hud.api.auth import router as auth_router
 from hud.api.boards import router as boards_router
 from hud.api.events import router as events_router
@@ -18,5 +19,6 @@ api_v1.include_router(resources_router)
 api_v1.include_router(events_router)
 api_v1.include_router(providers_router)
 api_v1.include_router(boards_router)
+api_v1.include_router(apps_router)
 
 __all__ = ["api_v1"]
