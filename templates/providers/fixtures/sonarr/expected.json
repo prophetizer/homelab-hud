@@ -1,7 +1,7 @@
 {
   "service": {
     "resources": {
-      "sonarr:service:Sonarr": "up"
+      "sonarr:service:main": "up"
     },
     "metrics": {}
   },

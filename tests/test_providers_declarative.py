@@ -354,3 +354,55 @@ async def test_cursor_pagination(config_dir: Path) -> None:
         await p.shutdown()
     assert [r.name for r in result.resources] == ["a", "b", "c"]
     assert route.call_count == 3
+
+
+SINGLETON_DOC = """\
+apiVersion: hud/v1
+kind: Provider
+metadata: { name: demo }
+spec:
+  transport: { base_url: http://demo.lab }
+  defaults: { interval: 1h, jitter: 0s }
+  resources:
+    - name: service
+      request: { path: /status }
+      map:
+        uid: "demo:service:main"
+        kind: service
+        name: "{{ item.appName }}"
+        state: up
+"""
+
+
+@respx.mock
+async def test_singleton_literal_uid_maps_one_resource(config_dir: Path) -> None:
+    """A single-object endpoint keys on a literal: there is no item field to use, and a
+    constant is the most stable id available (invariant 8)."""
+    respx.get("http://demo.lab/status").mock(
+        return_value=httpx.Response(200, json={"appName": "Demo", "version": "1.2.3"})
+    )
+    p = build_declarative(load_doc(config_dir, SINGLETON_DOC), make_ctx(config_dir, "demo", {}))
+    await p.startup()
+    try:
+        result = await p.poll("service")
+    finally:
+        await p.shutdown()
+    (resource,) = result.resources
+    assert resource.uid == "demo:service:main" and resource.name == "Demo"
+
+
+@respx.mock
+async def test_literal_uid_over_a_list_collapses_and_is_refused(config_dir: Path) -> None:
+    """The one risk a constant native id carries: every item collapsing onto one uid. The
+    duplicate-uid guard catches it per poll, which is why the schema may allow literals."""
+    respx.get("http://demo.lab/status").mock(
+        return_value=httpx.Response(200, json=[{"appName": "One"}, {"appName": "Two"}])
+    )
+    p = build_declarative(load_doc(config_dir, SINGLETON_DOC), make_ctx(config_dir, "demo", {}))
+    await p.startup()
+    try:
+        result = await p.poll("service")
+        # The first item maps; the second is refused rather than silently overwriting it.
+        assert [r.name for r in result.resources] == ["One"]
+    finally:
+        await p.shutdown()

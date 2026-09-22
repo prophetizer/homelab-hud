@@ -42,6 +42,10 @@ VOLATILE_UID_FIELDS: frozenset[str] = frozenset(
 )
 
 _ITEM_REF = re.compile(r"item((?:\.[A-Za-z_][A-Za-z0-9_]*|\[['\"][^'\"]+['\"]\])+)")
+# A native id with no item reference is a singleton id; it must be a plain token, and must
+# not be a Jinja expression that merely happens to reference nothing from the item.
+_EXPR_MARKER = re.compile(r"\{\{|\{%")
+_LITERAL_NATIVE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-/]*")
 _LAST_SEG = re.compile(r"(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[['\"]([^'\"]+)['\"]\])$")
 
 
@@ -390,6 +394,25 @@ class ProviderDocument(Document):
         return self
 
 
+def _check_singleton_native_id(native: str) -> str | None:
+    """A native id that references no item field belongs to a *singleton* resource — the
+    service itself, from a single-object endpoint. A literal is the most stable id
+    available, so it is accepted; the volatility rule guards the opposite failure, and the
+    one risk a constant carries (every item of a list collapsing onto one uid) is caught
+    per poll by the declarative engine's duplicate-uid check."""
+    if _EXPR_MARKER.search(native):
+        return (
+            "native id is computed but references no item field; use a literal for a "
+            "singleton resource, or {{ item.<field> }} for one resource per item"
+        )
+    if not _LITERAL_NATIVE_ID.fullmatch(native):
+        return (
+            f"literal native id {native!r} must be [A-Za-z0-9] with ._-/ inside "
+            "(it is a singleton id, e.g. 'main')"
+        )
+    return None
+
+
 def check_uid_template(provider: str, kind: str, template: str) -> str | None:
     """Return a problem description, or None when the template is acceptable."""
     prefix = f"{provider}:{kind}:"
@@ -400,7 +423,7 @@ def check_uid_template(provider: str, kind: str, template: str) -> str | None:
         return "native id part is empty"
     refs = _ITEM_REF.findall(native)
     if not refs:
-        return "native id must reference an item field, e.g. {{ item.name }}"
+        return _check_singleton_native_id(native)
     m = _LAST_SEG.search(refs[-1])
     last = (m.group(1) or m.group(2)) if m else None
     if last in VOLATILE_UID_FIELDS:

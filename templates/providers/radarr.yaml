@@ -38,11 +38,8 @@ spec:
       request: { method: GET, path: /api/v3/system/status }
       interval: 5m
       map:
-        # appName is the constant "Radarr", so this is a stable singleton id.
-        # It reads oddly because a uid's native part must reference an item field today;
-        # a literal ("radarr:service:main", what the sonarr plugin uses) is the natural
-        # spelling and is an open question before the dashboard/v1 freeze.
-        uid:   "radarr:service:{{ item.appName }}"
+        # Singleton: one Radarr per provider, so the native id is a literal.
+        uid:   "radarr:service:main"
         kind:  service
         name:  "{{ item.instanceName | default('Radarr') }}"
         state: up
@@ -68,7 +65,7 @@ spec:
           {{ 'down' if item.type == 'error'
                else 'degraded' if item.type == 'warning'
                else 'up' }}
-        parent_uid: "radarr:service:Radarr"
+        parent_uid: "radarr:service:main"
         attrs:
           message:  "{{ item.message }}"
           severity: "{{ item.type }}"
@@ -94,7 +91,7 @@ spec:
                else 'degraded' if item.status in ['warning', 'delay', 'downloadClientUnavailable']
                                   or item.trackedDownloadStatus == 'warning'
                else 'up' }}
-        parent_uid: "radarr:service:Radarr"
+        parent_uid: "radarr:service:main"
         attrs:
           status:          "{{ item.status }}"
           tracked_state:   "{{ item.trackedDownloadState }}"
@@ -120,7 +117,7 @@ spec:
         kind:  storage
         name:  "{{ item.label | default(item.path) }}"
         state: up
-        parent_uid: "radarr:service:Radarr"
+        parent_uid: "radarr:service:main"
         attrs:
           path: "{{ item.path }}"
       metrics:

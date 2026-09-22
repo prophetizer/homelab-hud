@@ -130,7 +130,12 @@ def test_uid_from_volatile_field_refused(manager: ConfigManager, config_dir: Pat
         ("demo:thing:{{ item.id }}", "volatile"),
         ("demo:thing:{{ item.ImageID }}", "volatile"),
         ("demo:thing:{{ item.meta.digest }}", "volatile"),
-        ("demo:thing:static", "must reference an item field"),
+        # A singleton resource (one service, one status endpoint) keys on a literal.
+        ("demo:thing:main", None),
+        ("demo:thing:node-1/root", None),
+        ("demo:thing:has space", "literal native id"),
+        ("demo:thing:-leading-dash", "literal native id"),
+        ("demo:thing:{{ 1 + 1 }}", "references no item field"),
         ("demo:thing:", "empty"),
         ("demo:other:{{ item.name }}", "must start with"),
     ],
