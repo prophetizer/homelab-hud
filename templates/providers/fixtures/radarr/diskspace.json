@@ -1,0 +1,16 @@
+[
+  {
+    "id": 0,
+    "path": "/media/movies",
+    "label": "media",
+    "freeSpace": 2748779069440,
+    "totalSpace": 15994356301824
+  },
+  {
+    "id": 0,
+    "path": "/config",
+    "label": "",
+    "freeSpace": 48318382080,
+    "totalSpace": 107374182400
+  }
+]

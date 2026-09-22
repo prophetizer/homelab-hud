@@ -1,0 +1,148 @@
+{
+  "page": 1,
+  "pageSize": 50,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 3,
+  "records": [
+    {
+      "id": 101,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 12884901888.0,
+      "title": "Arrival.2016.1080p.BluRay.x264",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 4294967296.0,
+      "timeleft": "00:23:14",
+      "movieId": 42,
+      "movie": {
+        "id": 42,
+        "title": "Arrival",
+        "year": 2016
+      }
+    },
+    {
+      "id": 102,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 34359738368.0,
+      "title": "Dune.Part.Two.2024.2160p.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "completed",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importPending",
+      "statusMessages": [
+        {
+          "title": "Dune.Part.Two.2024.2160p.WEB-DL",
+          "messages": [
+            "Found matching movie via grab history, but release was matched to movie by ID."
+          ]
+        }
+      ],
+      "errorMessage": "",
+      "downloadId": "7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 0.0,
+      "timeleft": "00:23:14",
+      "movieId": 77,
+      "movie": {
+        "id": 77,
+        "title": "Dune: Part Two",
+        "year": 2024
+      }
+    },
+    {
+      "id": 103,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 8589934592.0,
+      "title": "Heat.1995.1080p.Remux",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "paused",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 8589934592.0,
+      "timeleft": "00:23:14",
+      "movieId": 13,
+      "movie": {
+        "id": 13,
+        "title": "Heat",
+        "year": 1995
+      }
+    }
+  ]
+}

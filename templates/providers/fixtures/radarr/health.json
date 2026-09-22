@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "source": "IndexerStatusCheck",
+    "type": "warning",
+    "message": "Indexers unavailable due to failures for more than 6 hours: Nyaa",
+    "wikiUrl": "https://wiki.servarr.com/useful-tools#indexers-are-unavailable-due-to-failures"
+  },
+  {
+    "id": 2,
+    "source": "ImportListStatusCheck",
+    "type": "ok",
+    "message": "All import lists are functioning normally",
+    "wikiUrl": ""
+  },
+  {
+    "id": 3,
+    "source": "RootFolderCheck",
+    "type": "error",
+    "message": "Missing root folder: /media/archive",
+    "wikiUrl": "https://wiki.servarr.com/radarr/system#missing-root-folder"
+  },
+  {
+    "id": 4,
+    "source": "UpdateCheck",
+    "type": "notice",
+    "message": "New update is available",
+    "wikiUrl": ""
+  }
+]

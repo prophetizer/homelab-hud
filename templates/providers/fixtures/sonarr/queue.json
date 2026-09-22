@@ -1,0 +1,168 @@
+{
+  "page": 1,
+  "pageSize": 50,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 3,
+  "records": [
+    {
+      "id": 101,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 3221225472.0,
+      "title": "The.Expanse.S06E01.1080p.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 1073741824.0,
+      "timeleft": "00:23:14",
+      "seriesId": 5,
+      "episodeId": 611,
+      "seasonNumber": 6,
+      "series": {
+        "id": 5,
+        "title": "The Expanse",
+        "year": 2015
+      },
+      "episode": {
+        "id": 611,
+        "title": "Strange Dogs",
+        "seasonNumber": 6,
+        "episodeNumber": 1
+      },
+      "episodeHasFile": false
+    },
+    {
+      "id": 102,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 6442450944.0,
+      "title": "Severance.S02E03.2160p.ATVP.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "warning",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importBlocked",
+      "statusMessages": [],
+      "errorMessage": "Found matching series via grab history, but release was matched to series by ID.",
+      "downloadId": "7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 0.0,
+      "timeleft": "00:23:14",
+      "seriesId": 9,
+      "episodeId": 902,
+      "seasonNumber": 2,
+      "series": {
+        "id": 9,
+        "title": "Severance",
+        "year": 2022
+      },
+      "episode": {
+        "id": 902,
+        "title": "Who Is Alive?",
+        "seasonNumber": 2,
+        "episodeNumber": 3
+      },
+      "episodeHasFile": false
+    },
+    {
+      "id": 103,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 4294967296.0,
+      "title": "Andor.S02E05.1080p.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "failed",
+      "trackedDownloadStatus": "error",
+      "trackedDownloadState": "failedPending",
+      "statusMessages": [],
+      "errorMessage": "The download client reported an error",
+      "downloadId": "7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 2147483648.0,
+      "timeleft": "00:23:14",
+      "seriesId": 11,
+      "episodeId": 1105,
+      "seasonNumber": 2,
+      "series": {
+        "id": 11,
+        "title": "Andor",
+        "year": 2022
+      },
+      "episode": {
+        "id": 1105,
+        "title": "I Have Friends Everywhere",
+        "seasonNumber": 2,
+        "episodeNumber": 5
+      },
+      "episodeHasFile": false
+    }
+  ]
+}

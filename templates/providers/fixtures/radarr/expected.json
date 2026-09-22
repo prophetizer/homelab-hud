@@ -1,0 +1,94 @@
+{
+  "service": {
+    "resources": {
+      "radarr:service:Radarr": "up"
+    },
+    "metrics": {}
+  },
+  "health": {
+    "resources": {
+      "radarr:health_check:IndexerStatusCheck": "degraded",
+      "radarr:health_check:ImportListStatusCheck": "up",
+      "radarr:health_check:RootFolderCheck": "down",
+      "radarr:health_check:UpdateCheck": "up"
+    },
+    "metrics": {}
+  },
+  "queue": {
+    "resources": {
+      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1": "up",
+      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2": "degraded",
+      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3": "paused"
+    },
+    "metrics": {
+      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/size_bytes": [
+        12884901888.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/remaining_bytes": [
+        4294967296.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/progress_pct": [
+        66.66666666666666,
+        "pct"
+      ],
+      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/size_bytes": [
+        34359738368.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/remaining_bytes": [
+        0.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/progress_pct": [
+        100.0,
+        "pct"
+      ],
+      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/size_bytes": [
+        8589934592.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/remaining_bytes": [
+        8589934592.0,
+        "bytes"
+      ],
+      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/progress_pct": [
+        0.0,
+        "pct"
+      ]
+    }
+  },
+  "diskspace": {
+    "resources": {
+      "radarr:storage:/media/movies": "up",
+      "radarr:storage:/config": "up"
+    },
+    "metrics": {
+      "radarr:storage:/media/movies/free_bytes": [
+        2748779069440.0,
+        "bytes"
+      ],
+      "radarr:storage:/media/movies/total_bytes": [
+        15994356301824.0,
+        "bytes"
+      ],
+      "radarr:storage:/media/movies/used_pct": [
+        82.81406880296565,
+        "pct"
+      ],
+      "radarr:storage:/config/free_bytes": [
+        48318382080.0,
+        "bytes"
+      ],
+      "radarr:storage:/config/total_bytes": [
+        107374182400.0,
+        "bytes"
+      ],
+      "radarr:storage:/config/used_pct": [
+        55.00000000000001,
+        "pct"
+      ]
+    }
+  }
+}

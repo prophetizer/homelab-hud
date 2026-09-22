@@ -1,0 +1,94 @@
+{
+  "service": {
+    "resources": {
+      "sonarr:service:Sonarr": "up"
+    },
+    "metrics": {}
+  },
+  "health": {
+    "resources": {
+      "sonarr:health_check:IndexerStatusCheck": "degraded",
+      "sonarr:health_check:ImportListStatusCheck": "up",
+      "sonarr:health_check:RootFolderCheck": "down",
+      "sonarr:health_check:UpdateCheck": "up"
+    },
+    "metrics": {}
+  },
+  "queue": {
+    "resources": {
+      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1": "up",
+      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2": "degraded",
+      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3": "down"
+    },
+    "metrics": {
+      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/size_bytes": [
+        3221225472.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/remaining_bytes": [
+        1073741824.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/progress_pct": [
+        66.66666666666666,
+        "pct"
+      ],
+      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/size_bytes": [
+        6442450944.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/remaining_bytes": [
+        0.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/progress_pct": [
+        100.0,
+        "pct"
+      ],
+      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/size_bytes": [
+        4294967296.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/remaining_bytes": [
+        2147483648.0,
+        "bytes"
+      ],
+      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/progress_pct": [
+        50.0,
+        "pct"
+      ]
+    }
+  },
+  "diskspace": {
+    "resources": {
+      "sonarr:storage:/media/tv": "up",
+      "sonarr:storage:/config": "up"
+    },
+    "metrics": {
+      "sonarr:storage:/media/tv/free_bytes": [
+        2748779069440.0,
+        "bytes"
+      ],
+      "sonarr:storage:/media/tv/total_bytes": [
+        15994356301824.0,
+        "bytes"
+      ],
+      "sonarr:storage:/media/tv/used_pct": [
+        82.81406880296565,
+        "pct"
+      ],
+      "sonarr:storage:/config/free_bytes": [
+        48318382080.0,
+        "bytes"
+      ],
+      "sonarr:storage:/config/total_bytes": [
+        107374182400.0,
+        "bytes"
+      ],
+      "sonarr:storage:/config/used_pct": [
+        55.00000000000001,
+        "pct"
+      ]
+    }
+  }
+}

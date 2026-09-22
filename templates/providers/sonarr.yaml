@@ -1,0 +1,133 @@
+# Sonarr — service health, download queue and disk space over the v3 REST API.
+#
+# Copy to /config/providers/sonarr.yaml, then supply:
+#   SONARR_BASE_URL                  e.g. http://sonarr.lab:8989 (environment)
+#   ${secret:sonarr_api_key}         Settings → General → API Key
+#     → /run/secrets/sonarr_api_key, HUD_SECRET_SONARR_API_KEY, or secrets.yaml
+#
+# Mapped from the vendor's published OpenAPI document (see metadata.template.docs); every
+# field used here is in Sonarr's v3 contract.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: sonarr
+  labels: { category: media }
+  template:
+    service: Sonarr
+    icon: mdi:television-classic
+    docs: https://sonarr.tv/docs/api/
+    requires:
+      - { name: SONARR_BASE_URL, kind: env, hint: "Base URL of your Sonarr instance" }
+      - { name: sonarr_api_key, kind: secret, hint: "API key from Settings → General" }
+spec:
+  transport:
+    base_url: ${SONARR_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:sonarr_api_key}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The service itself. One resource; reaching /system/status at all means it is up,
+    # and a failed poll degrades the tile through the collector, not through a state here.
+    - name: service
+      request: { method: GET, path: /api/v3/system/status }
+      interval: 5m
+      map:
+        # appName is the constant "Sonarr", so this is a stable singleton id.
+        # It reads oddly because a uid's native part must reference an item field today;
+        # a literal ("sonarr:service:main", what the sonarr plugin uses) is the natural
+        # spelling and is an open question before the dashboard/v1 freeze.
+        uid:   "sonarr:service:{{ item.appName }}"
+        kind:  service
+        name:  "{{ item.instanceName | default('Sonarr') }}"
+        state: up
+        attrs:
+          version:  "{{ item.version }}"
+          branch:   "{{ item.branch }}"
+          os:       "{{ item.osName }}"
+          docker:   "{{ item.isDocker }}"
+          url_base: "{{ item.urlBase }}"
+        links:
+          ui: "${SONARR_BASE_URL}/activity/queue"
+
+    # Health checks. `source` is the check's class name — stable, so it is a safe uid.
+    # notice is informational and stays `up`; warning degrades, error is down.
+    - name: health
+      request: { method: GET, path: /api/v3/health }
+      interval: 5m
+      map:
+        uid:   "sonarr:health_check:{{ item.source }}"
+        kind:  health_check
+        name:  "{{ item.source }}"
+        state: >-
+          {{ 'down' if item.type == 'error'
+               else 'degraded' if item.type == 'warning'
+               else 'up' }}
+        parent_uid: "sonarr:service:Sonarr"
+        attrs:
+          message:  "{{ item.message }}"
+          severity: "{{ item.type }}"
+        links:
+          wiki: "{{ item.wikiUrl }}"
+
+    # Active downloads. `downloadId` is the download client's own id for the item: stable
+    # for the life of the download, unlike the queue row's `id`.
+    - name: queue
+      request:
+        method: GET
+        path: /api/v3/queue
+        params: { pageSize: "50", includeUnknownItems: "true" }
+      select: "$.records[*]"
+      interval: 30s
+      map:
+        uid:   "sonarr:download:{{ item.downloadId }}"
+        kind:  download
+        name:  "{{ item.series.title | default(item.title) }}"
+        state: >-
+          {{ 'down' if item.status == 'failed' or item.trackedDownloadStatus == 'error'
+               else 'paused' if item.status == 'paused'
+               else 'degraded' if item.status in ['warning', 'delay', 'downloadClientUnavailable']
+                                  or item.trackedDownloadStatus == 'warning'
+               else 'up' }}
+        parent_uid: "sonarr:service:Sonarr"
+        attrs:
+          status:          "{{ item.status }}"
+          tracked_state:   "{{ item.trackedDownloadState }}"
+          protocol:        "{{ item.protocol }}"
+          download_client: "{{ item.downloadClient }}"
+          indexer:         "{{ item.indexer }}"
+          error:           "{{ item.errorMessage }}"
+      metrics:
+        - { name: size_bytes,      value: "{{ item.size | float }}",     unit: bytes }
+        - { name: remaining_bytes, value: "{{ item.sizeleft | float }}", unit: bytes }
+        # Progress is what a tile actually shows; computing it here keeps the widget generic.
+        - name: progress_pct
+          when: "{{ item.size | float > 0 }}"
+          value: "{{ (item.size | float - item.sizeleft | float) / (item.size | float) }}"
+          unit: ratio
+
+    # Root folders, one resource each. Free space is the number that matters at 3am.
+    - name: diskspace
+      request: { method: GET, path: /api/v3/diskspace }
+      interval: 5m
+      map:
+        uid:   "sonarr:storage:{{ item.path }}"
+        kind:  storage
+        name:  "{{ item.label | default(item.path) }}"
+        state: up
+        parent_uid: "sonarr:service:Sonarr"
+        attrs:
+          path: "{{ item.path }}"
+      metrics:
+        - { name: free_bytes,  value: "{{ item.freeSpace | float }}",  unit: bytes }
+        - { name: total_bytes, value: "{{ item.totalSpace | float }}", unit: bytes }
+        - name: used_pct
+          when: "{{ item.totalSpace | float > 0 }}"
+          value: >-
+            {{ (item.totalSpace | float - item.freeSpace | float) / (item.totalSpace | float) }}
+          unit: ratio
