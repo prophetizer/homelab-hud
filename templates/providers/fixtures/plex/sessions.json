@@ -1,0 +1,191 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "Metadata": [
+      {
+        "sessionKey": "1",
+        "key": "/library/metadata/4001",
+        "ratingKey": "4001",
+        "title": "Arrival",
+        "type": "movie",
+        "duration": 6936000,
+        "viewOffset": 1620000,
+        "machineIdentifier": "b3a9f2c1d4e5f60718293a4b5c6d7e8f90a1b2c3",
+        "librarySectionTitle": "Movies",
+        "User": {
+          "id": "101",
+          "title": "viewer",
+          "thumb": ""
+        },
+        "Player": {
+          "address": "172.31.10.21",
+          "device": "Living Room TV",
+          "machineIdentifier": "pl1",
+          "platform": "Chrome",
+          "product": "Plex Web",
+          "state": "playing",
+          "title": "Living Room TV",
+          "local": true,
+          "relayed": false,
+          "secure": true
+        },
+        "Session": {
+          "id": "sess-1",
+          "bandwidth": 12000,
+          "location": "lan"
+        },
+        "Media": [
+          {
+            "id": "9001",
+            "bitrate": 12000,
+            "width": 1920,
+            "height": 1080,
+            "videoCodec": "h264",
+            "audioCodec": "eac3",
+            "container": "mkv",
+            "Part": [
+              {
+                "id": "8001",
+                "key": "/library/parts/8001/file.mkv",
+                "decision": "directplay",
+                "size": 5368709120
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sessionKey": "2",
+        "key": "/library/metadata/4002",
+        "ratingKey": "4002",
+        "title": "Strange Dogs",
+        "type": "episode",
+        "duration": 3180000,
+        "viewOffset": 300000,
+        "machineIdentifier": "b3a9f2c1d4e5f60718293a4b5c6d7e8f90a1b2c3",
+        "librarySectionTitle": "TV Shows",
+        "User": {
+          "id": "102",
+          "title": "guest",
+          "thumb": ""
+        },
+        "Player": {
+          "address": "172.31.10.22",
+          "device": "iPad",
+          "machineIdentifier": "pl2",
+          "platform": "Chrome",
+          "product": "Plex Web",
+          "state": "paused",
+          "title": "iPad",
+          "local": true,
+          "relayed": false,
+          "secure": true
+        },
+        "Session": {
+          "id": "sess-2",
+          "bandwidth": 4000,
+          "location": "lan"
+        },
+        "Media": [
+          {
+            "id": "9002",
+            "bitrate": 4000,
+            "width": 1920,
+            "height": 1080,
+            "videoCodec": "h264",
+            "audioCodec": "eac3",
+            "container": "mkv",
+            "Part": [
+              {
+                "id": "8002",
+                "key": "/library/parts/8002/file.mkv",
+                "decision": "transcode",
+                "size": 5368709120
+              }
+            ]
+          }
+        ],
+        "grandparentTitle": "The Expanse",
+        "parentIndex": 2,
+        "index": 4,
+        "TranscodeSession": {
+          "key": "tr-2",
+          "throttled": false,
+          "complete": false,
+          "progress": 8.4,
+          "speed": 12.1,
+          "videoDecision": "transcode",
+          "audioDecision": "copy",
+          "sourceVideoCodec": "hevc",
+          "videoCodec": "h264"
+        }
+      },
+      {
+        "sessionKey": "3",
+        "key": "/library/metadata/4003",
+        "ratingKey": "4003",
+        "title": "Severance",
+        "type": "episode",
+        "duration": 2640000,
+        "viewOffset": 900000,
+        "machineIdentifier": "b3a9f2c1d4e5f60718293a4b5c6d7e8f90a1b2c3",
+        "librarySectionTitle": "TV Shows",
+        "User": {
+          "id": "103",
+          "title": "housemate",
+          "thumb": ""
+        },
+        "Player": {
+          "address": "172.31.10.23",
+          "device": "Firefox",
+          "machineIdentifier": "pl3",
+          "platform": "Chrome",
+          "product": "Plex Web",
+          "state": "playing",
+          "title": "Firefox",
+          "local": true,
+          "relayed": false,
+          "secure": true
+        },
+        "Session": {
+          "id": "sess-3",
+          "bandwidth": 8000,
+          "location": "lan"
+        },
+        "Media": [
+          {
+            "id": "9003",
+            "bitrate": 8000,
+            "width": 1920,
+            "height": 1080,
+            "videoCodec": "h264",
+            "audioCodec": "eac3",
+            "container": "mkv",
+            "Part": [
+              {
+                "id": "8003",
+                "key": "/library/parts/8003/file.mkv",
+                "decision": "transcode",
+                "size": 5368709120
+              }
+            ]
+          }
+        ],
+        "grandparentTitle": "Severance",
+        "parentIndex": 2,
+        "index": 4,
+        "TranscodeSession": {
+          "key": "tr-3",
+          "throttled": true,
+          "complete": false,
+          "progress": 34.0,
+          "speed": 0.7,
+          "videoDecision": "transcode",
+          "audioDecision": "transcode",
+          "sourceVideoCodec": "hevc",
+          "videoCodec": "h264"
+        }
+      }
+    ]
+  }
+}

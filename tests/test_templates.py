@@ -11,6 +11,7 @@ entry) and ``expected.json`` (uid → state, and "uid/metric" → [value, unit])
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -93,5 +94,37 @@ async def test_template_maps_fixture_to_expected(config_dir: Path, template: Pat
                 units = {f"{m.resource_uid}/{m.name}": m.unit.value for m in result.metrics}
                 assert got == pytest.approx({k: v[0] for k, v in want["metrics"].items()})
                 assert units == {k: v[1] for k, v in want["metrics"].items()}
+    finally:
+        await provider.shutdown()
+
+
+# ----------------------------------------------------------------------- plex specifics
+
+
+def _plex_provider(config_dir: Path) -> Any:
+    doc = _load(config_dir, TEMPLATES / "plex.yaml")
+    env = {"PLEX_BASE_URL": BASE, "HUD_SECRET_PLEX_TOKEN": "fixture-token"}
+    ctx = ProviderContext.create(
+        "plex", SecretResolver(config_dir, config_dir / "none", env=env), env
+    )
+    return build_declarative(doc, ctx)
+
+
+@pytest.mark.skipif(not (TEMPLATES / "plex.yaml").is_file(), reason="plex template not bundled")
+async def test_plex_negotiates_json_and_tolerates_an_idle_server(config_dir: Path) -> None:
+    """Plex answers XML unless asked for JSON, and an idle server returns a MediaContainer
+    with no Metadata key at all — which must be an empty poll, not a failed provider."""
+    provider = _plex_provider(config_dir)
+    await provider.startup()
+    try:
+        with respx.mock(assert_all_called=True) as mock:
+            route = mock.get(f"{BASE}/status/sessions").mock(
+                return_value=httpx.Response(200, json={"MediaContainer": {"size": 0}})
+            )
+            result = await provider.poll("sessions")
+        request = route.calls[0].request
+        assert request.headers["accept"] == "application/json"
+        assert request.headers["x-plex-token"] == "fixture-token"
+        assert result.resources == [] and result.metrics == []
     finally:
         await provider.shutdown()

@@ -1,0 +1,73 @@
+{
+  "service": {
+    "resources": {
+      "plex:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "sessions": {
+    "resources": {
+      "plex:stream:1": "up",
+      "plex:stream:2": "paused",
+      "plex:stream:3": "degraded"
+    },
+    "metrics": {
+      "plex:stream:1/position_seconds": [
+        1620.0,
+        "seconds"
+      ],
+      "plex:stream:1/duration_seconds": [
+        6936.0,
+        "seconds"
+      ],
+      "plex:stream:1/progress_pct": [
+        23.356401384083046,
+        "pct"
+      ],
+      "plex:stream:1/bitrate_bps": [
+        12000000.0,
+        "bps"
+      ],
+      "plex:stream:2/position_seconds": [
+        300.0,
+        "seconds"
+      ],
+      "plex:stream:2/duration_seconds": [
+        3180.0,
+        "seconds"
+      ],
+      "plex:stream:2/progress_pct": [
+        9.433962264150944,
+        "pct"
+      ],
+      "plex:stream:2/bitrate_bps": [
+        4000000.0,
+        "bps"
+      ],
+      "plex:stream:3/position_seconds": [
+        900.0,
+        "seconds"
+      ],
+      "plex:stream:3/duration_seconds": [
+        2640.0,
+        "seconds"
+      ],
+      "plex:stream:3/progress_pct": [
+        34.090909090909086,
+        "pct"
+      ],
+      "plex:stream:3/bitrate_bps": [
+        8000000.0,
+        "bps"
+      ]
+    }
+  },
+  "libraries": {
+    "resources": {
+      "plex:library:a1b2c3d4-e5f6-4708-8192-a3b4c5d6e7f8": "up",
+      "plex:library:b2c3d4e5-f607-4819-92a3-b4c5d6e7f809": "up",
+      "plex:library:c3d4e5f6-0718-492a-83b4-c5d6e7f80912": "up"
+    },
+    "metrics": {}
+  }
+}

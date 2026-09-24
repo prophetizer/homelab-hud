@@ -1,0 +1,133 @@
+# Plex Media Server — server health, active streams and libraries.
+#
+# Copy to /config/providers/plex.yaml, then supply:
+#   PLEX_BASE_URL                    e.g. http://plex.lab:32400 (environment)
+#   ${secret:plex_token}             an X-Plex-Token
+#     → /run/secrets/plex_token, HUD_SECRET_PLEX_TOKEN, or secrets.yaml
+#
+# Finding a token: open any item in Plex Web, choose "Get Info" → "View XML", and copy the
+# X-Plex-Token value from the resulting URL. Treat it as a password — it grants full
+# account access, not just this server.
+#
+# CAVEAT, read before trusting this file. Plex publishes no official API specification;
+# this mapping follows long-established community documentation and the shapes used by the
+# python-plexapi project. It has NOT been verified against a live server, and Plex has
+# changed undocumented fields before. If a tile is empty or a field is missing, compare a
+# real response against templates/providers/fixtures/plex/ and open an issue — that is a
+# template bug, not a HUD bug.
+#
+# Plex answers XML unless asked otherwise, hence the explicit Accept header on every
+# request, and wraps every response in a MediaContainer envelope.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: plex
+  labels: { category: media }
+  template:
+    service: Plex Media Server
+    icon: mdi:plex
+    docs: https://github.com/pkkid/python-plexapi
+    requires:
+      - { name: PLEX_BASE_URL, kind: env, hint: "Base URL of your Plex server, usually port 32400" }
+      - { name: plex_token, kind: secret, hint: "X-Plex-Token (Plex Web → Get Info → View XML)" }
+spec:
+  transport:
+    base_url: ${PLEX_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Plex-Token
+      key: ${secret:plex_token}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The server itself. Singleton: one Plex per provider, so the native id is a literal.
+    - name: service
+      request:
+        method: GET
+        path: /
+        headers: { Accept: application/json }
+      select: "$.MediaContainer"
+      interval: 5m
+      map:
+        uid:   "plex:service:main"
+        kind:  service
+        name:  "{{ item.friendlyName | default('Plex') }}"
+        state: up
+        attrs:
+          version:   "{{ item.version }}"
+          platform:  "{{ item.platform }}"
+          transcoder_video: "{{ item.transcoderVideo }}"
+          my_plex_state:    "{{ item.myPlexSigninState }}"
+        links:
+          ui: "${PLEX_BASE_URL}/web"
+
+    # Active playback sessions, one resource each. A stream is inherently transient:
+    # sessionKey identifies it for as long as it exists, which is the whole life of the
+    # resource, and it is not a content hash or a per-restart id.
+    - name: sessions
+      request:
+        method: GET
+        path: /status/sessions
+        headers: { Accept: application/json }
+      # An idle server returns a MediaContainer with size 0 and no Metadata key; the
+      # selection is then empty, which is a poll with no resources, not a failure.
+      select: "$.MediaContainer.Metadata[*]"
+      interval: 30s
+      map:
+        uid:   "plex:stream:{{ item.sessionKey }}"
+        kind:  stream
+        name:  >-
+          {{ item.grandparentTitle ~ ' — ' ~ item.title
+             if item.grandparentTitle else item.title }}
+        state: >-
+          {{ 'paused' if item.Player.state == 'paused'
+             else 'degraded' if item.TranscodeSession is defined
+                                and item.TranscodeSession.throttled
+             else 'up' }}
+        parent_uid: "plex:service:main"
+        attrs:
+          user:         "{{ item.User.title }}"
+          player:       "{{ item.Player.title }}"
+          player_state: "{{ item.Player.state }}"
+          media_type:   "{{ item.type }}"
+          # direct play / copy / transcode — the number that decides whether the box copes.
+          decision:     "{{ item.Media[0].Part[0].decision | default('directplay') }}"
+        links:
+          ui: "${PLEX_BASE_URL}/web/index.html#!/server/{{ item.machineIdentifier }}"
+      metrics:
+        # viewOffset and duration are milliseconds; the boundary normalizes both to seconds.
+        - { name: position_seconds, value: "{{ item.viewOffset | float }}", unit: ms }
+        - { name: duration_seconds, value: "{{ item.duration | float }}",   unit: ms }
+        - name: progress_pct
+          when: "{{ item.duration | float > 0 }}"
+          value: "{{ item.viewOffset | float / (item.duration | float) }}"
+          unit: ratio
+        - name: bitrate_bps
+          when: "{{ item.Media[0].bitrate is defined }}"
+          value: "{{ item.Media[0].bitrate | float }}"
+          unit: kbps
+
+    # Libraries. `uuid` is assigned once when the library is created and survives renames
+    # and key renumbering, so it is the stable native id here.
+    - name: libraries
+      request:
+        method: GET
+        path: /library/sections
+        headers: { Accept: application/json }
+      select: "$.MediaContainer.Directory[*]"
+      interval: 30m
+      map:
+        uid:   "plex:library:{{ item.uuid }}"
+        kind:  library
+        name:  "{{ item.title }}"
+        state: up
+        parent_uid: "plex:service:main"
+        attrs:
+          library_type: "{{ item.type }}"
+          agent:        "{{ item.agent }}"
+          scanner:      "{{ item.scanner }}"
+        links:
+          ui: "${PLEX_BASE_URL}/web/index.html#!/media/{{ item.key }}"

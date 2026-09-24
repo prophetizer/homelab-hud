@@ -1,0 +1,93 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "allowSync": false,
+    "title1": "Plex Library",
+    "Directory": [
+      {
+        "allowSync": true,
+        "art": "/:/resources/movie-fanart.jpg",
+        "composite": "/library/sections/1/composite/1758300000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/movie.png",
+        "key": "1",
+        "type": "movie",
+        "title": "Movies",
+        "agent": "tv.plex.agents.movie",
+        "scanner": "Plex Movie",
+        "language": "en-US",
+        "uuid": "a1b2c3d4-e5f6-4708-8192-a3b4c5d6e7f8",
+        "updatedAt": 1758300000,
+        "createdAt": 1700000000,
+        "scannedAt": 1758299000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1758298000,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 1,
+            "path": "/media/movies"
+          }
+        ]
+      },
+      {
+        "allowSync": true,
+        "art": "/:/resources/show-fanart.jpg",
+        "composite": "/library/sections/2/composite/1758300000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/show.png",
+        "key": "2",
+        "type": "show",
+        "title": "TV Shows",
+        "agent": "tv.plex.agents.series",
+        "scanner": "Plex TV Series",
+        "language": "en-US",
+        "uuid": "b2c3d4e5-f607-4819-92a3-b4c5d6e7f809",
+        "updatedAt": 1758300000,
+        "createdAt": 1700000000,
+        "scannedAt": 1758299000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1758298000,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 2,
+            "path": "/media/shows"
+          }
+        ]
+      },
+      {
+        "allowSync": true,
+        "art": "/:/resources/artist-fanart.jpg",
+        "composite": "/library/sections/3/composite/1758300000",
+        "filters": true,
+        "refreshing": false,
+        "thumb": "/:/resources/artist.png",
+        "key": "3",
+        "type": "artist",
+        "title": "Music",
+        "agent": "tv.plex.agents.music",
+        "scanner": "Plex Music",
+        "language": "en-US",
+        "uuid": "c3d4e5f6-0718-492a-83b4-c5d6e7f80912",
+        "updatedAt": 1758300000,
+        "createdAt": 1700000000,
+        "scannedAt": 1758299000,
+        "content": true,
+        "directory": true,
+        "contentChangedAt": 1758298000,
+        "hidden": 0,
+        "Location": [
+          {
+            "id": 3,
+            "path": "/media/artists"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -162,6 +162,12 @@ code. Each `resources[]` entry is one request, a JSONPath `select`, and a `map` 
 sandboxed Jinja expressions over `item`. `templates/providers/home-assistant.yaml` is the
 worked example; every bundled template ships with a response fixture and a CI test.
 
+Bundled: `home-assistant`, `radarr`, `sonarr`, `plex`. Each template's header states where
+its field shapes came from — Radarr and Sonarr from the vendors' published OpenAPI
+documents, Plex from community documentation, since Plex publishes no API spec. The CI test
+proves each template maps its fixture correctly; it cannot prove your server returns those
+shapes, so treat a missing field as a template bug worth reporting rather than a HUD bug.
+
 **Plugin** (`spec.plugin` + `spec.config`) — Python, for anything the declarative tier
 cannot express. Packaged: `docker` (via `linuxserver/socket-proxy`, never the socket;
 `GET` only) and `sonarr`. Drop-ins go in `/config/plugins/<name>/provider.py`:
