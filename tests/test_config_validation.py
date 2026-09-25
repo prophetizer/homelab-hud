@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from hud.config import ConfigError, ConfigManager, SecretNotFoundError, SecretResolver
+from hud.config import (
+    ConfigError,
+    ConfigManager,
+    SecretEmptyError,
+    SecretNotFoundError,
+    SecretResolver,
+)
 from hud.config.secrets import looks_like_literal_secret
 
 GOOD = "apiVersion: hud/v1\nkind: Settings\nspec:\n  theme: dark\n"
@@ -282,3 +288,44 @@ def test_unquoted_ref_in_flow_mapping_says_what_to_do(tmp_path: Path) -> None:
     with pytest.raises(ConfigError) as ei:
         parse_yaml("a: { b: 1\nc: 2\n", tmp_path / "x.yaml")
     assert "must be quoted" not in str(ei.value)
+
+
+@pytest.mark.parametrize("content", ["", "\n", "   \n", "\r\n"])
+def test_empty_docker_secret_is_an_error_not_a_blank_key(
+    config_dir: Path, tmp_path: Path, content: str
+) -> None:
+    """Found on the first live deployment: compose secrets were pre-created as empty 0600
+    files to be filled in later. A blank key would be sent and answered with a 401 that
+    points at the key's value instead of its absence."""
+    secrets_dir = tmp_path / "run_secrets"
+    secrets_dir.mkdir()
+    (secrets_dir / "radarr_api_key").write_text(content)
+    r = SecretResolver(config_dir, secrets_dir=secrets_dir, env={})
+    with pytest.raises(SecretEmptyError, match=r"'radarr_api_key' is empty in .*radarr_api_key"):
+        r.resolve("radarr_api_key")
+
+
+def test_empty_secret_does_not_fall_through_to_a_lower_source(
+    config_dir: Path, tmp_path: Path
+) -> None:
+    # The operator put the file there; silently using a different value would surprise them.
+    secrets_dir = tmp_path / "run_secrets"
+    secrets_dir.mkdir()
+    (secrets_dir / "k").write_text("")
+    r = SecretResolver(config_dir, secrets_dir=secrets_dir, env={"HUD_SECRET_K": "from-env"})
+    with pytest.raises(SecretEmptyError):
+        r.resolve("k")
+
+
+def test_empty_env_and_secrets_yaml_values_are_errors(config_dir: Path, tmp_path: Path) -> None:
+    (config_dir / "secrets.yaml").write_text('blank: ""\nnull_value:\nok: fine\n')
+    r = SecretResolver(config_dir, secrets_dir=tmp_path / "none", env={"HUD_SECRET_E": "  "})
+    with pytest.raises(SecretEmptyError, match=r"\$HUD_SECRET_E"):
+        r.resolve("e")
+    for name in ("blank", "null_value"):
+        with pytest.raises(SecretEmptyError, match=r"secrets\.yaml"):
+            r.resolve(name)
+    assert r.resolve("ok") == "fine"
+    # Still a SecretNotFoundError, so every caller that turns a missing secret into a
+    # failed provider handles an empty one the same way.
+    assert issubclass(SecretEmptyError, SecretNotFoundError)

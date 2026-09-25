@@ -121,6 +121,23 @@ class SecretNotFoundError(LookupError):
         )
 
 
+class SecretEmptyError(SecretNotFoundError):
+    """The secret exists but is blank. An empty credential is never valid, and passing it
+    through produces a misleading 401 from the service instead of saying what is wrong —
+    the usual cause is a pre-created, not-yet-filled Docker secret file."""
+
+    def __init__(self, name: str, source: str) -> None:
+        self.name = name
+        self.source = source
+        LookupError.__init__(self, f"secret '{name}' is empty in {source}; write the value there")
+
+
+def _non_empty(name: str, value: str, source: str) -> str:
+    if not value.strip():
+        raise SecretEmptyError(name, source)
+    return value
+
+
 class SecretResolver:
     def __init__(
         self,
@@ -133,17 +150,22 @@ class SecretResolver:
         self._env = env if env is not None else dict(os.environ)
 
     def resolve(self, name: str) -> str:
+        """First source that has the name wins. A source that has it but blank is an error,
+        not a fall-through: the operator put it there, so a lower-priority value silently
+        taking over would be a surprise, and a blank one would only become a 401."""
         docker = self._secrets_dir / name
         if docker.is_file():
-            return docker.read_text(encoding="utf-8").rstrip("\r\n")
+            return _non_empty(name, docker.read_text(encoding="utf-8").rstrip("\r\n"), str(docker))
         env_key = ENV_PREFIX + re.sub(r"[^A-Za-z0-9]", "_", name).upper()
         if env_key in self._env:
-            return self._env[env_key]
+            return _non_empty(name, self._env[env_key], f"${env_key}")
         if self._file.is_file():
             doc = load_yaml(self._file)
-            value = doc.get(name)
-            if isinstance(value, str | int | float) and not isinstance(value, bool):
-                return str(value)
+            if name in doc:
+                value = doc.get(name)
+                if isinstance(value, str | int | float) and not isinstance(value, bool):
+                    return _non_empty(name, str(value), SECRETS_FILE_NAME)
+                raise SecretEmptyError(name, SECRETS_FILE_NAME)
         raise SecretNotFoundError(name)
 
     def resolve_refs(self, value: Any) -> Any:  # noqa: ANN401

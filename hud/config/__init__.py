@@ -9,7 +9,7 @@ from hud.config.manager import (
     LoadedDocument,
     QuarantinedDocument,
 )
-from hud.config.secrets import SecretNotFoundError, SecretResolver
+from hud.config.secrets import SecretEmptyError, SecretNotFoundError, SecretResolver
 
 __all__ = [
     "ConfigConflictError",
@@ -19,6 +19,7 @@ __all__ = [
     "ConfigSnapshot",
     "LoadedDocument",
     "QuarantinedDocument",
+    "SecretEmptyError",
     "SecretNotFoundError",
     "SecretResolver",
 ]

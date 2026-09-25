@@ -134,6 +134,14 @@ def test_missing_secret_fails_the_build(config_dir: Path) -> None:
         build_declarative(doc, ctx)
 
 
+def test_empty_secret_fails_the_build_and_says_so(config_dir: Path) -> None:
+    doc = load_doc(config_dir, (FIXTURES / "providers" / "home-assistant.yaml").read_text())
+    env = {"HA_BASE_URL": HA_URL, "HUD_SECRET_HOME_ASSISTANT_TOKEN": ""}
+    ctx = make_ctx(config_dir, "home-assistant", env)
+    with pytest.raises(ProviderBuildError, match="'home_assistant_token' is empty"):
+        build_declarative(doc, ctx)
+
+
 @pytest.mark.parametrize(
     ("response", "match"),
     [
