@@ -16,44 +16,57 @@
   },
   "queue": {
     "resources": {
-      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1": "up",
-      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2": "degraded",
-      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3": "paused"
+      "radarr:download:movie-42": "up",
+      "radarr:download:movie-77": "degraded",
+      "radarr:download:movie-13": "paused",
+      "radarr:download:movie-55": "degraded"
     },
     "metrics": {
-      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/size_bytes": [
+      "radarr:download:movie-42/size_bytes": [
         12884901888.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/remaining_bytes": [
+      "radarr:download:movie-42/remaining_bytes": [
         4294967296.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/progress_pct": [
+      "radarr:download:movie-42/progress_pct": [
         66.66666666666666,
         "pct"
       ],
-      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/size_bytes": [
+      "radarr:download:movie-77/size_bytes": [
         34359738368.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/remaining_bytes": [
+      "radarr:download:movie-77/remaining_bytes": [
         0.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/progress_pct": [
+      "radarr:download:movie-77/progress_pct": [
         100.0,
         "pct"
       ],
-      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/size_bytes": [
+      "radarr:download:movie-13/size_bytes": [
         8589934592.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/remaining_bytes": [
+      "radarr:download:movie-13/remaining_bytes": [
         8589934592.0,
         "bytes"
       ],
-      "radarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/progress_pct": [
+      "radarr:download:movie-13/progress_pct": [
+        0.0,
+        "pct"
+      ],
+      "radarr:download:movie-55/size_bytes": [
+        10737418240.0,
+        "bytes"
+      ],
+      "radarr:download:movie-55/remaining_bytes": [
+        10737418240.0,
+        "bytes"
+      ],
+      "radarr:download:movie-55/progress_pct": [
         0.0,
         "pct"
       ]

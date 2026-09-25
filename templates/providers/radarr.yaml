@@ -72,8 +72,12 @@ spec:
         links:
           wiki: "{{ item.wikiUrl }}"
 
-    # Active downloads. `downloadId` is the download client's own id for the item: stable
-    # for the life of the download, unlike the queue row's `id`.
+    # Queue items, keyed on the movie first and the download client's id second.
+    # Found on a live server: a pending item (held by a delay profile, not yet sent to the
+    # download client) has no downloadId, and an unknown item (a download that could not
+    # be matched) has no movieId. Movie-first also keeps the uid unchanged when
+    # a pending item is grabbed, rather than forking its history at that moment
+    # (invariant 8). The queue row's own `id` changes, so it is never used.
     - name: queue
       request:
         method: GET
@@ -82,7 +86,10 @@ spec:
       select: "$.records[*]"
       interval: 30s
       map:
-        uid:   "radarr:download:{{ item.downloadId }}"
+        uid: >-
+          radarr:download:{{ ('movie-' ~ item.movieId) if item.movieId
+             else ('dl-' ~ item.downloadId) if item.downloadId
+             else '' }}
         kind:  download
         name:  "{{ item.movie.title | default(item.title) }}"
         state: >-

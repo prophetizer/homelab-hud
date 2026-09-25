@@ -3,7 +3,7 @@
   "pageSize": 50,
   "sortKey": "timeleft",
   "sortDirection": "ascending",
-  "totalRecords": 3,
+  "totalRecords": 7,
   "records": [
     {
       "id": 101,
@@ -161,6 +161,199 @@
         "title": "I Have Friends Everywhere",
         "seasonNumber": 2,
         "episodeNumber": 5
+      },
+      "episodeHasFile": false
+    },
+    {
+      "id": 201,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 3221225472.0,
+      "title": "Slow.Horses.S01E01.1080p.WEB-DL",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "delay",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "protocol": "torrent",
+      "downloadClient": null,
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "sizeleft": 3221225472.0,
+      "seriesId": 21,
+      "episodeId": 2101,
+      "seasonNumber": 1,
+      "series": {
+        "id": 21,
+        "title": "Slow Horses",
+        "year": 2022
+      },
+      "episode": {
+        "id": 2101,
+        "title": "Failure's Contagious",
+        "seasonNumber": 1,
+        "episodeNumber": 1
+      },
+      "episodeHasFile": false
+    },
+    {
+      "id": 202,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 2147483648.0,
+      "title": "Some.Unmatched.Release.1080p",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "UNKNOWN0DOWNLOAD0ID0000000000000000000001",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 536870912.0,
+      "timeleft": "00:23:14"
+    },
+    {
+      "id": 203,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 21474836480.0,
+      "title": "Shogun.S01.1080p.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "SEASONPACK00000000000000000000000000000031",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 10737418240.0,
+      "timeleft": "00:23:14",
+      "seriesId": 31,
+      "episodeId": 3101,
+      "seasonNumber": 1,
+      "series": {
+        "id": 31,
+        "title": "Shogun",
+        "year": 2024
+      },
+      "episode": {
+        "id": 3101,
+        "title": "Episode 1",
+        "seasonNumber": 1,
+        "episodeNumber": 1
+      },
+      "episodeHasFile": false
+    },
+    {
+      "id": 204,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 21474836480.0,
+      "title": "Shogun.S01.1080p.WEB-DL",
+      "estimatedCompletionTime": "2026-09-22T04:15:00Z",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "downloadId": "SEASONPACK00000000000000000000000000000031",
+      "protocol": "torrent",
+      "downloadClient": "qbittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "outputPath": "/downloads/complete",
+      "sizeleft": 10737418240.0,
+      "timeleft": "00:23:14",
+      "seriesId": 31,
+      "episodeId": 3102,
+      "seasonNumber": 1,
+      "series": {
+        "id": 31,
+        "title": "Shogun",
+        "year": 2024
+      },
+      "episode": {
+        "id": 3102,
+        "title": "Episode 2",
+        "seasonNumber": 1,
+        "episodeNumber": 2
       },
       "episodeHasFile": false
     }

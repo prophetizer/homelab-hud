@@ -16,44 +16,96 @@
   },
   "queue": {
     "resources": {
-      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1": "up",
-      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2": "degraded",
-      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3": "down"
+      "sonarr:download:ep-611": "up",
+      "sonarr:download:ep-902": "degraded",
+      "sonarr:download:ep-1105": "down",
+      "sonarr:download:ep-2101": "degraded",
+      "sonarr:download:dl-UNKNOWN0DOWNLOAD0ID0000000000000000000001": "up",
+      "sonarr:download:ep-3101": "up",
+      "sonarr:download:ep-3102": "up"
     },
     "metrics": {
-      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/size_bytes": [
+      "sonarr:download:ep-611/size_bytes": [
         3221225472.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/remaining_bytes": [
+      "sonarr:download:ep-611/remaining_bytes": [
         1073741824.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C1D1E2F4A5B6C7D8E9F0A1B2C3D4E1/progress_pct": [
+      "sonarr:download:ep-611/progress_pct": [
         66.66666666666666,
         "pct"
       ],
-      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/size_bytes": [
+      "sonarr:download:ep-902/size_bytes": [
         6442450944.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/remaining_bytes": [
+      "sonarr:download:ep-902/remaining_bytes": [
         0.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C2D1E2F4A5B6C7D8E9F0A1B2C3D4E2/progress_pct": [
+      "sonarr:download:ep-902/progress_pct": [
         100.0,
         "pct"
       ],
-      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/size_bytes": [
+      "sonarr:download:ep-1105/size_bytes": [
         4294967296.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/remaining_bytes": [
+      "sonarr:download:ep-1105/remaining_bytes": [
         2147483648.0,
         "bytes"
       ],
-      "sonarr:download:7A3B9C3D1E2F4A5B6C7D8E9F0A1B2C3D4E3/progress_pct": [
+      "sonarr:download:ep-1105/progress_pct": [
+        50.0,
+        "pct"
+      ],
+      "sonarr:download:ep-2101/size_bytes": [
+        3221225472.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-2101/remaining_bytes": [
+        3221225472.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-2101/progress_pct": [
+        0.0,
+        "pct"
+      ],
+      "sonarr:download:dl-UNKNOWN0DOWNLOAD0ID0000000000000000000001/size_bytes": [
+        2147483648.0,
+        "bytes"
+      ],
+      "sonarr:download:dl-UNKNOWN0DOWNLOAD0ID0000000000000000000001/remaining_bytes": [
+        536870912.0,
+        "bytes"
+      ],
+      "sonarr:download:dl-UNKNOWN0DOWNLOAD0ID0000000000000000000001/progress_pct": [
+        75.0,
+        "pct"
+      ],
+      "sonarr:download:ep-3101/size_bytes": [
+        21474836480.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-3101/remaining_bytes": [
+        10737418240.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-3101/progress_pct": [
+        50.0,
+        "pct"
+      ],
+      "sonarr:download:ep-3102/size_bytes": [
+        21474836480.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-3102/remaining_bytes": [
+        10737418240.0,
+        "bytes"
+      ],
+      "sonarr:download:ep-3102/progress_pct": [
         50.0,
         "pct"
       ]

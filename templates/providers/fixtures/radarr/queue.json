@@ -3,7 +3,7 @@
   "pageSize": 50,
   "sortKey": "timeleft",
   "sortDirection": "ascending",
-  "totalRecords": 3,
+  "totalRecords": 4,
   "records": [
     {
       "id": 101,
@@ -142,6 +142,46 @@
         "id": 13,
         "title": "Heat",
         "year": 1995
+      }
+    },
+    {
+      "id": 104,
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 10737418240.0,
+      "title": "Sicario.2015.1080p.BluRay",
+      "added": "2026-09-22T03:05:00Z",
+      "status": "delay",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "errorMessage": "",
+      "protocol": "torrent",
+      "downloadClient": null,
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "TorrentLeech",
+      "sizeleft": 10737418240.0,
+      "movieId": 55,
+      "movie": {
+        "id": 55,
+        "title": "Sicario",
+        "year": 2015
       }
     }
   ]
