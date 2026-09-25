@@ -131,12 +131,24 @@ class DockerProvider(PluginProvider):
         result = PollResult(resources=current)
         if not self.config.stats:
             return result
-        running = [r for r in current if r.state in (State.UP, State.DEGRADED)]
+        # Chosen by name, not in listing order: /containers/json lists newest-created first,
+        # so under the cap a recreated container (an image update) would push another out of
+        # the stats set, and which containers keep continuous history would drift on every
+        # update. By name, the covered set changes only when containers are added or removed.
+        running = sorted(
+            (r for r in current if r.state in (State.UP, State.DEGRADED)), key=lambda r: r.name
+        )
         skipped = len(running) - self.config.max_stats
         if skipped > 0:
             cap = self.config.max_stats
-            self.log.warning("stats capped at %d; %d containers skipped", cap, skipped)
-            running = running[: self.config.max_stats]
+            self.log.warning(
+                "stats capped at %d; %d containers skipped (the last by name, from %r); "
+                "raise config.max_stats to cover them",
+                cap,
+                skipped,
+                running[cap].name,
+            )
+            running = running[:cap]
         sem = asyncio.Semaphore(STATS_CONCURRENCY)
 
         async def one(r: Resource) -> list[Metric]:

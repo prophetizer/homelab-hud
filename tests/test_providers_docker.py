@@ -182,3 +182,25 @@ async def test_malformed_container_is_skipped(config_dir: Path, api: respx.MockR
     finally:
         await p.shutdown()
     assert [r.name for r in resources] == ["hud", "x"]
+
+
+async def test_stats_cap_picks_a_stable_set_by_name(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """Docker lists newest-created first. Under the cap, a container recreated by an image
+    update must not push another out of the stats set — that would silently gap the
+    history of whichever container fell off. Selection is by name, so it holds still."""
+    p = build(config_dir, DOC + "    max_stats: 1\n")
+    await p.startup()
+    try:
+        await p.poll("collect")  # listing order: hud, sonarr
+        assert api.get(f"{PROXY}/containers/hud/stats").call_count == 1
+        # sonarr is recreated and now lists first; the stats set must not follow it.
+        api.get(f"{PROXY}/containers/json").mock(
+            return_value=httpx.Response(200, json=list(reversed(CONTAINERS)))
+        )
+        await p.poll("collect")
+    finally:
+        await p.shutdown()
+    assert api.get(f"{PROXY}/containers/hud/stats").call_count == 2
+    assert not api.get(f"{PROXY}/containers/sonarr/stats").called
