@@ -1,0 +1,2185 @@
+{
+  "$defs": {
+    "ActionApplies": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "ActionApplies",
+      "type": "object"
+    },
+    "ActionSpec": {
+      "additionalProperties": true,
+      "description": "Parsed and validated so the spec is complete; nothing executes it before Phase 3.",
+      "properties": {
+        "applies_to": {
+          "$ref": "#/$defs/ActionApplies"
+        },
+        "confirm": {
+          "default": true,
+          "title": "Confirm",
+          "type": "boolean"
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "required_permission": {
+          "title": "Required Permission",
+          "type": "string"
+        },
+        "verb": {
+          "title": "Verb",
+          "type": "string"
+        }
+      },
+      "required": [
+        "verb",
+        "applies_to",
+        "request",
+        "required_permission"
+      ],
+      "title": "ActionSpec",
+      "type": "object"
+    },
+    "AuthApiKey": {
+      "additionalProperties": false,
+      "properties": {
+        "header": {
+          "default": "X-Api-Key",
+          "title": "Header",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "type": {
+          "const": "api_key",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "key"
+      ],
+      "title": "AuthApiKey",
+      "type": "object"
+    },
+    "AuthBasic": {
+      "additionalProperties": false,
+      "properties": {
+        "password": {
+          "title": "Password",
+          "type": "string"
+        },
+        "type": {
+          "const": "basic",
+          "title": "Type",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "username",
+        "password"
+      ],
+      "title": "AuthBasic",
+      "type": "object"
+    },
+    "AuthBearer": {
+      "additionalProperties": false,
+      "properties": {
+        "token": {
+          "title": "Token",
+          "type": "string"
+        },
+        "type": {
+          "const": "bearer",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "token"
+      ],
+      "title": "AuthBearer",
+      "type": "object"
+    },
+    "AuthHeader": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "header",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "value"
+      ],
+      "title": "AuthHeader",
+      "type": "object"
+    },
+    "AuthNone": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "none",
+          "default": "none",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "AuthNone",
+      "type": "object"
+    },
+    "AuthSettings": {
+      "additionalProperties": false,
+      "description": "Which identity backends run, in precedence order (PLAN.md \u00a710.1).",
+      "properties": {
+        "backends": {
+          "default": [
+            "local"
+          ],
+          "items": {
+            "enum": [
+              "local",
+              "forward",
+              "oidc"
+            ],
+            "type": "string"
+          },
+          "title": "Backends",
+          "type": "array"
+        },
+        "forward": {
+          "$ref": "#/$defs/ForwardAuthSettings",
+          "default": {
+            "groups_separator": ",",
+            "header_email": "Remote-Email",
+            "header_groups": "Remote-Groups",
+            "header_name": "Remote-Name",
+            "header_user": "Remote-User",
+            "trusted_proxies": []
+          }
+        },
+        "local": {
+          "$ref": "#/$defs/LocalAuthSettings",
+          "default": {
+            "allow_registration": false,
+            "min_password_length": 12
+          }
+        },
+        "oidc": {
+          "$ref": "#/$defs/OidcSettings",
+          "default": {
+            "client_id": "",
+            "client_secret": "",
+            "discovery_url": "",
+            "groups_claim": "groups",
+            "redirect_url": null,
+            "scopes": [
+              "openid",
+              "profile",
+              "email",
+              "groups"
+            ]
+          }
+        },
+        "session": {
+          "$ref": "#/$defs/SessionSettings",
+          "default": {
+            "cookie_name": "hud_session",
+            "lifetime": "7d"
+          }
+        }
+      },
+      "title": "AuthSettings",
+      "type": "object"
+    },
+    "Board": {
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "const": "hud/v1",
+          "title": "Apiversion",
+          "type": "string"
+        },
+        "kind": {
+          "const": "Board",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/BoardMetadata"
+        },
+        "spec": {
+          "$ref": "#/$defs/BoardSpec",
+          "default": {
+            "layout": {
+              "columns": {
+                "lg": 4,
+                "md": 2,
+                "sm": 1
+              },
+              "gap": 12
+            },
+            "widgets": []
+          }
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind",
+        "metadata"
+      ],
+      "title": "BoardDocument",
+      "type": "object"
+    },
+    "BoardMetadata": {
+      "additionalProperties": true,
+      "properties": {
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "visible_to": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Visible To",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "BoardMetadata",
+      "type": "object"
+    },
+    "BoardSpec": {
+      "additionalProperties": true,
+      "properties": {
+        "layout": {
+          "$ref": "#/$defs/Layout",
+          "default": {
+            "columns": {
+              "lg": 4,
+              "md": 2,
+              "sm": 1
+            },
+            "gap": 12
+          }
+        },
+        "widgets": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/StaticWidget"
+              },
+              {
+                "$ref": "#/$defs/ResourceWidget"
+              },
+              {
+                "$ref": "#/$defs/ListWidget"
+              },
+              {
+                "$ref": "#/$defs/MetricWidget"
+              },
+              {
+                "$ref": "#/$defs/EmbedWidget"
+              },
+              {
+                "$ref": "#/$defs/UnsupportedWidget"
+              }
+            ]
+          },
+          "title": "Widgets",
+          "type": "array"
+        }
+      },
+      "title": "BoardSpec",
+      "type": "object"
+    },
+    "Columns": {
+      "additionalProperties": true,
+      "properties": {
+        "lg": {
+          "default": 4,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Lg",
+          "type": "integer"
+        },
+        "md": {
+          "default": 2,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Md",
+          "type": "integer"
+        },
+        "sm": {
+          "default": 1,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Sm",
+          "type": "integer"
+        }
+      },
+      "title": "Columns",
+      "type": "object"
+    },
+    "Defaults": {
+      "additionalProperties": true,
+      "properties": {
+        "interval": {
+          "default": "30s",
+          "title": "Interval",
+          "type": "string"
+        },
+        "jitter": {
+          "default": "5s",
+          "title": "Jitter",
+          "type": "string"
+        }
+      },
+      "title": "Defaults",
+      "type": "object"
+    },
+    "EmbedDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "fallback": {
+          "default": "card",
+          "enum": [
+            "card",
+            "new_tab"
+          ],
+          "title": "Fallback",
+          "type": "string"
+        },
+        "open_in": {
+          "default": "inline",
+          "enum": [
+            "workspace",
+            "inline"
+          ],
+          "title": "Open In",
+          "type": "string"
+        }
+      },
+      "title": "EmbedDisplay",
+      "type": "object"
+    },
+    "EmbedSource": {
+      "additionalProperties": true,
+      "properties": {
+        "sandbox": {
+          "default": "strict",
+          "enum": [
+            "strict",
+            "relaxed"
+          ],
+          "title": "Sandbox",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "EmbedSource",
+      "type": "object"
+    },
+    "EmbedWidget": {
+      "additionalProperties": true,
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/EmbedDisplay",
+          "default": {
+            "fallback": "card",
+            "open_in": "inline"
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/EmbedSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "embed",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "EmbedWidget",
+      "type": "object"
+    },
+    "Format": {
+      "additionalProperties": true,
+      "properties": {
+        "precision": {
+          "default": 1,
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "integer"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "title": "Format",
+      "type": "object"
+    },
+    "ForwardAuthSettings": {
+      "additionalProperties": false,
+      "description": "Trusted-proxy header auth. Header names are config so any forward-auth provider fits.",
+      "properties": {
+        "groups_separator": {
+          "default": ",",
+          "title": "Groups Separator",
+          "type": "string"
+        },
+        "header_email": {
+          "default": "Remote-Email",
+          "title": "Header Email",
+          "type": "string"
+        },
+        "header_groups": {
+          "default": "Remote-Groups",
+          "title": "Header Groups",
+          "type": "string"
+        },
+        "header_name": {
+          "default": "Remote-Name",
+          "title": "Header Name",
+          "type": "string"
+        },
+        "header_user": {
+          "default": "Remote-User",
+          "title": "Header User",
+          "type": "string"
+        },
+        "trusted_proxies": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Trusted Proxies",
+          "type": "array"
+        }
+      },
+      "title": "ForwardAuthSettings",
+      "type": "object"
+    },
+    "Grid": {
+      "additionalProperties": false,
+      "description": "1-based cell position on the ``lg`` grid; smaller breakpoints reflow in the SPA.",
+      "properties": {
+        "col": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Col",
+          "type": "integer"
+        },
+        "h": {
+          "default": 1,
+          "maximum": 24,
+          "minimum": 1,
+          "title": "H",
+          "type": "integer"
+        },
+        "row": {
+          "minimum": 1,
+          "title": "Row",
+          "type": "integer"
+        },
+        "w": {
+          "default": 1,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "W",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "col",
+        "row"
+      ],
+      "title": "Grid",
+      "type": "object"
+    },
+    "Layout": {
+      "additionalProperties": true,
+      "properties": {
+        "columns": {
+          "$ref": "#/$defs/Columns",
+          "default": {
+            "lg": 4,
+            "md": 2,
+            "sm": 1
+          }
+        },
+        "gap": {
+          "default": 12,
+          "maximum": 64,
+          "minimum": 0,
+          "title": "Gap",
+          "type": "integer"
+        }
+      },
+      "title": "Layout",
+      "type": "object"
+    },
+    "Link": {
+      "additionalProperties": true,
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "url"
+      ],
+      "title": "Link",
+      "type": "object"
+    },
+    "ListDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "empty_text": {
+          "default": "Nothing to show",
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        }
+      },
+      "title": "ListDisplay",
+      "type": "object"
+    },
+    "ListSource": {
+      "additionalProperties": true,
+      "properties": {
+        "limit": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "kind": null,
+            "label": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "sort": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sort",
+          "type": "array"
+        }
+      },
+      "title": "ListSource",
+      "type": "object"
+    },
+    "ListWidget": {
+      "additionalProperties": true,
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/ListDisplay",
+          "default": {
+            "empty_text": "Nothing to show",
+            "fields": [
+              "name",
+              "state"
+            ]
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ListSource",
+          "default": {
+            "limit": null,
+            "select": {
+              "kind": null,
+              "label": null,
+              "provider": null,
+              "state": null
+            },
+            "sort": [
+              "-state_severity",
+              "name"
+            ]
+          }
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "list",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "ListWidget",
+      "type": "object"
+    },
+    "LocalAuthSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_registration": {
+          "default": false,
+          "title": "Allow Registration",
+          "type": "boolean"
+        },
+        "min_password_length": {
+          "default": 12,
+          "title": "Min Password Length",
+          "type": "integer"
+        }
+      },
+      "title": "LocalAuthSettings",
+      "type": "object"
+    },
+    "Metadata": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "title": "Metadata",
+      "type": "object"
+    },
+    "MetricDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "format": {
+          "$ref": "#/$defs/Format",
+          "default": {
+            "precision": 1,
+            "unit": null
+          }
+        },
+        "sparkline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Sparkline"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "thresholds": {
+          "items": {
+            "$ref": "#/$defs/Threshold"
+          },
+          "title": "Thresholds",
+          "type": "array"
+        }
+      },
+      "title": "MetricDisplay",
+      "type": "object"
+    },
+    "MetricMap": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "unit_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit From"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "When"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "title": "MetricMap",
+      "type": "object"
+    },
+    "MetricSource": {
+      "additionalProperties": true,
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "resource"
+      ],
+      "title": "MetricSource",
+      "type": "object"
+    },
+    "MetricWidget": {
+      "additionalProperties": true,
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/MetricDisplay",
+          "default": {
+            "format": {
+              "precision": 1,
+              "unit": null
+            },
+            "sparkline": null,
+            "thresholds": []
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/MetricSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "metric",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "MetricWidget",
+      "type": "object"
+    },
+    "OidcSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "client_id": {
+          "default": "",
+          "title": "Client Id",
+          "type": "string"
+        },
+        "client_secret": {
+          "default": "",
+          "title": "Client Secret",
+          "type": "string"
+        },
+        "discovery_url": {
+          "default": "",
+          "title": "Discovery Url",
+          "type": "string"
+        },
+        "groups_claim": {
+          "default": "groups",
+          "title": "Groups Claim",
+          "type": "string"
+        },
+        "redirect_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Redirect Url"
+        },
+        "scopes": {
+          "default": [
+            "openid",
+            "profile",
+            "email",
+            "groups"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Scopes",
+          "type": "array"
+        }
+      },
+      "title": "OidcSettings",
+      "type": "object"
+    },
+    "Paginate": {
+      "additionalProperties": true,
+      "properties": {
+        "cursor_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cursor Path"
+        },
+        "max_pages": {
+          "default": 20,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Max Pages",
+          "type": "integer"
+        },
+        "param": {
+          "title": "Param",
+          "type": "string"
+        },
+        "size": {
+          "default": 100,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Size",
+          "type": "integer"
+        },
+        "size_param": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Param"
+        },
+        "style": {
+          "enum": [
+            "page",
+            "cursor",
+            "offset"
+          ],
+          "title": "Style",
+          "type": "string"
+        }
+      },
+      "required": [
+        "style",
+        "param"
+      ],
+      "title": "Paginate",
+      "type": "object"
+    },
+    "Provider": {
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "const": "hud/v1",
+          "title": "Apiversion",
+          "type": "string"
+        },
+        "kind": {
+          "const": "Provider",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ProviderMetadata"
+        },
+        "spec": {
+          "$ref": "#/$defs/ProviderSpec"
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind",
+        "metadata",
+        "spec"
+      ],
+      "title": "ProviderDocument",
+      "type": "object"
+    },
+    "ProviderMetadata": {
+      "additionalProperties": true,
+      "properties": {
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "template": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ProviderMetadata",
+      "type": "object"
+    },
+    "ProviderSpec": {
+      "additionalProperties": true,
+      "description": "Either tier, one envelope.\n\n* Tier 1 (declarative): ``transport`` + ``resources[]``.\n* Tier 2 (plugin): ``plugin`` (its registered name) + ``config`` (validated by the\n  plugin's own config model at build time; ``${secret:}`` and ``${VAR}`` apply).",
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/ActionSpec"
+          },
+          "title": "Actions",
+          "type": "array"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "defaults": {
+          "$ref": "#/$defs/Defaults",
+          "default": {
+            "interval": "30s",
+            "jitter": "5s"
+          }
+        },
+        "plugin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plugin"
+        },
+        "resources": {
+          "items": {
+            "$ref": "#/$defs/ResourceSpec"
+          },
+          "title": "Resources",
+          "type": "array"
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "ProviderSpec",
+      "type": "object"
+    },
+    "RBAC": {
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "const": "hud/v1",
+          "title": "Apiversion",
+          "type": "string"
+        },
+        "kind": {
+          "const": "RBAC",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metadata"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spec": {
+          "$ref": "#/$defs/RbacSpec",
+          "default": {
+            "defaults": {
+              "unmatched_group": "guests"
+            },
+            "groups": {}
+          }
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind"
+      ],
+      "title": "RbacDocument",
+      "type": "object"
+    },
+    "RbacDefaults": {
+      "additionalProperties": false,
+      "properties": {
+        "unmatched_group": {
+          "default": "guests",
+          "title": "Unmatched Group",
+          "type": "string"
+        }
+      },
+      "title": "RbacDefaults",
+      "type": "object"
+    },
+    "RbacGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "permissions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permissions",
+          "type": "array"
+        }
+      },
+      "title": "RbacGroup",
+      "type": "object"
+    },
+    "RbacSpec": {
+      "additionalProperties": true,
+      "description": "``defaults.unmatched_group`` need not be listed under ``groups``: an unlisted group\ngrants nothing, which is the safe reading.",
+      "properties": {
+        "defaults": {
+          "$ref": "#/$defs/RbacDefaults",
+          "default": {
+            "unmatched_group": "guests"
+          }
+        },
+        "groups": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RbacGroup"
+          },
+          "title": "Groups",
+          "type": "object"
+        }
+      },
+      "title": "RbacSpec",
+      "type": "object"
+    },
+    "Request": {
+      "additionalProperties": true,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Headers",
+          "type": "object"
+        },
+        "method": {
+          "default": "GET",
+          "enum": [
+            "GET",
+            "POST"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Params",
+          "type": "object"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "Request",
+      "type": "object"
+    },
+    "Requirement": {
+      "additionalProperties": false,
+      "description": "One placeholder the user must supply before a template works.",
+      "properties": {
+        "hint": {
+          "title": "Hint",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "env",
+            "secret"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "hint"
+      ],
+      "title": "Requirement",
+      "type": "object"
+    },
+    "ResourceDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fields",
+          "type": "array"
+        }
+      },
+      "title": "ResourceDisplay",
+      "type": "object"
+    },
+    "ResourceMap": {
+      "additionalProperties": true,
+      "properties": {
+        "attrs": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Attrs",
+          "type": "object"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "links": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Links",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "parent_uid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Uid"
+        },
+        "state": {
+          "default": "unknown",
+          "title": "State",
+          "type": "string"
+        },
+        "uid": {
+          "title": "Uid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uid",
+        "kind",
+        "name"
+      ],
+      "title": "ResourceMap",
+      "type": "object"
+    },
+    "ResourceSource": {
+      "additionalProperties": true,
+      "properties": {
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource"
+      ],
+      "title": "ResourceSource",
+      "type": "object"
+    },
+    "ResourceSpec": {
+      "additionalProperties": true,
+      "properties": {
+        "interval": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interval"
+        },
+        "jitter": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Jitter"
+        },
+        "map": {
+          "$ref": "#/$defs/ResourceMap"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/MetricMap"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "paginate": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Paginate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "select": {
+          "default": "$",
+          "title": "Select",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "request",
+        "map"
+      ],
+      "title": "ResourceSpec",
+      "type": "object"
+    },
+    "ResourceWidget": {
+      "additionalProperties": true,
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/ResourceDisplay",
+          "default": {
+            "fields": [
+              "state",
+              "name"
+            ]
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ResourceSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "resource",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "ResourceWidget",
+      "type": "object"
+    },
+    "Retention": {
+      "additionalProperties": true,
+      "description": "Retention per tier (PLAN.md \u00a76.2). Stored as the user wrote them; parsed on demand.",
+      "properties": {
+        "rollup_1d": {
+          "default": "forever",
+          "title": "Rollup 1D",
+          "type": "string"
+        },
+        "rollup_1h": {
+          "default": "180d",
+          "title": "Rollup 1H",
+          "type": "string"
+        },
+        "rollup_5m": {
+          "default": "14d",
+          "title": "Rollup 5M",
+          "type": "string"
+        },
+        "samples": {
+          "default": "48h",
+          "title": "Samples",
+          "type": "string"
+        }
+      },
+      "title": "Retention",
+      "type": "object"
+    },
+    "Select": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provider"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/State"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/State"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "State"
+        }
+      },
+      "title": "Select",
+      "type": "object"
+    },
+    "SessionSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "cookie_name": {
+          "default": "hud_session",
+          "title": "Cookie Name",
+          "type": "string"
+        },
+        "lifetime": {
+          "default": "7d",
+          "title": "Lifetime",
+          "type": "string"
+        }
+      },
+      "title": "SessionSettings",
+      "type": "object"
+    },
+    "Settings": {
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "const": "hud/v1",
+          "title": "Apiversion",
+          "type": "string"
+        },
+        "kind": {
+          "const": "Settings",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metadata"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spec": {
+          "$ref": "#/$defs/SettingsSpec",
+          "default": {
+            "auth": {
+              "backends": [
+                "local"
+              ],
+              "forward": {
+                "groups_separator": ",",
+                "header_email": "Remote-Email",
+                "header_groups": "Remote-Groups",
+                "header_name": "Remote-Name",
+                "header_user": "Remote-User",
+                "trusted_proxies": []
+              },
+              "local": {
+                "allow_registration": false,
+                "min_password_length": 12
+              },
+              "oidc": {
+                "client_id": "",
+                "client_secret": "",
+                "discovery_url": "",
+                "groups_claim": "groups",
+                "redirect_url": null,
+                "scopes": [
+                  "openid",
+                  "profile",
+                  "email",
+                  "groups"
+                ]
+              },
+              "session": {
+                "cookie_name": "hud_session",
+                "lifetime": "7d"
+              }
+            },
+            "retention": {
+              "rollup_1d": "forever",
+              "rollup_1h": "180d",
+              "rollup_5m": "14d",
+              "samples": "48h"
+            },
+            "theme": "dark",
+            "timezone": "UTC",
+            "title": "HUD"
+          }
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind"
+      ],
+      "title": "SettingsDocument",
+      "type": "object"
+    },
+    "SettingsSpec": {
+      "additionalProperties": true,
+      "properties": {
+        "auth": {
+          "$ref": "#/$defs/AuthSettings",
+          "default": {
+            "backends": [
+              "local"
+            ],
+            "forward": {
+              "groups_separator": ",",
+              "header_email": "Remote-Email",
+              "header_groups": "Remote-Groups",
+              "header_name": "Remote-Name",
+              "header_user": "Remote-User",
+              "trusted_proxies": []
+            },
+            "local": {
+              "allow_registration": false,
+              "min_password_length": 12
+            },
+            "oidc": {
+              "client_id": "",
+              "client_secret": "",
+              "discovery_url": "",
+              "groups_claim": "groups",
+              "redirect_url": null,
+              "scopes": [
+                "openid",
+                "profile",
+                "email",
+                "groups"
+              ]
+            },
+            "session": {
+              "cookie_name": "hud_session",
+              "lifetime": "7d"
+            }
+          }
+        },
+        "retention": {
+          "$ref": "#/$defs/Retention",
+          "default": {
+            "rollup_1d": "forever",
+            "rollup_1h": "180d",
+            "rollup_5m": "14d",
+            "samples": "48h"
+          }
+        },
+        "theme": {
+          "default": "dark",
+          "enum": [
+            "dark",
+            "light",
+            "auto"
+          ],
+          "title": "Theme",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        },
+        "title": {
+          "default": "HUD",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "title": "SettingsSpec",
+      "type": "object"
+    },
+    "Sparkline": {
+      "additionalProperties": true,
+      "properties": {
+        "range": {
+          "default": "6h",
+          "title": "Range",
+          "type": "string"
+        },
+        "tier": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "samples",
+            "5m",
+            "1h",
+            "1d"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "title": "Sparkline",
+      "type": "object"
+    },
+    "State": {
+      "enum": [
+        "up",
+        "down",
+        "degraded",
+        "unknown",
+        "paused"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "StaticDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "links": {
+          "items": {
+            "$ref": "#/$defs/Link"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        }
+      },
+      "title": "StaticDisplay",
+      "type": "object"
+    },
+    "StaticWidget": {
+      "additionalProperties": true,
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/StaticDisplay",
+          "default": {
+            "links": [],
+            "text": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "static",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "StaticWidget",
+      "type": "object"
+    },
+    "TemplateInfo": {
+      "additionalProperties": false,
+      "description": "Display metadata a bundled template carries (PLAN.md \u00a78.5.1). Harmless on a\nhand-written provider; the wizard catalog reads it in Phase 3.",
+      "properties": {
+        "docs": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docs"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "requires": {
+          "items": {
+            "$ref": "#/$defs/Requirement"
+          },
+          "title": "Requires",
+          "type": "array"
+        },
+        "service": {
+          "title": "Service",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service"
+      ],
+      "title": "TemplateInfo",
+      "type": "object"
+    },
+    "Threshold": {
+      "additionalProperties": true,
+      "properties": {
+        "gte": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gte"
+        },
+        "lte": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lte"
+        },
+        "state": {
+          "enum": [
+            "warn",
+            "error"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "Threshold",
+      "type": "object"
+    },
+    "Transport": {
+      "additionalProperties": true,
+      "properties": {
+        "auth": {
+          "default": {
+            "type": "none"
+          },
+          "discriminator": {
+            "mapping": {
+              "api_key": "#/$defs/AuthApiKey",
+              "basic": "#/$defs/AuthBasic",
+              "bearer": "#/$defs/AuthBearer",
+              "header": "#/$defs/AuthHeader",
+              "none": "#/$defs/AuthNone"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/AuthNone"
+            },
+            {
+              "$ref": "#/$defs/AuthBearer"
+            },
+            {
+              "$ref": "#/$defs/AuthApiKey"
+            },
+            {
+              "$ref": "#/$defs/AuthBasic"
+            },
+            {
+              "$ref": "#/$defs/AuthHeader"
+            }
+          ],
+          "title": "Auth"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "max_connections": {
+          "default": 4,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Max Connections",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": "10s",
+          "title": "Timeout",
+          "type": "string"
+        },
+        "verify_tls": {
+          "default": true,
+          "title": "Verify Tls",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "base_url"
+      ],
+      "title": "Transport",
+      "type": "object"
+    },
+    "UnsupportedWidget": {
+      "additionalProperties": true,
+      "description": "Any type this build cannot render. Kept verbatim so write-back preserves it.",
+      "properties": {
+        "display": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display"
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "UnsupportedWidget",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/prophetizer/homelab-hud/schema/dashboard-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One schema per document kind. Provider and Board are frozen at hud/v1; Settings and RBAC may still gain optional keys.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Provider"
+    },
+    {
+      "$ref": "#/$defs/Board"
+    },
+    {
+      "$ref": "#/$defs/Settings"
+    },
+    {
+      "$ref": "#/$defs/RBAC"
+    }
+  ],
+  "title": "HUD configuration (hud/v1)",
+  "x-frozen": [
+    "Provider",
+    "Board"
+  ]
+}

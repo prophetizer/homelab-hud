@@ -247,6 +247,23 @@ refused with 409 and nothing is written; reload and try again. Every save writes
 `audit_log` row. One known normalisation: ruamel writes flow mappings compact, so
 `{ col: 1 }` comes back as `{col: 1}` the first time a file is saved.
 
+### Configuration schema
+
+`schema/dashboard-v1.json` is the JSON Schema for every document kind. Point your editor at
+it for completion and inline validation — in VS Code, via `yaml.schemas` in settings, or a
+`# yaml-language-server: $schema=...` comment at the top of a file.
+
+**`dashboard/v1` is frozen.** The `Provider` and `Board` schemas will not change
+incompatibly: a `v1` release may add optional keys, widget types, provider kinds, units or
+permissions, and may relax a validator, but removing or renaming a key, changing a default
+or tightening a validator would be `dashboard/v2` — which will ship with an automatic
+migrator, never a note asking you to edit your files. `Settings` and `RBAC` are published in
+the same file but are deliberately *not* frozen; they may still gain optional keys.
+
+Config written for a newer HUD still opens on an older one: an unknown key inside `spec` is
+preserved and warned about rather than refused, and a widget type the image does not know
+renders as a tile explaining which phase it arrives in — one tile degrades, never the board.
+
 ## Develop
 
 ```bash

@@ -29,6 +29,7 @@ dev = [
     "pytest-asyncio==1.4.0",
     "respx==0.23.1",
     "httpx2==2.13.0",  # starlette>=1.6 TestClient; runtime stays on httpx 0.x
+    "jsonschema==4.26.0",  # validates the published dashboard/v1 schema; never imported at runtime
 ]
 
 # Packaged Tier 2 plugins. Drop-ins live in /config/plugins/<name>/provider.py.
