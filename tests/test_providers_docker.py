@@ -106,14 +106,15 @@ async def test_collect_stats_and_network_rates(config_dir: Path, api: respx.Mock
     p = build(config_dir)
     await p.startup()
     try:
-        first = await p.poll("collect")
+        listing = await p.poll("collect")
+        first = await p.poll("stats")
         second_stats = json.loads(json.dumps(STATS))
         second_stats["networks"]["eth0"]["rx_bytes"] += 4_000_000
         second_stats["networks"]["eth0"]["tx_bytes"] += 1_000_000
         api.get(f"{PROXY}/containers/hud/stats").mock(
             return_value=httpx.Response(200, json=second_stats)
         )
-        second = await p.poll("collect")
+        second = await p.poll("stats")
     finally:
         await p.shutdown()
     # Only running/degraded containers get a stats request; a 404 for one is not a failure.
@@ -121,7 +122,9 @@ async def test_collect_stats_and_network_rates(config_dir: Path, api: respx.Mock
     assert api.get(f"{PROXY}/containers/sonarr/stats").call_count == 2
     last = api.get(f"{PROXY}/containers/hud/stats").calls.last.request
     assert last.url.params["stream"] == "false"
-    assert len(first.resources) == 4
+    # State comes from collect; stats report metrics only and own no resources.
+    assert len(listing.resources) == 4 and listing.metrics == []
+    assert first.resources == [] and second.resources == []
     m1 = {m.name: m for m in first.metrics}
     assert all(m.resource_uid == "docker:container:hud" for m in first.metrics)
     assert set(m1) == {"cpu_pct", "mem_bytes", "mem_pct"}  # no rate without a previous sample
@@ -137,7 +140,7 @@ async def test_collect_stats_and_network_rates(config_dir: Path, api: respx.Mock
 
 async def test_stats_can_be_disabled(config_dir: Path, api: respx.MockRouter) -> None:
     p = build(config_dir, DOC + "    stats: false\n")
-    assert p.group("collect").timeout < p.groups()[1].timeout + 1  # sanity: shorter budget
+    assert [g.name for g in p.groups()] == ["discover", "collect"]  # no stats group at all
     await p.startup()
     try:
         result = await p.poll("collect")
@@ -194,13 +197,70 @@ async def test_stats_cap_picks_a_stable_set_by_name(
     await p.startup()
     try:
         await p.poll("collect")  # listing order: hud, sonarr
+        await p.poll("stats")
         assert api.get(f"{PROXY}/containers/hud/stats").call_count == 1
         # sonarr is recreated and now lists first; the stats set must not follow it.
         api.get(f"{PROXY}/containers/json").mock(
             return_value=httpx.Response(200, json=list(reversed(CONTAINERS)))
         )
         await p.poll("collect")
+        await p.poll("stats")
     finally:
         await p.shutdown()
     assert api.get(f"{PROXY}/containers/hud/stats").call_count == 2
     assert not api.get(f"{PROXY}/containers/sonarr/stats").called
+
+
+def test_state_and_stats_are_separate_groups_with_separate_budgets(config_dir: Path) -> None:
+    """Found on a live 103-container stack: one shared poll meant a slow stats pass timed
+    out container state too. State now has a listing-sized budget; stats get their own."""
+    p = build(config_dir, DOC + "    max_stats: 120\n")
+    groups = {g.name: g for g in p.groups()}
+    assert set(groups) == {"discover", "collect", "stats"}
+    assert groups["collect"].timeout == groups["discover"].timeout == 15.0  # 10s + 5s
+    assert groups["stats"].timeout > 60  # 30 batches of ~2s, plus the request budget
+    assert groups["stats"].interval == groups["collect"].interval
+
+
+async def test_a_failed_stats_pass_does_not_stale_container_state(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """The property the split exists for. The cache marks stale only what a failing group
+    owns, and the stats group owns nothing — so a timed-out stats pass leaves every
+    container's up/down state fresh."""
+    from hud.collector import LiveCache  # noqa: PLC0415
+
+    p = build(config_dir)
+    await p.startup()
+    try:
+        state = await p.poll("collect")
+        stats = await p.poll("stats")
+    finally:
+        await p.shutdown()
+    cache = LiveCache()
+    cache.apply("docker", "collect", state.resources, state.metrics)
+    cache.apply("docker", "stats", stats.resources, stats.metrics)
+    assert cache.metric("docker:container:hud", "cpu_pct") is not None
+    cache.mark_stale("docker", "stats", "timed out after 75s")
+    assert all(not r.stale for r in cache.resources()), "stats failure staled container state"
+    # Whereas a failed listing does, as it should.
+    cache.mark_stale("docker", "collect", "GET /containers/json: timed out")
+    assert all(r.stale for r in cache.resources())
+
+
+async def test_listing_does_not_share_the_stats_connection_pool(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """The discover listing was starved of connections by a stats pass holding all four.
+    The two now use separate clients: listing still works with the stats client gone."""
+    p = build(config_dir)
+    await p.startup()
+    try:
+        assert p._client is not None and p._stats_client is not None
+        assert p._client is not p._stats_client
+        await p._stats_client.aclose()  # simulate a stats pool that is fully tied up
+        p._stats_client = None
+        assert len((await p.poll("collect")).resources) == 4
+        assert len(await p.discover()) == 4
+    finally:
+        await p.shutdown()

@@ -39,6 +39,8 @@ from hud.providers.sdk import (
 )
 
 KIND = "container"
+STATS_GROUP = "stats"
+LIST_CONNECTIONS = 2  # discover and collect may overlap; neither ever waits on stats
 STATS_CONCURRENCY = 4
 STATS_SECONDS_EACH = 2.0  # docker samples twice, one second apart, for stream=false
 
@@ -91,34 +93,55 @@ class DockerProvider(PluginProvider):
     def __init__(self, ctx: ProviderContext, config: DockerConfig, schedule: Schedule) -> None:
         super().__init__(ctx, config, schedule)
         self._client: httpx.AsyncClient | None = None
+        self._stats_client: httpx.AsyncClient | None = None
         self._net_prev: dict[str, tuple[float, int, int]] = {}
 
     def groups(self) -> Sequence[PollGroup]:
+        """Container state and per-container stats are separate groups on separate
+        connections. Found on a live 103-container stack: when they shared one poll and one
+        4-connection pool, a slow stats pass on a busy engine timed out the whole collect —
+        staling every container's up/down state — and starved the discover listing of a
+        connection until its breaker opened for five minutes. Stats now report metrics
+        only, so the cache attributes no resources to them and a failed stats pass cannot
+        mark any container stale; it costs a gap in metrics, nothing more."""
         s = self.schedule
         per_request = self.config.timeout_seconds
-        # Listing, plus every stats request at STATS_CONCURRENCY in parallel.
-        batches = math.ceil(self.config.max_stats / STATS_CONCURRENCY) if self.config.stats else 0
-        collect_timeout = per_request + batches * STATS_SECONDS_EACH + 5.0
-        return [
+        groups = [
             PollGroup("discover", s.discover_interval, s.jitter, per_request + 5.0),
-            PollGroup("collect", s.interval, s.jitter, collect_timeout),
+            PollGroup("collect", s.interval, s.jitter, per_request + 5.0),
         ]
+        if self.config.stats:
+            batches = math.ceil(self.config.max_stats / STATS_CONCURRENCY)
+            timeout = per_request + batches * STATS_SECONDS_EACH + 5.0
+            groups.append(PollGroup(STATS_GROUP, s.interval, s.jitter, timeout))
+        return groups
 
     async def startup(self) -> None:
-        self._client = self.ctx.new_http_client(
-            HttpOptions(
-                base_url=self.config.base_url,
-                timeout=self.config.timeout_seconds,
-                verify_tls=self.config.verify_tls,
-                headers={"Accept": "application/json"},
-                max_connections=STATS_CONCURRENCY,
+        def client(max_connections: int) -> httpx.AsyncClient:
+            return self.ctx.new_http_client(
+                HttpOptions(
+                    base_url=self.config.base_url,
+                    timeout=self.config.timeout_seconds,
+                    verify_tls=self.config.verify_tls,
+                    headers={"Accept": "application/json"},
+                    max_connections=max_connections,
+                )
             )
-        )
+
+        self._client = client(LIST_CONNECTIONS)
+        if self.config.stats:
+            self._stats_client = client(STATS_CONCURRENCY)
 
     async def shutdown(self) -> None:
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
+        for c in (self._client, self._stats_client):
+            if c is not None:
+                await c.aclose()
+        self._client = self._stats_client = None
+
+    async def poll(self, group: str) -> PollResult:
+        if group == STATS_GROUP:
+            return await self._stats_pass()
+        return await super().poll(group)
 
     # ---------------------------------------------------------------- contract
 
@@ -126,11 +149,12 @@ class DockerProvider(PluginProvider):
         return await self._list()
 
     async def collect(self, resources: list[Resource]) -> PollResult:
-        # Listing is one cheap call and container state matters at collect cadence.
-        current = await self._list()
-        result = PollResult(resources=current)
-        if not self.config.stats:
-            return result
+        # Listing only: one cheap call, and container state matters at collect cadence.
+        return PollResult(resources=await self._list())
+
+    async def _stats_pass(self) -> PollResult:
+        """Metrics only, for the running containers of the latest listing."""
+        current = self._resources or await self._list()
         # Chosen by name, not in listing order: /containers/json lists newest-created first,
         # so under the cap a recreated container (an image update) would push another out of
         # the stats set, and which containers keep continuous history would drift on every
@@ -155,17 +179,19 @@ class DockerProvider(PluginProvider):
             async with sem:
                 return await self._stats(r)
 
+        result = PollResult(resources=[])
         for metrics in await asyncio.gather(*(one(r) for r in running)):
             result.metrics.extend(metrics)
         return result
 
     # ---------------------------------------------------------------- docker api
 
-    async def _get(self, path: str, **params: str) -> Any:  # noqa: ANN401
-        if self._client is None:
+    async def _get(self, path: str, *, stats_pool: bool = False, **params: str) -> Any:  # noqa: ANN401
+        client = self._stats_client if stats_pool else self._client
+        if client is None:
             raise ProviderPollError(self.name, "provider not started")
         try:
-            resp = await self._client.get(path, params=params)
+            resp = await client.get(path, params=params)
         except httpx.TimeoutException as exc:
             raise ProviderPollError(self.name, f"GET {path}: timed out") from exc
         except httpx.HTTPError as exc:
@@ -231,7 +257,7 @@ class DockerProvider(PluginProvider):
     async def _stats(self, r: Resource) -> list[Metric]:
         path = f"/containers/{r.name}/stats"
         try:
-            s = await self._get(path, stream="false")
+            s = await self._get(path, stats_pool=True, stream="false")
         except ProviderPollError as exc:
             # A container that stopped since listing is not a provider failure.
             self.log.debug("%s", exc.message)
