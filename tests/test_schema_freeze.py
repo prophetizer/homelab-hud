@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from hud.config.schema_export import SCHEMA_PATH, build_schema, render
+from hud.config.schema_export import SCHEMA_PATH, build_schema, compare, render
 from hud.config.schemas import KIND_SCHEMAS
 
 REGENERATE = "regenerate deliberately with: uv run python -m hud.config.schema_export --write"
@@ -27,17 +27,20 @@ def published() -> dict[str, Any]:
 
 
 def test_published_schema_matches_the_models(published: dict[str, Any]) -> None:
+    """Fails on ANY drift, so no change lands unreviewed — and says which kind it is:
+    additive changes are allowed in a v1 minor (§11.3a); breaking ones are dashboard/v2."""
     fresh = build_schema()
     if fresh != published:
-        frozen = [
-            k
-            for k in published.get("x-frozen", [])
-            if fresh["$defs"].get(k) != published["$defs"].get(k)
-        ]
-        detail = f"FROZEN kinds changed: {', '.join(frozen)}. " if frozen else ""
+        changes = compare(published, fresh)
+        verdict = (
+            "BREAKING: this is dashboard/v2, which needs a migrator (R10), not a regenerate."
+            if any(c.startswith("BREAKING") for c in changes)
+            else "Additive only: v1-compatible (§11.3a) once regenerated deliberately."
+        )
         pytest.fail(
-            f"{SCHEMA_PATH.name} is out of date with the config models. {detail}"
-            f"A change to a frozen kind is a dashboard/v2, not a v1 release. {REGENERATE}"
+            f"{SCHEMA_PATH.name} is out of date with the config models.\n  "
+            + "\n  ".join(changes)
+            + f"\n{verdict} {REGENERATE}"
         )
 
 
@@ -114,3 +117,42 @@ def test_published_schema_refuses_a_broken_document(published: dict[str, Any]) -
         "spec": {"widgets": [{"id": "x", "type": "static"}]},  # and grid is required
     }
     assert list(_validator(published).iter_errors(broken)), "schema accepts an invalid board"
+
+
+def test_compare_classifies_additive_and_breaking() -> None:
+    base = {"$defs": {"Select": {"type": "object", "properties": {"kind": {"type": "string"}}}}}
+    added = {
+        "$defs": {
+            "Select": {
+                "type": "object",
+                "properties": {"kind": {"type": "string"}, "attrs": {"type": "object"}},
+            }
+        }
+    }
+    assert compare(base, added) == ["additive: Select.attrs added (optional)"]
+    assert compare(added, base) == ["BREAKING: Select.attrs removed"]
+    required = {"$defs": {"Select": {**added["$defs"]["Select"], "required": ["attrs"]}}}
+    assert compare(base, required) == ["BREAKING: Select.attrs added as required"]
+    retyped = {"$defs": {"Select": {"type": "object", "properties": {"kind": {"type": "integer"}}}}}
+    assert compare(base, retyped) == ["BREAKING: Select.kind changed"]
+    assert compare(base, {"$defs": {**base["$defs"], "New": {}}}) == [
+        "additive: new definition New"
+    ]
+
+
+def test_compare_does_not_call_a_parents_embedded_default_breaking() -> None:
+    """Found adding Select.attrs: ListSource.select's default embeds Select's defaults, so it
+    gained `"attrs": null`. That is the new field's own default — nothing changes meaning."""
+
+    def doc(default: dict[str, Any]) -> dict[str, Any]:
+        prop = {"$ref": "#/$defs/Select", "default": default}
+        return {"$defs": {"ListSource": {"properties": {"select": prop}}}}
+
+    before = doc({"kind": None, "label": None})
+    after = doc({"label": None, "kind": None, "attrs": None})
+    assert compare(before, after) == [
+        "additive: ListSource.select default gains null key(s) from a new optional field"
+    ]
+    # A default that changes a value is still breaking.
+    moved = doc({"kind": "container", "label": None})
+    assert compare(before, moved) == ["BREAKING: ListSource.select changed"]
