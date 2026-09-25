@@ -68,7 +68,10 @@ async def get_board(request: Request, name: str) -> ResolvedBoard:
     if found is None:
         raise HTTPException(status_code=404, detail=f"no board {name!r}")
     return await deps.widgets(request).resolve_board(
-        _model(found), datetime.now(UTC), revision=found.revision
+        _model(found),
+        datetime.now(UTC),
+        revision=found.revision,
+        page_origin=deps.page_origin(request),
     )
 
 
@@ -117,7 +120,10 @@ async def patch_board(request: Request, name: str, body: BoardPatch) -> Resolved
     fresh = _find(request, p, name)
     assert fresh is not None  # we just wrote it; visibility is unchanged by a grid edit
     return await deps.widgets(request).resolve_board(
-        _model(fresh), datetime.now(UTC), revision=fresh.revision
+        _model(fresh),
+        datetime.now(UTC),
+        revision=fresh.revision,
+        page_origin=deps.page_origin(request),
     )
 
 

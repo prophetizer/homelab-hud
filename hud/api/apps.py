@@ -52,7 +52,9 @@ def _workspace_embeds(board: BoardDocument) -> list[EmbedWidget]:
 
 
 async def _app(request: Request, board: BoardDocument, w: EmbedWidget) -> App:
-    resolved = await deps.widgets(request).resolve(w, datetime.now(UTC))
+    resolved = await deps.widgets(request).resolve(
+        w, datetime.now(UTC), page_origin=deps.page_origin(request)
+    )
     return App(
         board=board.metadata.name,
         board_title=board.metadata.title or board.metadata.name,

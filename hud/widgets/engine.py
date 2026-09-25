@@ -115,9 +115,18 @@ class WidgetEngine:
         return uids
 
     async def resolve_board(
-        self, doc: BoardDocument, now: datetime, *, revision: str = ""
+        self,
+        doc: BoardDocument,
+        now: datetime,
+        *,
+        revision: str = "",
+        page_origin: str | None = None,
     ) -> ResolvedBoard:
-        widgets = await asyncio.gather(*(self.resolve(w, now) for w in doc.spec.widgets))
+        """``page_origin`` is the HUD page asking (``https://hud.example``): whether an
+        embed can be framed depends on which page frames it."""
+        widgets = await asyncio.gather(
+            *(self.resolve(w, now, page_origin=page_origin) for w in doc.spec.widgets)
+        )
         return ResolvedBoard(
             name=doc.metadata.name,
             title=doc.metadata.title or doc.metadata.name,
@@ -129,13 +138,17 @@ class WidgetEngine:
             widgets=list(widgets),
         )
 
-    async def resolve(self, w: Widget, now: datetime) -> ResolvedWidget:
+    async def resolve(
+        self, w: Widget, now: datetime, *, page_origin: str | None = None
+    ) -> ResolvedWidget:
         try:
-            return await self._dispatch(w, now)
+            return await self._dispatch(w, now, page_origin)
         except Exception as exc:  # a bug in one resolver degrades one tile, never the board
             return _tile(w, State.UNKNOWN, error=f"{type(exc).__name__}: {exc}", data={})
 
-    async def _dispatch(self, w: Widget, now: datetime) -> ResolvedWidget:
+    async def _dispatch(
+        self, w: Widget, now: datetime, page_origin: str | None = None
+    ) -> ResolvedWidget:
         match w:
             case StaticWidget():
                 return self._static(w)
@@ -146,7 +159,7 @@ class WidgetEngine:
             case MetricWidget():
                 return await self._metric(w, now)
             case EmbedWidget():
-                return await self._embed(w)
+                return await self._embed(w, page_origin)
             case UnsupportedWidget():
                 return _tile(w, None, error=w.reason, data={"reason": w.reason})
 
@@ -251,8 +264,8 @@ class WidgetEngine:
             },
         )
 
-    async def _embed(self, w: EmbedWidget) -> ResolvedWidget:
-        framing: Framing = await self.prober.probe(w.source.url)
+    async def _embed(self, w: EmbedWidget, page_origin: str | None = None) -> ResolvedWidget:
+        framing: Framing = await self.prober.probe(w.source.url, page_origin)
         data = {
             "url": w.source.url,
             "sandbox": w.source.sandbox,

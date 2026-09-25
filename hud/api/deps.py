@@ -89,3 +89,15 @@ def visible_uids(request: Request, p: Principal) -> set[str] | None:
     for board in visible_boards(request, p):
         uids |= engine.referenced_uids(board)
     return uids
+
+
+def page_origin(request: Request) -> str:
+    """The origin the browser is on — ``https://hud.example`` — which is what an embedded
+    app's ``frame-ancestors`` is checked against. Behind a TLS-terminating proxy the scheme
+    comes from X-Forwarded-Proto; the host is the one the browser asked for. A spoofed Host
+    only changes the verdicts its sender sees."""
+    from hud.auth.service import is_https  # noqa: PLC0415 — avoids an import cycle
+
+    scheme = "https" if is_https(request) else request.url.scheme
+    host = request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host}"

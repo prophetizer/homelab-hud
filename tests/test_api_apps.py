@@ -118,3 +118,44 @@ def test_apps_follow_board_visibility(client: TestClient) -> None:
     assert client.get("/api/v1/apps/infra/portainer").status_code == 404, "hidden, not forbidden"
     assert client.post("/api/v1/auth/logout").status_code == 204
     assert client.get("/api/v1/apps").status_code == 401
+
+
+def test_framing_is_judged_for_the_page_the_browser_is_on(
+    tmp_path: Path, mock: respx.MockRouter
+) -> None:
+    """Behind Traefik the browser is on https://hud.…: Host names the host and
+    X-Forwarded-Proto the scheme. An app whose frame-ancestors lists that origin frames;
+    the same app asked about from another origin does not, and says what to add."""
+    mock.get("https://grafana.lab/").mock(
+        return_value=httpx.Response(
+            200, headers={"Content-Security-Policy": "frame-ancestors 'self' https://hud.test"}
+        )
+    )
+    mock.get("http://nodered.lab:1880/").mock(return_value=httpx.Response(200))
+    env = _env(tmp_path)
+    (env.config_dir / "boards").mkdir(parents=True)
+    (env.config_dir / "boards" / "apps.yaml").write_text(
+        "apiVersion: hud/v1\nkind: Board\nmetadata: {name: apps}\nspec:\n  widgets:\n"
+        "    - {id: grafana, type: embed, grid: {col: 1, row: 1}, source: {url: 'https://grafana.lab/'},"
+        " display: {open_in: workspace, fallback: new_tab}}\n"
+        "    - {id: nodered, type: embed, grid: {col: 2, row: 1}, source: {url: 'http://nodered.lab:1880/'},"
+        " display: {open_in: workspace, fallback: new_tab}}\n"
+    )
+    with TestClient(create_app(env)) as client:
+        sign_in_admin(client)
+        behind_proxy = {"host": "hud.test", "x-forwarded-proto": "https"}
+        apps = {
+            a["widget"]: a for a in client.get("/api/v1/apps", headers=behind_proxy).json()["apps"]
+        }
+        assert apps["grafana"]["framing"]["allowed"] is True
+        assert apps["nodered"]["framing"]["allowed"] is False
+        assert "mixed content" in apps["nodered"]["framing"]["reason"]
+        elsewhere = {"host": "other.test", "x-forwarded-proto": "https"}
+        g = client.get("/api/v1/apps/apps/grafana", headers=elsewhere).json()["framing"]
+        assert g["allowed"] is False and "does not include https://other.test" in g["reason"]
+        # Board resolution uses the same origin (inline embeds, the layout editor's reply).
+        widgets = client.get("/api/v1/boards/apps", headers=behind_proxy).json()["widgets"]
+        assert {w["id"]: w["data"]["framing"]["allowed"] for w in widgets} == {
+            "grafana": True,
+            "nodered": False,
+        }
