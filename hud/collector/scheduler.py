@@ -20,6 +20,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -33,6 +34,26 @@ from hud.providers.errors import ProviderPollError
 from hud.providers.registry import ProviderRegistry, RegistryDiff
 
 log = logging.getLogger(__name__)
+
+_ROUTINE_SKIP = "maximum number of running instances"
+
+
+class SchedulerLog(logging.LoggerAdapter[logging.Logger]):
+    """APScheduler's logger with one routine message demoted to DEBUG.
+
+    A poll group that runs longer than its interval — a full docker stats pass over a
+    hundred containers — makes the next tick skip, by design (``max_instances: 1``,
+    ``coalesce``). APScheduler logs that at WARNING on every tick, which buries the
+    warnings that do matter (timeouts, breaker trips) under routine ones. Found on the
+    first live deployment; everything else APScheduler logs keeps its level.
+    """
+
+    def warning(self, msg: object, *args: object, **kwargs: Any) -> None:  # noqa: ANN401
+        if isinstance(msg, str) and _ROUTINE_SKIP in msg:
+            self.debug(msg, *args, **kwargs)
+            return
+        super().warning(msg, *args, **kwargs)
+
 
 # Called after every successful poll with the normalized result and generated events.
 ResultSink = Callable[[str, str, Normalized, list[Event]], Awaitable[None]]
@@ -71,6 +92,7 @@ class Collector:
         self._scheduler = AsyncIOScheduler(
             timezone=UTC,
             job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": None},
+            logger=SchedulerLog(logging.getLogger("apscheduler.scheduler")),
         )
         registry.on_diff(self._on_diff)
 

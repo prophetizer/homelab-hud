@@ -298,3 +298,35 @@ async def test_real_scheduler_polls_on_interval(config_dir: Path) -> None:
     finally:
         await collector.stop()
         await registry.shutdown()
+
+
+def test_routine_skip_is_debug_but_other_scheduler_warnings_stay_warnings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Found live: a ~90s docker stats pass against a 30s interval skips ticks by design,
+    and APScheduler logged each skip at WARNING — burying breaker trips and timeouts."""
+    import logging  # noqa: PLC0415
+
+    from hud.collector.scheduler import SchedulerLog  # noqa: PLC0415
+
+    adapter = SchedulerLog(logging.getLogger("apscheduler.scheduler"))
+    with caplog.at_level(logging.DEBUG, logger="apscheduler.scheduler"):
+        # The exact message APScheduler 3.11 emits (schedulers/base.py).
+        adapter.warning(
+            'Execution of job "%s" skipped: maximum number of running instances reached (%d)',
+            "docker/collect",
+            1,
+        )
+        adapter.warning('Run time of job "%s" was missed by %s', "docker/collect", "0:00:05")
+    levels = {r.getMessage().split(" ")[0]: r.levelname for r in caplog.records}
+    assert levels == {"Execution": "DEBUG", "Run": "WARNING"}
+
+
+def test_collector_hands_apscheduler_the_demoting_logger() -> None:
+    from hud.collector import LiveCache  # noqa: PLC0415
+    from hud.collector.scheduler import Collector, SchedulerLog  # noqa: PLC0415
+    from hud.providers import ProviderRegistry  # noqa: PLC0415
+
+    registry = ProviderRegistry(factory=lambda *_: None, context_factory=lambda _: None)  # type: ignore[arg-type,return-value]
+    collector = Collector(registry, LiveCache())
+    assert isinstance(collector._scheduler._logger, SchedulerLog)
