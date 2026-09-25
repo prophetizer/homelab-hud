@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from hud.config import ConfigSnapshot
+from hud.config import ConfigSnapshot, QuarantinedDocument
 from hud.config.schemas import ProviderDocument
 from hud.providers.base import Provider, ProviderContext
 from hud.providers.errors import ProviderBuildError
@@ -88,15 +89,33 @@ class ProviderRegistry:
             for d in snapshot.documents
             if isinstance(d.model, ProviderDocument)
         }
+        # A provider file that failed validation and has no earlier valid version still
+        # serving: it exists, it is broken, and it says why (invariant 6) — a failed tile,
+        # not an absence. One whose last valid version is serving is simply in `wanted`.
+        broken = {
+            _quarantine_name(q): f"config file is invalid, not loaded: {q.summary}"
+            for q in snapshot.quarantined
+            if q.kind == "Provider" and not q.serving_last_good
+        }
+        broken = {n: m for n, m in broken.items() if n not in wanted}
         added: list[str] = []
         removed: list[str] = []
         replaced: list[str] = []
         failed: list[str] = []
 
         for name in sorted(set(self._entries) | set(self._failures)):
-            if name not in wanted:
+            if name not in wanted and name not in broken:
                 await self._drop(name)
                 removed.append(name)
+
+        for name, message in broken.items():
+            spec_hash = "invalid:" + hashlib.sha256(message.encode()).hexdigest()
+            failure = self._failures.get(name)
+            if failure and failure.spec_hash == spec_hash:
+                continue
+            await self._drop(name)
+            self._failures[name] = _Failure(message, spec_hash)
+            failed.append(name)
 
         for name, (doc, spec_hash) in wanted.items():
             current = self._entries.get(name)
@@ -179,3 +198,14 @@ class ProviderRegistry:
 
 def _hash(doc: ProviderDocument) -> str:
     return hashlib.sha256(doc.model_dump_json(by_alias=True).encode()).hexdigest()[:16]
+
+
+def _quarantine_name(q: QuarantinedDocument) -> str:
+    """The provider's own name when the file was readable enough to declare one, else the
+    file stem — bundled templates are named after their provider, and so are most files."""
+    if q.name and _PROVIDER_NAME.fullmatch(q.name):
+        return q.name
+    return q.path.stem
+
+
+_PROVIDER_NAME = re.compile(r"[a-z0-9][a-z0-9_-]*")

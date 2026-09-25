@@ -2,7 +2,13 @@
 """Configuration Manager: YAML load, schema validation, hot reload, round-trip write-back."""
 
 from hud.config.errors import ConfigError, ConfigIssue
-from hud.config.manager import ConfigConflictError, ConfigManager, ConfigSnapshot, LoadedDocument
+from hud.config.manager import (
+    ConfigConflictError,
+    ConfigManager,
+    ConfigSnapshot,
+    LoadedDocument,
+    QuarantinedDocument,
+)
 from hud.config.secrets import SecretNotFoundError, SecretResolver
 
 __all__ = [
@@ -12,6 +18,7 @@ __all__ = [
     "ConfigManager",
     "ConfigSnapshot",
     "LoadedDocument",
+    "QuarantinedDocument",
     "SecretNotFoundError",
     "SecretResolver",
 ]

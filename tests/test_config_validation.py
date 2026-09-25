@@ -65,16 +65,48 @@ def test_wrong_api_version(manager: ConfigManager, config_dir: Path) -> None:
     assert "apiVersion" in ei.value.issues[0].message
 
 
-def test_unknown_kind(manager: ConfigManager, config_dir: Path) -> None:
+def test_unknown_kind_in_a_content_folder_is_contained(
+    manager: ConfigManager, config_dir: Path
+) -> None:
+    """A kind this image does not know, in its own folder, is what a newer image's config
+    looks like to an older one: it degrades that file and the rest still loads (§11.3a)."""
     (config_dir / "settings.yaml").write_text(GOOD)
     (config_dir / "boards").mkdir()
     (config_dir / "boards" / "x.yaml").write_text("apiVersion: hud/v1\nkind: Report\nspec: {}\n")
-    with pytest.raises(ConfigError) as ei:
-        manager.load()
-    (issue,) = ei.value.issues
+    snap = manager.load()
+    (q,) = snap.quarantined
+    (issue,) = q.issues
     assert issue.file.name == "x.yaml"
     assert issue.line == 2
     assert "unsupported kind 'Report' (known: Board, Provider, RBAC, Settings)" in issue.message
+    assert q.kind == "Report" and not q.serving_last_good
+
+
+def test_unreadable_or_unrecognised_top_level_file_is_still_fatal(
+    manager: ConfigManager, config_dir: Path
+) -> None:
+    """A top-level file whose kind cannot be read, or is not one HUD can contain, could be
+    settings.yaml or rbac.yaml — so it is never guessed at, and startup still refuses."""
+    (config_dir / "settings.yaml").write_text(GOOD)
+    for label, text in (
+        ("unparseable", "apiVersion: hud/v1\nkind: [unclosed\n"),
+        ("unrecognised kind", "apiVersion: hud/v1\nkind: Widgetry\nspec: {}\n"),
+    ):
+        (config_dir / "x.yaml").write_text(text)
+        with pytest.raises(ConfigError) as ei:
+            manager.load()
+        assert ei.value.issues[0].file.name == "x.yaml", label
+
+
+def test_declared_content_kind_is_contained_wherever_it_lives(
+    manager: ConfigManager, config_dir: Path
+) -> None:
+    # Readable and declaring a containable kind: it is not settings or RBAC, so a bad one
+    # at the top level degrades only itself.
+    (config_dir / "settings.yaml").write_text(GOOD)
+    (config_dir / "x.yaml").write_text("apiVersion: hud/v1\nkind: Board\nmetadata: {name: BAD}\n")
+    (q,) = manager.load().quarantined
+    assert q.kind == "Board" and q.name == "BAD"
 
 
 def test_unknown_spec_key_warns_but_loads(manager: ConfigManager, config_dir: Path) -> None:

@@ -21,11 +21,22 @@ from hud.providers import ProviderHealth
 router = APIRouter(tags=["health"])
 
 
+class QuarantinedFile(BaseModel):
+    """One invalid Provider/Board file whose failure is contained to itself."""
+
+    file: str  # relative to /config
+    kind: str
+    name: str | None
+    serving_last_good: bool  # an earlier valid version of the file is still in use
+    issues: list[str]  # file:line:col: message
+
+
 class ConfigHealth(BaseModel):
     version: str
     loaded_at: datetime
     warnings: int
     error: str | None  # set when the last reload failed and the previous version is served
+    quarantined: list[QuarantinedFile]
 
 
 class DbHealth(BaseModel):
@@ -53,7 +64,7 @@ async def health(request: Request) -> Health | PublicHealth:
     state = request.app.state
     snap = state.config.snapshot
     error = state.config.last_error
-    status: Literal["ok", "degraded"] = "degraded" if error else "ok"
+    status: Literal["ok", "degraded"] = "degraded" if error or snap.quarantined else "ok"
     caller = await deps.optional_principal(request)
     if caller is None or not caller.has("providers:view"):
         return PublicHealth(status=status, app_version=__version__)
@@ -67,6 +78,16 @@ async def health(request: Request) -> Health | PublicHealth:
             loaded_at=snap.loaded_at,
             warnings=len(snap.warnings),
             error=str(error) if error else None,
+            quarantined=[
+                QuarantinedFile(
+                    file=str(q.path.relative_to(state.config.config_dir)),
+                    kind=q.kind,
+                    name=q.name,
+                    serving_last_good=q.serving_last_good,
+                    issues=[str(i) for i in q.issues],
+                )
+                for q in snap.quarantined
+            ],
         ),
         db=DbHealth(size_bytes=state.store_paths.size_bytes(), revisions=state.db_revisions),
         providers=deps.collector(request).health(),

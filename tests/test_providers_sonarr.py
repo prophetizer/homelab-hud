@@ -42,6 +42,8 @@ def build(config_dir: Path, text: str = DOC, env: dict[str, str] | None = None) 
     (config_dir / "providers").mkdir(exist_ok=True)
     (config_dir / "providers" / "sonarr.yaml").write_text(text)
     snap = ConfigManager(config_dir).load()
+    if snap.quarantined:  # the file was refused; surface why, as a load error would
+        raise ConfigError(snap.quarantined[0].issues)
     (doc,) = [d.model for d in snap.documents if isinstance(d.model, ProviderDocument)]
     env = env if env is not None else {"HUD_SECRET_SONARR_API_KEY": "k" * 32}
     secrets = SecretResolver(config_dir, secrets_dir=config_dir / "none", env=env)

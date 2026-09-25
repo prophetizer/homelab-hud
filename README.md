@@ -81,9 +81,15 @@ spec:
     rollup_1d: forever
 ```
 
-* A syntax or schema error refuses startup and names `file:line:col`. After a successful
-  start, a bad edit keeps the last good configuration running and reports the error in
-  `/api/v1/health` and on the dashboard.
+* Errors are contained to the file that has them, and always name `file:line:col`. An
+  invalid provider or board file is set aside on its own: if an earlier valid version of
+  it was loaded, that version keeps running; otherwise a provider shows as a failed tile
+  with the error and a board is simply not offered to users. Everything else keeps
+  working, at startup too. `/api/v1/health` reports `degraded` and lists each file, and
+  the Overview page shows a tile for it.
+* `settings.yaml` and `rbac.yaml` are the exception: running on a half-read auth
+  configuration is worse than not running, so an error there refuses startup, and a bad
+  edit after a good start keeps the previous configuration.
 * Unknown keys inside `spec` are preserved and logged as warnings, so rolling back to an
   older image never meets config it refuses.
 * Secrets never go in YAML. Write `${secret:name}` and provide the value as a Docker secret

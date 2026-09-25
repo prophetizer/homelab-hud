@@ -5,8 +5,14 @@
   :class:`ConfigSnapshot` stamped with a content hash (the "config version" in the UI
   footer and ``/api/v1/health``).
 * ``watch()`` polls file signatures (mtime, size) — inotify does not cross Docker Desktop
-  bind mounts — and reloads on change. A bad edit keeps the last good snapshot and is
-  surfaced via ``last_error``; startup with a bad config refuses to start.
+  bind mounts — and reloads on change.
+* Failure is scoped to the file (invariant 6: a broken provider degrades one tile, never
+  the dashboard). An invalid ``Provider``/``Board``/``Report`` file is *quarantined*: left
+  out of the snapshot — or, when an earlier valid version of that file was loaded, that
+  version keeps serving — and listed in ``snapshot.quarantined``. ``Settings`` and ``RBAC``
+  stay all-or-nothing, because running on a half-read auth configuration is worse than
+  not running: a fatal issue keeps the last good snapshot on reload (``last_error``) and
+  refuses startup.
 * ``edit()`` mutates a document in place through ruamel round-trip and writes atomically.
 """
 
@@ -20,6 +26,7 @@ from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from ruamel.yaml.comments import CommentedMap
 
@@ -40,6 +47,16 @@ log = logging.getLogger(__name__)
 
 SETTINGS_FILE = "settings.yaml"
 RBAC_FILE = "rbac.yaml"
+
+# Kinds whose failure is scoped to their own file, and the directories they live in. A file
+# that cannot even be parsed is classified by its directory; one at the top level could be
+# settings.yaml or rbac.yaml, so it stays fatal.
+QUARANTINABLE_KINDS: dict[str, str] = {
+    "providers": "Provider",
+    "boards": "Board",
+    "reports": "Report",
+}
+FATAL_KINDS = frozenset({"Settings", "RBAC"})
 
 # Where documents live (PLAN.md §11.2). secrets.yaml is deliberately absent: it is read by
 # SecretResolver only and never validated as a document or written back.
@@ -70,6 +87,21 @@ def document_revision(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
 
+@dataclass(frozen=True)
+class QuarantinedDocument:
+    """One invalid file whose failure is contained to itself."""
+
+    path: Path
+    kind: str  # declared kind if readable, else inferred from the directory
+    name: str | None  # metadata.name if readable
+    issues: tuple[ConfigIssue, ...]
+    serving_last_good: bool  # an earlier valid version of this file is still in use
+
+    @property
+    def summary(self) -> str:
+        return "; ".join(str(i) for i in self.issues)
+
+
 class ConfigConflictError(Exception):
     """An edit's precondition failed: the file on disk is not the revision the caller saw."""
 
@@ -84,6 +116,7 @@ class ConfigSnapshot:
     loaded_at: datetime
     documents: tuple[LoadedDocument, ...]
     warnings: tuple[ConfigIssue, ...] = field(default=())
+    quarantined: tuple[QuarantinedDocument, ...] = field(default=())
 
     @property
     def settings(self) -> SettingsDocument:
@@ -112,6 +145,7 @@ class ConfigManager:
         self._snapshot: ConfigSnapshot | None = None
         self._signature: Signature = {}
         self._last_error: ConfigError | None = None
+        self._last_good: dict[Path, LoadedDocument] = {}
         self._hooks: list[ReloadHook] = []
         self._lock = asyncio.Lock()
 
@@ -160,33 +194,92 @@ class ConfigManager:
         return sorted(seen)
 
     def load(self) -> ConfigSnapshot:
-        """Load and validate everything. Raises :class:`ConfigError` listing every issue."""
+        """Load and validate everything. Invalid Provider/Board/Report files are quarantined
+        (see the module docstring); raises :class:`ConfigError` only for fatal issues."""
         paths = self.document_paths()
         signature = _signature_of(paths)
         docs: list[LoadedDocument] = []
         issues: list[ConfigIssue] = []
         warnings: list[ConfigIssue] = []
+        quarantined: list[QuarantinedDocument] = []
+        fresh: dict[Path, LoadedDocument] = {}
         hasher = hashlib.sha256()
 
         for path in paths:
-            try:
-                text = path.read_text(encoding="utf-8")
-                doc = parse_yaml(text, path)
-                loaded, warns = self._validate_document(path, doc)
-            except ConfigError as exc:
-                issues.extend(exc.issues)
+            text, result = self._load_one(path, hasher)
+            if isinstance(result, tuple):
+                loaded, warns = result
+                docs.append(loaded)
+                fresh[path] = loaded
+                warnings.extend(warns)
                 continue
-            hasher.update(str(path.relative_to(self.config_dir)).encode())
-            hasher.update(b"\0")
-            hasher.update(text.encode("utf-8"))
-            hasher.update(b"\0")
-            docs.append(
-                LoadedDocument(path, doc, loaded, has_explicit_start(text), document_revision(text))
+            kind, name = self._peek(text)
+            contained = self._contained_kind(path, kind)
+            if contained is None:
+                issues.extend(result.issues)
+                continue
+            last = self._last_good.get(path)
+            if last is not None:
+                docs.append(last)
+            quarantined.append(
+                QuarantinedDocument(path, contained, name, result.issues, last is not None)
             )
-            warnings.extend(warns)
 
+        issues.extend(self._cross_document_issues(docs, has_issues=bool(issues)))
+        if issues:
+            raise ConfigError(issues)
+
+        for w in warnings:
+            log.warning("%s", w)
+        for q in quarantined:
+            action = "serving its last valid version" if q.serving_last_good else "not loaded"
+            log.error("%s %s is invalid, %s:\n%s", q.kind, q.path.name, action, q.summary)
+        snapshot = ConfigSnapshot(
+            version=hasher.hexdigest()[:12],
+            loaded_at=datetime.now(UTC),
+            documents=tuple(docs),
+            warnings=tuple(warnings),
+            quarantined=tuple(quarantined),
+        )
+        # Only on success: a fatal load must not forget the last valid copy of any file.
+        kept = {q.path: self._last_good[q.path] for q in quarantined if q.serving_last_good}
+        self._last_good = {**kept, **fresh}
+        self._snapshot = snapshot
+        self._signature = signature
+        self._last_error = None
+        return snapshot
+
+    def _load_one(
+        self,
+        path: Path,
+        hasher: Any,  # noqa: ANN401 — hashlib's _Hash is private
+    ) -> tuple[str | None, tuple[LoadedDocument, list[ConfigIssue]] | ConfigError]:
+        """Read, hash, parse and validate one file. Returns its text (None if unreadable)
+        and either the loaded document with its warnings, or the error."""
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            return None, ConfigError.single(path, f"not UTF-8: {exc.reason}")
+        # The version reflects what is on disk, broken files included, so fixing one moves
+        # it even while an older valid copy is still serving.
+        hasher.update(str(path.relative_to(self.config_dir)).encode())
+        hasher.update(b"\0")
+        hasher.update(text.encode("utf-8"))
+        hasher.update(b"\0")
+        try:
+            doc = parse_yaml(text, path)
+            model, warns = self._validate_document(path, doc)
+        except ConfigError as exc:
+            return text, exc
+        loaded = LoadedDocument(path, doc, model, has_explicit_start(text), document_revision(text))
+        return text, (loaded, warns)
+
+    def _cross_document_issues(
+        self, docs: list[LoadedDocument], *, has_issues: bool
+    ) -> list[ConfigIssue]:
+        issues: list[ConfigIssue] = []
         settings_docs = [d for d in docs if isinstance(d.model, SettingsDocument)]
-        if not settings_docs and not issues:
+        if not settings_docs and not has_issues:
             issues.append(ConfigIssue(self.config_dir / SETTINGS_FILE, "settings.yaml is missing"))
         elif len(settings_docs) > 1:
             issues.extend(
@@ -199,21 +292,37 @@ class ConfigManager:
                 ConfigIssue(d.path, "more than one RBAC document; keep only rbac.yaml")
                 for d in rbac_docs[1:]
             )
-        if issues:
-            raise ConfigError(issues)
+        return issues
 
-        for w in warnings:
-            log.warning("%s", w)
-        snapshot = ConfigSnapshot(
-            version=hasher.hexdigest()[:12],
-            loaded_at=datetime.now(UTC),
-            documents=tuple(docs),
-            warnings=tuple(warnings),
+    def _contained_kind(self, path: Path, kind: str | None) -> str | None:
+        """The kind whose failure stays inside this file, or None when it must be fatal."""
+        if kind in FATAL_KINDS:
+            return None
+        rel = path.relative_to(self.config_dir).parts
+        folder = QUARANTINABLE_KINDS.get(rel[0]) if len(rel) > 1 else None
+        if kind in QUARANTINABLE_KINDS.values():
+            return kind
+        # Unreadable or unknown kind: trust the directory. A newer image's new kind in its
+        # own folder degrades one file here rather than refusing to start (PLAN §11.3a);
+        # at the top level it could be settings.yaml or rbac.yaml, so it stays fatal.
+        return folder
+
+    @staticmethod
+    def _peek(text: str | None) -> tuple[str | None, str | None]:
+        """Best-effort kind and metadata.name from a file that failed to load."""
+        if text is None:
+            return None, None
+        try:
+            doc = parse_yaml(text, Path("peek.yaml"))
+        except ConfigError:
+            return None, None
+        kind = doc.get("kind")
+        meta = doc.get("metadata")
+        name = meta.get("name") if isinstance(meta, CommentedMap) else None
+        return (
+            kind if isinstance(kind, str) else None,
+            name if isinstance(name, str) else None,
         )
-        self._snapshot = snapshot
-        self._signature = signature
-        self._last_error = None
-        return snapshot
 
     @staticmethod
     def _validate_document(path: Path, doc: CommentedMap) -> tuple[Document, list[ConfigIssue]]:

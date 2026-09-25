@@ -3,9 +3,7 @@
 
 from pathlib import Path
 
-import pytest
-
-from hud.config import ConfigError, ConfigManager
+from hud.config import ConfigManager
 from hud.config.schemas import (
     BoardDocument,
     EmbedWidget,
@@ -45,9 +43,15 @@ def _issues(manager: ConfigManager, config_dir: Path, text: str) -> list[str]:
     (config_dir / "settings.yaml").write_text(SETTINGS)
     (config_dir / "boards").mkdir(exist_ok=True)
     (config_dir / "boards" / "b.yaml").write_text(text)
-    with pytest.raises(ConfigError) as ei:
-        manager.load()
-    return [str(i) for i in ei.value.issues]
+    # An invalid Board is quarantined, not fatal (invariant 6): the load succeeds, the
+    # file is refused and not loaded, and its issues are reported with file:line.
+    snap = manager.load()
+    assert not [d for d in snap.documents if isinstance(d.model, BoardDocument)], (
+        "invalid file loaded"
+    )
+    (quarantined,) = snap.quarantined
+    assert quarantined.kind == "Board" and not quarantined.serving_last_good
+    return [str(i) for i in quarantined.issues]
 
 
 def test_plan_example_loads(manager: ConfigManager, config_dir: Path) -> None:

@@ -2,6 +2,15 @@
 // Mirrors hud/api/health.py. Kept in step by hand.
 import type { ProviderHealth } from "./types";
 
+/** An invalid Provider/Board file whose failure is contained to itself. */
+export interface QuarantinedFile {
+  file: string; // relative to /config
+  kind: string;
+  name: string | null;
+  serving_last_good: boolean; // an earlier valid version is still in use
+  issues: string[]; // file:line:col: message
+}
+
 export interface Health {
   status: "ok" | "degraded";
   app_version: string;
@@ -14,6 +23,7 @@ export interface Health {
     loaded_at: string;
     warnings: number;
     error: string | null;
+    quarantined: QuarantinedFile[];
   };
   db?: {
     size_bytes: number;

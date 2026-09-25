@@ -36,6 +36,21 @@ export function Overview({ health, error, fetchedAt }: Props) {
         ]}
         error={error ?? health?.config?.error ?? undefined}
       />
+      {health?.config?.quarantined.map((q) => (
+        // One tile per invalid file (invariant 6): a board set aside this way reaches no
+        // user's sidebar, so this is where an operator finds out.
+        <Tile
+          key={q.file}
+          title={q.name ?? q.file}
+          state={q.serving_last_good ? "degraded" : "down"}
+          rows={[
+            ["File", q.file],
+            ["Kind", q.kind],
+            ["In use", q.serving_last_good ? "last valid version" : "not loaded"],
+          ]}
+          error={q.issues.join("\n")}
+        />
+      ))}
       {health?.providers?.map((p) => (
         <Tile
           key={p.name}
