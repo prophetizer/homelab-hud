@@ -264,3 +264,34 @@ async def test_listing_does_not_share_the_stats_connection_pool(
         assert len(await p.discover()) == 4
     finally:
         await p.shutdown()
+
+
+async def test_one_shot_stats_compute_cpu_from_the_previous_sample(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """Found live: two-sample stats (~1s each) over 103 containers overran the pass. With
+    one-shot the engine answers at once but leaves precpu_stats zeroed, so CPU % comes from
+    this container's previous sample — absent on the first pass, like network rates."""
+    one_shot = json.loads(json.dumps(STATS))
+    # As Docker 29 / API 1.56 actually sends it: system_cpu_usage absent, not zero.
+    one_shot["precpu_stats"] = {"cpu_usage": {"total_usage": 0}}
+    api.get(f"{PROXY}/containers/hud/stats").mock(return_value=httpx.Response(200, json=one_shot))
+    p = build(config_dir)
+    await p.startup()
+    try:
+        await p.poll("collect")
+        first = await p.poll("stats")
+        later = json.loads(json.dumps(one_shot))
+        later["cpu_stats"]["cpu_usage"]["total_usage"] += 100_000_000
+        later["cpu_stats"]["system_cpu_usage"] += 4_000_000_000
+        api.get(f"{PROXY}/containers/hud/stats").mock(return_value=httpx.Response(200, json=later))
+        second = await p.poll("stats")
+    finally:
+        await p.shutdown()
+    request = api.get(f"{PROXY}/containers/hud/stats").calls.last.request
+    assert request.url.params["one-shot"] == "true" and request.url.params["stream"] == "false"
+    assert "cpu_pct" not in {m.name for m in first.metrics}  # nothing to diff against yet
+    assert {"mem_bytes", "mem_pct"} <= {m.name for m in first.metrics}  # memory needs no history
+    cpu = {m.name: m for m in second.metrics}["cpu_pct"]
+    # (100e6 / 4000e6) * 4 online cpus * 100 = 10 %
+    assert cpu.value == pytest.approx(10.0) and cpu.unit is Unit.PCT

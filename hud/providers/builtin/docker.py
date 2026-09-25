@@ -42,7 +42,9 @@ KIND = "container"
 STATS_GROUP = "stats"
 LIST_CONNECTIONS = 2  # discover and collect may overlap; neither ever waits on stats
 STATS_CONCURRENCY = 4
-STATS_SECONDS_EACH = 2.0  # docker samples twice, one second apart, for stream=false
+# Budget ceiling per stats request. With one-shot a request returns at once; an engine that
+# ignores one-shot samples twice a second apart, so the budget stays sized for that.
+STATS_SECONDS_EACH = 2.0
 
 
 class DockerConfig(PluginConfig):
@@ -95,6 +97,7 @@ class DockerProvider(PluginProvider):
         self._client: httpx.AsyncClient | None = None
         self._stats_client: httpx.AsyncClient | None = None
         self._net_prev: dict[str, tuple[float, int, int]] = {}
+        self._cpu_prev: dict[str, tuple[int, int]] = {}  # uid -> (total_usage, system_usage)
 
     def groups(self) -> Sequence[PollGroup]:
         """Container state and per-container stats are separate groups on separate
@@ -257,7 +260,10 @@ class DockerProvider(PluginProvider):
     async def _stats(self, r: Resource) -> list[Metric]:
         path = f"/containers/{r.name}/stats"
         try:
-            s = await self._get(path, stats_pool=True, stream="false")
+            # one-shot: answer immediately instead of holding the request ~1s to sample CPU
+            # twice. Found live: 103 two-sample requests made the pass overrun 75s about
+            # every other time and slowed the engine enough to time out the listing too.
+            s = await self._get(path, stats_pool=True, stream="false", **{"one-shot": "true"})
         except ProviderPollError as exc:
             # A container that stopped since listing is not a provider failure.
             self.log.debug("%s", exc.message)
@@ -273,12 +279,24 @@ class DockerProvider(PluginProvider):
 
         with contextlib.suppress(KeyError, TypeError, ZeroDivisionError):
             cpu = s["cpu_stats"]
-            pre = s["precpu_stats"]
-            cpu_delta = cpu["cpu_usage"]["total_usage"] - pre["cpu_usage"]["total_usage"]
-            sys_delta = cpu["system_cpu_usage"] - pre["system_cpu_usage"]
-            cpus = cpu.get("online_cpus") or len(cpu["cpu_usage"].get("percpu_usage") or []) or 1
-            if sys_delta > 0 and cpu_delta >= 0:
-                add("cpu_pct", cpu_delta / sys_delta * cpus * 100.0, SourceUnit.PCT)
+            total, system = int(cpu["cpu_usage"]["total_usage"]), int(cpu["system_cpu_usage"])
+            # One-shot leaves precpu_stats zeroed, so the delta is taken against this
+            # container's previous sample, as network rates already are. An engine that
+            # ignored one-shot sends its own ~1s earlier sample; prefer that when present.
+            pre = s.get("precpu_stats") or {}
+            pre_system = int(pre.get("system_cpu_usage") or 0)
+            if pre_system > 0:
+                base: tuple[int, int] | None = (int(pre["cpu_usage"]["total_usage"]), pre_system)
+            else:
+                base = self._cpu_prev.get(r.uid)
+            self._cpu_prev[r.uid] = (total, system)
+            if base is not None:
+                cpu_delta, sys_delta = total - base[0], system - base[1]
+                cpus = (
+                    cpu.get("online_cpus") or len(cpu["cpu_usage"].get("percpu_usage") or []) or 1
+                )
+                if sys_delta > 0 and cpu_delta >= 0:
+                    add("cpu_pct", cpu_delta / sys_delta * cpus * 100.0, SourceUnit.PCT)
         with contextlib.suppress(KeyError, TypeError, ZeroDivisionError):
             mem = s["memory_stats"]
             inner = mem.get("stats") or {}
