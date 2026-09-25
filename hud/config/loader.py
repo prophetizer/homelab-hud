@@ -9,6 +9,7 @@ comments, anchors, key order and unknown keys survive an edit.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from types import UnionType
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
@@ -39,7 +40,9 @@ def parse_yaml(text: str, file: Path) -> CommentedMap:
         line = mark.line + 1 if mark else None
         col = mark.column + 1 if mark else None
         problem = (exc.problem or exc.context or "invalid YAML").strip()
-        raise ConfigError.single(file, f"YAML syntax error: {problem}", line, col) from exc
+        hint = _syntax_hint(text, line)
+        message = f"YAML syntax error: {problem}" + (f" — {hint}" if hint else "")
+        raise ConfigError.single(file, message, line, col) from exc
     except YAMLError as exc:
         raise ConfigError.single(file, f"YAML error: {exc}") from exc
     if doc is None:
@@ -47,6 +50,25 @@ def parse_yaml(text: str, file: Path) -> CommentedMap:
     if not isinstance(doc, CommentedMap):
         raise ConfigError.single(file, "top level must be a mapping", 1, 1)
     return doc
+
+
+_UNQUOTED_REF_IN_FLOW = re.compile(r"\{[^}\n]*?(?<![\"'])\$\{")
+
+
+def _syntax_hint(text: str, line: int | None) -> str | None:
+    """The one YAML trap every HUD user meets: ``${VAR}`` or ``${secret:name}`` unquoted
+    inside a ``{ ... }`` flow mapping. Its braces are YAML syntax there, so the file fails
+    to parse before substitution ever runs, and the parser's own message (expected ','
+    or '}') does not say why (PLAN.md §14.2: say what to do)."""
+    if line is None:
+        return None
+    lines = text.splitlines()
+    if not 1 <= line <= len(lines) or not _UNQUOTED_REF_IN_FLOW.search(lines[line - 1]):
+        return None
+    return (
+        'a ${...} reference inside { } must be quoted, e.g. { base_url: "${DOCKER_HOST}" }, '
+        "or written in block style on its own line"
+    )
 
 
 def load_yaml(file: Path) -> CommentedMap:

@@ -230,3 +230,23 @@ async def test_hot_reload_installs_new_version_and_keeps_last_good_on_error(
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
+
+
+def test_unquoted_ref_in_flow_mapping_says_what_to_do(tmp_path: Path) -> None:
+    """Found on the first live deployment: `config: { base_url: ${DOCKER_HOST} }` fails to
+    parse because ${...} braces are YAML syntax inside a flow mapping. The parser's own
+    message names the spot but not the cause; HUD's must say what to do (PLAN.md §14.2)."""
+    from hud.config.loader import parse_yaml  # noqa: PLC0415
+
+    text = "kind: Provider\nspec:\n  config: { base_url: ${DOCKER_HOST} }\n"
+    with pytest.raises(ConfigError) as ei:
+        parse_yaml(text, tmp_path / "docker.yaml")
+    (issue,) = ei.value.issues
+    assert issue.line == 3
+    assert "must be quoted" in issue.message and "block style" in issue.message
+    # The remedy it suggests actually works.
+    parse_yaml(text.replace("${DOCKER_HOST}", '"${DOCKER_HOST}"'), tmp_path / "docker.yaml")
+    # And an unrelated flow-mapping error gets no misleading hint.
+    with pytest.raises(ConfigError) as ei:
+        parse_yaml("a: { b: 1\nc: 2\n", tmp_path / "x.yaml")
+    assert "must be quoted" not in str(ei.value)

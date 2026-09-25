@@ -178,7 +178,12 @@ kind: Provider
 metadata: { name: docker }
 spec:
   plugin: docker
-  config: { base_url: ${DOCKER_HOST} }   # tcp://socket-proxy:2375 is rewritten to http://
+  config:
+    # Block style, not `{ base_url: ${DOCKER_HOST} }`: inside a flow mapping the braces of
+    # ${...} are YAML syntax, and the file fails to parse before substitution happens.
+    base_url: ${DOCKER_HOST}   # tcp://socket-proxy:2375 is rewritten to http://
+    max_stats: 50              # per-container stats per poll; raise it above your
+                               # running-container count to cover the whole stack
 ```
 
 ```python
