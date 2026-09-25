@@ -295,3 +295,46 @@ async def test_one_shot_stats_compute_cpu_from_the_previous_sample(
     cpu = {m.name: m for m in second.metrics}["cpu_pct"]
     # (100e6 / 4000e6) * 4 online cpus * 100 = 10 %
     assert cpu.value == pytest.approx(10.0) and cpu.unit is Unit.PCT
+
+
+async def test_homepage_labels_become_link_and_status_tiles(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """The stack already describes its services with Homepage labels; HUD reads them so
+    link + status tiles need no config (PLAN §12, Phase 1 shared core)."""
+    containers = json.loads(json.dumps(CONTAINERS))
+    containers[0]["Labels"] = {
+        "homepage.name": "HUD",
+        "homepage.group": "Dashboards",
+        "homepage.description": "Homelab dashboard",
+        "homepage.icon": "mdi-view-dashboard-variant",
+        "homepage.href": "https://hud.lab.example",
+        # People put credentials here. None of it may ever reach a resource.
+        "homepage.widget.type": "customapi",
+        "homepage.widget.key": "SUPER-SECRET-API-KEY",
+        "homepage.widget.password": "SUPER-SECRET-PASSWORD",
+    }
+    containers[1]["Labels"] = {"homepage.name": "Sonarr", "homepage.href": "javascript:alert(1)"}
+    api.get(f"{PROXY}/containers/json").mock(return_value=httpx.Response(200, json=containers))
+    p = build(config_dir)
+    await p.startup()
+    try:
+        by_name = {r.name: r for r in (await p.poll("collect")).resources}
+    finally:
+        await p.shutdown()
+    hud = by_name["hud"]
+    assert hud.uid == "docker:container:hud", "the uid still keys on the container name"
+    assert hud.attrs["homepage"] == {
+        "name": "HUD",
+        "group": "Dashboards",
+        "description": "Homelab dashboard",
+        "icon": "mdi-view-dashboard-variant",
+    }
+    assert hud.links == {"ui": "https://hud.lab.example"}
+    assert "SUPER-SECRET" not in hud.model_dump_json(), "a homepage.widget.* value leaked"
+    # A non-http(s) href never becomes a link; the rest of the labels still apply.
+    assert by_name["sonarr"].links == {} and by_name["sonarr"].attrs["homepage"] == {
+        "name": "Sonarr"
+    }
+    # Containers without Homepage labels are unchanged.
+    assert "homepage" not in by_name["backup"].attrs and by_name["backup"].links == {}

@@ -110,6 +110,7 @@ class WidgetEngine:
                     kind=_as_list(sel.kind),
                     state=_as_list(sel.state),
                     labels=sel.label,
+                    attrs=sel.attrs,
                 )
                 uids.update(r.uid for r in self.cache.resources(flt))
         return uids
@@ -199,6 +200,7 @@ class WidgetEngine:
             kind=_as_list(sel.kind),
             state=_as_list(sel.state),
             labels=sel.label,
+            attrs=sel.attrs,
         )
         items = self.cache.resources(flt)
         for key in reversed(w.source.sort):  # stable sorts applied last-key-first

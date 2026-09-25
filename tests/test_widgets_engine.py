@@ -259,3 +259,40 @@ def test_downsample_budget() -> None:
     out = downsample(pts, 100)
     assert len(out) == 100 and out[0] == (9, 4.5) and out[-1][0] == 999
     assert downsample(pts[:50], 100) == pts[:50]
+
+
+GROUPED = """\
+apiVersion: hud/v1
+kind: Board
+metadata: {name: links}
+spec:
+  widgets:
+    - id: media-links
+      type: list
+      grid: {col: 1, row: 1}
+      source:
+        select: {provider: docker, attrs: {homepage.group: Media Links}}
+        sort: [name]
+      display: {fields: [state, attrs.homepage.name]}
+"""
+
+
+async def test_list_filters_on_resource_attrs(config_dir: Path) -> None:
+    """Homepage's link groups, reproduced: a list per homepage.group. `label` could not do
+    it — it matches the provider's labels, and every container shares one provider."""
+    cache = LiveCache()
+    rows = [
+        res("docker:container:scryer", homepage={"group": "Media Links", "name": "Scryer"}),
+        res("docker:container:agregarr", homepage={"group": "Media Links", "name": "Agregarr"}),
+        res("docker:container:ntfy", homepage={"group": "Infrastructure Links", "name": "ntfy"}),
+        res("docker:container:plain"),  # no homepage labels at all
+    ]
+    cache.apply("docker", "collect", rows, [])
+    engine = WidgetEngine(cache, None)
+    doc = board(config_dir, GROUPED)
+    resolved = await engine.resolve_board(doc, T0)
+    (w,) = resolved.widgets
+    assert [i["name"] for i in w.data["items"]] == ["agregarr", "scryer"]
+    assert [i["fields"][1]["value"] for i in w.data["items"]] == ["Agregarr", "Scryer"]
+    # RBAC's resource scope sees the same selection (a viewer of this board gets these two).
+    assert engine.referenced_uids(doc) == {"docker:container:agregarr", "docker:container:scryer"}

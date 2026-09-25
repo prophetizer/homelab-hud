@@ -96,6 +96,9 @@ class Select(_Spec):
     kind: str | list[str] | None = None
     state: State | list[State] | None = None
     label: dict[str, str] | None = None  # matches provider metadata.labels
+    # Matches the resource's own attributes, dotted paths, all must be equal — e.g.
+    # {"homepage.group": "Media Links"}. Added 2026-09-25, optional: dashboard/v1-compatible.
+    attrs: dict[str, str] | None = None
 
 
 class ListSource(_Spec):

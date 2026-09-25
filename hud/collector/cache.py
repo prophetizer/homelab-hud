@@ -40,6 +40,7 @@ class ResourceFilter:
     kind: Sequence[str] | None = None
     state: Sequence[State] | None = None
     labels: Mapping[str, str] | None = None  # all must match the resource's provider labels
+    attrs: Mapping[str, str] | None = None  # all must equal the resource's attrs (dotted)
 
     def matches(self, r: Resource, provider_labels: Mapping[str, str]) -> bool:
         if self.provider is not None and r.provider not in self.provider:
@@ -48,9 +49,23 @@ class ResourceFilter:
             return False
         if self.state is not None and r.state not in self.state:
             return False
+        if self.attrs is not None and not all(
+            _attr(r.attrs, k) == v for k, v in self.attrs.items()
+        ):
+            return False
         if self.labels is not None:
             return all(provider_labels.get(k) == v for k, v in self.labels.items())
         return True
+
+
+def _attr(attrs: Mapping[str, object], path: str) -> str | None:
+    """``homepage.group`` → attrs["homepage"]["group"], as a string; None if absent."""
+    node: object = attrs
+    for part in path.split("."):
+        if not isinstance(node, Mapping) or part not in node:
+            return None
+        node = node[part]
+    return None if node is None or isinstance(node, Mapping | list) else str(node)
 
 
 @dataclass

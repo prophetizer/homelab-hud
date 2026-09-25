@@ -16,6 +16,7 @@ import time
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import Field, field_validator
@@ -247,6 +248,9 @@ class DockerProvider(PluginProvider):
         if "com.docker.compose.project" in labels:
             attrs["compose_project"] = labels["com.docker.compose.project"]
             attrs["compose_service"] = labels.get("com.docker.compose.service")
+        homepage, links = _homepage(labels)
+        if homepage:
+            attrs["homepage"] = homepage
         return Resource(
             uid=make_uid(self.name, KIND, name),
             provider=self.name,
@@ -254,6 +258,7 @@ class DockerProvider(PluginProvider):
             name=name,
             state=state,
             attrs={k: v for k, v in attrs.items() if v is not None},
+            links=links,
             fetched_at=now,
         )
 
@@ -319,6 +324,22 @@ class DockerProvider(PluginProvider):
                     add("rx_bps", (rx - prev[1]) / dt, SourceUnit.BYTES_PER_SEC)
                     add("tx_bps", (tx - prev[2]) / dt, SourceUnit.BYTES_PER_SEC)
         return out
+
+
+# Homepage (gethomepage.dev) label keys read, and nothing else. Stacks already describe
+# their services this way, so link + status tiles come with no HUD config (PLAN §12 Phase 1
+# exit, "shared core"). `homepage.widget.*` is deliberately absent: people put API keys
+# and passwords there, and a label is not a secret store (invariant 3).
+_HOMEPAGE_KEYS = ("name", "group", "description", "icon")
+
+
+def _homepage(labels: dict[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """(attrs.homepage, links) from a container's labels, allowlist only."""
+    info = {k: str(labels[f"homepage.{k}"]) for k in _HOMEPAGE_KEYS if labels.get(f"homepage.{k}")}
+    href = str(labels.get("homepage.href") or "").strip()
+    # Only http(s): the value becomes a clickable link, so `javascript:` and friends never do.
+    links = {"ui": href} if urlsplit(href).scheme in ("http", "https") else {}
+    return info, links
 
 
 def _ports(ports: list[dict[str, Any]]) -> list[str]:

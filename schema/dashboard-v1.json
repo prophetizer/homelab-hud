@@ -671,6 +671,7 @@
         "select": {
           "$ref": "#/$defs/Select",
           "default": {
+            "attrs": null,
             "kind": null,
             "label": null,
             "provider": null,
@@ -713,6 +714,7 @@
           "default": {
             "limit": null,
             "select": {
+              "attrs": null,
               "kind": null,
               "label": null,
               "provider": null,
@@ -1598,6 +1600,21 @@
     "Select": {
       "additionalProperties": true,
       "properties": {
+        "attrs": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attrs"
+        },
         "kind": {
           "anyOf": [
             {
