@@ -10,17 +10,11 @@ export function ResourceWidget({ widget }: { widget: ResolvedWidget }) {
   return (
     <WidgetFrame widget={widget}>
       <Fields fields={data.fields} />
-      {r ? (
+      {r?.links["ui"] ? (
         <p className="widget__meta">
-          {r.provider}:{r.kind} · fetched {formatAge(r.fetched_at)}
-          {r.links["ui"] ? (
-            <>
-              {" · "}
-              <a href={r.links["ui"]} target="_blank" rel="noreferrer noopener">
-                open
-              </a>
-            </>
-          ) : null}
+          <a href={r.links["ui"]} target="_blank" rel="noreferrer noopener" title={`updated ${formatAge(r.fetched_at)}`}>
+            Open {r.name} ↗
+          </a>
         </p>
       ) : null}
     </WidgetFrame>

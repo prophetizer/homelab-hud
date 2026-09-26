@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { useEffect } from "react";
 import { fetchApps, fetchBoards } from "./api/client";
 import { fetchHealth } from "./api/health";
 import type { Me } from "./api/auth";
@@ -9,7 +10,8 @@ import { Sidebar } from "./components/Sidebar";
 import { Workspace } from "./components/Workspace";
 import { usePoll } from "./hooks/usePoll";
 import { useSession } from "./hooks/useSession";
-import { useRoute } from "./router";
+import { buildNavigation, landingBoard } from "./api/nav";
+import { boardPath, replaceRoute, useRoute } from "./router";
 
 const HEALTH_MS = 15_000;
 const BOARDS_MS = 30_000;
@@ -39,7 +41,14 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   const apps = usePoll(`apps:${me.subject}`, fetchApps, BOARDS_MS);
   const providers = health.data?.providers ?? [];
   const unhealthy = providers.filter((p) => p.status === "degraded" || p.status === "error").length;
+  const landing = boards.data ? landingBoard(buildNavigation(boards.data.boards, []).boards) : null;
 
+  // "/" is a landing, not a page: go to the Home board, replacing "/" in history.
+  useEffect(() => {
+    if (route.kind === "home" && landing) replaceRoute(boardPath(landing));
+  }, [route.kind, landing]);
+
+  const system = <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />;
   return (
     <div className="shell">
       <Sidebar
@@ -51,8 +60,14 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
         onSignOut={onSignOut}
       />
       <main className={route.kind === "app" ? "main main--workspace" : "main"}>
-        {route.kind === "overview" ? (
-          <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />
+        {route.kind === "system" ? (
+          system
+        ) : route.kind === "home" ? (
+          boards.data && !landing ? (
+            system // no dashboards yet: the System page is the landing
+          ) : (
+            <div className="board-status">Loading…</div>
+          )
         ) : route.kind === "board" ? (
           <BoardView name={route.name} me={me} />
         ) : route.kind === "app" ? (

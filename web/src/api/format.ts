@@ -18,7 +18,19 @@ function scaled(n: number, units: readonly string[], base: number, precision: nu
   return `${sign}${v.toFixed(digits)} ${units[i]}`;
 }
 
+/** A number with thousands separators; `precision` decimals when it is not whole. */
+export function formatNumber(value: number, precision = 1): string {
+  const digits = Number.isInteger(value) ? 0 : precision;
+  return value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
 export function formatDuration(seconds: number): string {
+  // Sub-second values are real measurements (a DNS lookup takes ~18 ms): flooring them to
+  // "0s" said the opposite of the truth. Show milliseconds below one second.
+  if (Math.abs(seconds) < 1 && seconds !== 0) {
+    const ms = Math.abs(seconds) * 1000;
+    return `${ms < 10 ? ms.toFixed(1) : Math.round(ms)} ms`;
+  }
   const s = Math.floor(Math.abs(seconds));
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
@@ -52,9 +64,8 @@ export function formatValue(value: unknown, unit: Unit | null, precision = 1): s
     case "watts":
       return `${value.toFixed(precision)} W`;
     case "count":
-      return Number.isInteger(value) ? String(value) : value.toFixed(precision);
     default:
-      return Number.isInteger(value) ? String(value) : value.toFixed(precision);
+      return formatNumber(value, precision);
   }
 }
 

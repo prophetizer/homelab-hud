@@ -673,6 +673,18 @@
           },
           "title": "Fields",
           "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
         }
       },
       "title": "ListDisplay",
@@ -726,7 +738,8 @@
             "fields": [
               "name",
               "state"
-            ]
+            ],
+            "title": null
           }
         },
         "grid": {

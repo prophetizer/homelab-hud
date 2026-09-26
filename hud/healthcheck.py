@@ -22,7 +22,9 @@ def main() -> int:
     except (urllib.error.URLError, TimeoutError, ValueError) as exc:
         print(f"unhealthy: {exc}", file=sys.stderr)
         return 1
-    print(f"{body.get('status')} config={body.get('config', {}).get('version')}")
+    # Anonymous callers get liveness only (status, app_version) since auth landed; the
+    # config version is behind providers:view, so printing it here would always say None.
+    print(f"{body.get('status')} v{body.get('app_version')}")
     return 0
 
 

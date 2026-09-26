@@ -4,8 +4,9 @@ import { appPath, boardPath, parseRoute } from "./router";
 
 describe("parseRoute", () => {
   it("maps paths to routes", () => {
-    expect(parseRoute("/")).toEqual({ kind: "overview" });
-    expect(parseRoute("")).toEqual({ kind: "overview" });
+    expect(parseRoute("/")).toEqual({ kind: "home" });
+    expect(parseRoute("")).toEqual({ kind: "home" });
+    expect(parseRoute("/system")).toEqual({ kind: "system" });
     expect(parseRoute("/boards/media")).toEqual({ kind: "board", name: "media" });
     expect(parseRoute("/boards/media/")).toEqual({ kind: "board", name: "media" });
     expect(parseRoute("/boards/")).toEqual({ kind: "missing", path: "/boards" });

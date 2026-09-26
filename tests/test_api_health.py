@@ -149,3 +149,22 @@ def test_health_lists_providers_and_build_failures(tmp_path: Path) -> None:
         (p,) = body["providers"]
         assert p["name"] == "broken" and p["status"] == "error"
         assert "NOT_SET_ANYWHERE" in p["last_error"]
+
+
+def test_container_healthcheck_reports_what_anonymous_health_returns(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Found live: the healthcheck printed "ok config=None" — since auth, anonymous health
+    carries only status and app_version, and the config version it tried to print is
+    behind providers:view."""
+    import io  # noqa: PLC0415
+    import json  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    from hud import healthcheck  # noqa: PLC0415
+
+    body = json.dumps({"status": "ok", "app_version": __version__}).encode()
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_a, **_k: io.BytesIO(body))
+    assert healthcheck.main() == 0
+    out = capsys.readouterr().out
+    assert out.strip() == f"ok v{__version__}" and "None" not in out

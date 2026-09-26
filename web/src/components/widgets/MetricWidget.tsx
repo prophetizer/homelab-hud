@@ -18,35 +18,45 @@ export function Sparkline({ points }: { points: [number, number][] }) {
   const y1 = Math.max(...ys);
   const sx = x1 === x0 ? 0 : W / (x1 - x0);
   const sy = y1 === y0 ? 0 : (H - 4) / (y1 - y0);
-  const d = points
-    .map(([x, y]) => `${((x - x0) * sx).toFixed(1)},${(H - 2 - (y - y0) * sy).toFixed(1)}`)
-    .join(" ");
+  const coords = points.map(([x, y]) => `${((x - x0) * sx).toFixed(1)},${(H - 2 - (y - y0) * sy).toFixed(1)}`);
+  // A faint area under the line makes the trend readable at a glance; still neutral, since
+  // colour is reserved for status (invariant 9).
+  const area = `0,${H} ${coords.join(" ")} ${W},${H}`;
   return (
     <svg className="sparkline" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <polyline points={d} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <polygon points={area} className="sparkline__area" />
+      <polyline points={coords.join(" ")} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   );
+}
+
+const SPLIT_UNITS = new Set(["pct", "bytes", "bps", "celsius", "watts"]);
+
+/** "322.1 Mbit/s" → ["322.1", "Mbit/s"], so the unit can be set smaller than the number. */
+export function valueParts(text: string, unit: string | null): [string, string] {
+  if (unit && SPLIT_UNITS.has(unit)) {
+    const m = /^(.*\d)\s+(\S+)$/.exec(text);
+    if (m && m[1] !== undefined && m[2] !== undefined) return [m[1], m[2]];
+  }
+  return [text, ""];
 }
 
 export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as MetricData;
   const precision = data.format?.precision ?? 1;
+  const [number, unit] = valueParts(formatValue(data.value, data.unit, precision), data.unit);
+  const age = data.ts ? `${data.resource_name ? `${data.resource_name} · ` : ""}updated ${formatAge(data.ts)}` : undefined;
+  const range = data.sparkline && data.sparkline.points.length > 1 ? data.sparkline : null;
   return (
     <WidgetFrame widget={widget}>
-      <p className="metric__value" data-state={widget.state ?? undefined}>
-        {formatValue(data.value, data.unit, precision)}
+      <p className="metric__value" data-state={widget.state ?? undefined} title={age}>
+        <span className="metric__number">{number}</span>
+        {unit ? <span className="metric__unit">{unit}</span> : null}
       </p>
-      {data.sparkline && data.sparkline.points.length > 1 ? (
-        <>
-          <Sparkline points={data.sparkline.points} />
-          <p className="widget__meta">last {data.sparkline.range}</p>
-        </>
-      ) : null}
-      {data.ts ? (
-        <p className="widget__meta">
-          {data.resource_name ? `${data.resource_name} · ` : ""}
-          {formatAge(data.ts)}
-        </p>
+      {range ? (
+        <div className="metric__trend" title={`last ${range.range}`}>
+          <Sparkline points={range.points} />
+        </div>
       ) : null}
     </WidgetFrame>
   );

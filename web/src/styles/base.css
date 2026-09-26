@@ -17,136 +17,194 @@ body,
 body {
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  line-height: 1.4;
+  line-height: var(--leading);
   color: var(--fg);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01"; /* Inter: straight-sided digits, open shapes */
 }
 
 a {
   color: inherit;
 }
 
+a:hover {
+  color: var(--fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--status-paused);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Numbers that change or line up in columns: tabular figures, never monospace text. */
+.num,
+.metric__value,
+.list__values,
+.fields__dd,
+.tile__dd {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------------------------------------------------------------- shell */
 
+/* The shell is exactly one viewport tall and each column scrolls on its own. Before, the
+   sidebar's 60 apps made the whole page scroll and pushed the boards off screen. */
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
-  grid-template-rows: 1fr auto;
-  height: 100%;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
 }
 
 .sidebar {
   grid-row: 1 / span 2;
-  border-right: var(--border-w) solid var(--border);
-  background: var(--bg-sunken);
-  padding: var(--space-3);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  background: var(--bg-sunken);
+  border-right: var(--border-w) solid var(--border-soft);
+}
+
+.sidebar__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Phone-only: where you are, and the button that opens the menu. */
+.sidebar__here,
+.sidebar__toggle {
+  display: none;
 }
 
 .sidebar__brand {
+  padding: 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.sidebar__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0 calc(-1 * var(--space-3));
+  padding: 0 var(--space-3);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar__section {
+  padding: 0 var(--space-2) var(--space-1);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  padding: var(--space-1) var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--fg-faint);
 }
 
 .sidebar__nav a {
-  display: block;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
   text-decoration: none;
   color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__nav a:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
 }
 
 .sidebar__nav a[aria-current="page"] {
   color: var(--fg);
   background: var(--bg-raised);
+  box-shadow: inset 2px 0 0 var(--fg-muted);
 }
 
-.main {
-  padding: var(--space-4);
-  overflow: auto;
-}
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--space-3);
-}
-
-.footer {
-  grid-column: 2;
-  border-top: var(--border-w) solid var(--border);
-  padding: var(--space-1) var(--space-4);
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
-  font-family: var(--font-mono);
+.sidebar__group {
   display: flex;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: 1px;
 }
 
-/* ---------------------------------------------------------------- tile */
-
-.tile {
-  background: var(--bg-raised);
-  border: var(--border-w) solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-3);
-  align-items: baseline;
-}
-
-.tile__title {
-  grid-column: 1 / -1;
+.sidebar__group-title {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-weight: 600;
-}
-
-.tile__dt {
+  justify-content: space-between;
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
   color: var(--fg-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
 }
 
-.tile__dd {
-  margin: 0;
-  font-family: var(--font-mono);
+.sidebar__group-title::-webkit-details-marker {
+  display: none;
 }
 
-.tile__error {
-  grid-column: 1 / -1;
-  color: var(--status-down);
+.sidebar__group-title::before {
+  content: "›";
+  display: inline-block;
+  width: 1em;
+  margin-right: var(--space-1);
+  color: var(--fg-faint);
+  transition: transform 0.12s ease;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--status-unknown);
-  flex: none;
+.sidebar__group[open] > .sidebar__group-title::before {
+  transform: rotate(90deg);
 }
 
-.status-dot[data-state="up"] {
-  background: var(--status-up);
-}
-.status-dot[data-state="down"] {
-  background: var(--status-down);
-}
-.status-dot[data-state="degraded"] {
-  background: var(--status-degraded);
-}
-.status-dot[data-state="paused"] {
-  background: var(--status-paused);
+.sidebar__group-title > span:first-child {
+  flex: 1;
 }
 
-/* ---------------------------------------------------------------- sidebar extras */
+.sidebar__group-title:hover {
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.sidebar__group > a {
+  padding-left: calc(var(--space-2) + 1em + var(--space-1));
+}
+
+.sidebar__count {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar__ext {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
 
 .sidebar__hint {
-  margin: var(--space-2);
+  margin: var(--space-1) var(--space-2);
   color: var(--fg-faint);
   font-size: var(--text-xs);
 }
@@ -155,26 +213,53 @@ a {
   color: var(--status-down);
 }
 
+.main {
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+}
+
+.footer {
+  grid-column: 2;
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-1) var(--space-6);
+  border-top: var(--border-w) solid var(--border-soft);
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+}
+
+.footer__warn {
+  color: var(--status-degraded);
+}
+
 /* ---------------------------------------------------------------- board */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
 
 .board__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .board__title {
   margin: 0;
   font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .board__meta {
-  font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--fg-muted);
+  color: var(--fg-faint);
 }
 
 .board__error {
@@ -188,7 +273,21 @@ a {
 
 .board__cell {
   min-width: 0;
+  min-height: 0;
   display: grid;
+}
+
+/* A list sized by the board's grid span used to fill it even with one item, leaving a
+   large empty box. Lists now take their content's height, up to the span, and scroll
+   beyond it. */
+.board__cell > .widget--list {
+  align-self: start;
+  max-height: 100%;
+}
+
+/* Stacked (one column): a list has no row span to cap it, so cap it at a screenful. */
+.board--stacked .board__cell > .widget--list {
+  max-height: 32rem;
 }
 
 .board-status {
@@ -196,74 +295,160 @@ a {
   padding: var(--space-4);
 }
 
+/* ---------------------------------------------------------------- tile (overview) */
+
+.tile {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+  align-content: start;
+  padding: var(--space-4);
+  background: var(--bg-raised);
+  border: var(--border-w) solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.tile__title {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.tile__dt {
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+}
+
+.tile__dd {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.tile__error {
+  grid-column: 1 / -1;
+  margin: var(--space-2) 0 0;
+  color: var(--status-down);
+  font-size: var(--text-xs);
+}
+
+.status-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-unknown);
+}
+
+.status-dot[data-state="up"] {
+  background: var(--status-up);
+}
+.status-dot[data-state="down"] {
+  background: var(--status-down);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-down) 22%, transparent);
+}
+.status-dot[data-state="degraded"] {
+  background: var(--status-degraded);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-degraded) 22%, transparent);
+}
+.status-dot[data-state="paused"] {
+  background: var(--status-paused);
+}
+
 /* ---------------------------------------------------------------- widget frame */
 
 .widget {
-  background: var(--bg-raised);
-  border: var(--border-w) solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-3);
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: var(--space-2);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
   min-width: 0;
   min-height: 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--bg-raised);
+  border: var(--border-w) solid var(--border-soft);
+  border-radius: var(--radius);
 }
 
 .widget[data-stale] {
   border-style: dashed;
+  border-color: color-mix(in srgb, var(--status-degraded) 45%, var(--border));
 }
 
+/* Titles read as labels: small, spaced capitals, quiet. The content is the point. */
 .widget__title {
-  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
+  margin: 0;
+  font-size: var(--text-2xs);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--fg-muted);
 }
 
 .widget__title-text {
+  min-width: 0; /* a flex child only truncates if it is allowed to shrink */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .widget__body {
+  container-type: inline-size;
   min-height: 0;
-  overflow: auto;
+  /* Vertical scrolling only: a narrow tile clips a long row instead of growing a
+     horizontal scrollbar (seen on the now-playing tiles). */
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .widget__error {
   margin: 0;
   color: var(--status-down);
   font-size: var(--text-xs);
+  overflow-wrap: anywhere;
 }
 
 .widget__meta {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   color: var(--fg-faint);
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
+}
+
+.widget__meta a {
+  text-decoration: none;
+  color: var(--fg-muted);
+}
+
+.widget__meta a:hover {
+  color: var(--fg);
+  text-decoration: underline;
 }
 
 .badge {
   margin-left: auto;
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--status-degraded);
-  border: var(--border-w) solid currentColor;
-  border-radius: var(--radius);
   padding: 0 var(--space-1);
+  border: var(--border-w) solid currentColor;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  color: var(--status-degraded);
 }
 
 /* ---------------------------------------------------------------- fields / lists */
 
 .fields {
-  margin: 0;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-3);
+  gap: 6px var(--space-4);
+  margin: 0;
 }
 
 .fields__row {
@@ -271,12 +456,13 @@ a {
 }
 
 .fields__dt {
-  color: var(--fg-muted);
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
 }
 
 .fields__dd {
   margin: 0;
-  font-family: var(--font-mono);
   overflow-wrap: anywhere;
 }
 
@@ -288,38 +474,114 @@ a {
 }
 
 .list {
-  list-style: none;
+  display: grid;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: var(--space-1);
+  list-style: none;
 }
 
+/* Name (and its description) left; numbers right in aligned columns. The name is what
+   a row is for, so it never shrinks to "p…" to make room for metadata. */
 .list__item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
+  padding: 7px 0;
+  border-top: var(--border-w) solid var(--border-soft);
+}
+
+.list__item:first-child {
+  border-top: 0;
+  padding-top: 2px;
 }
 
 .list__item[data-stale] {
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+.list__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: min(6rem, 45%);
 }
 
 .list__name {
-  flex: 1 1 auto;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-decoration: none;
+  color: var(--fg);
+}
+
+a.list__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.list__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+
+.list__values {
+  display: flex;
+  flex: 0 1 auto;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
 }
 
 .list__field {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--fg-muted);
   white-space: nowrap;
+  text-align: right;
+}
+
+.list__state {
+  flex: none;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+/* A narrow tile (a quarter-width now-playing list, or any list on a phone) puts the numbers
+   on their own line under the name instead of clipping them mid-word. Measured on the tile,
+   not the window. */
+@container (max-width: 420px) {
+  .list__item {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+  .list__main {
+    flex-basis: calc(100% - 8px - var(--space-3) - 5rem);
+  }
+  .list__values {
+    order: 3;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-left: calc(8px + var(--space-3));
+    justify-content: flex-start;
+  }
+}
+
+.list__state[data-state="down"] {
+  color: var(--status-down);
+}
+.list__state[data-state="degraded"] {
+  color: var(--status-degraded);
+}
+.list__state[data-state="paused"] {
+  color: var(--status-paused);
+}
+.list__state[data-state="unknown"] {
+  color: var(--status-unknown);
 }
 
 .list__empty {
@@ -335,34 +597,55 @@ a {
 }
 
 .static__links {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .metric__value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
   margin: 0;
-  font-family: var(--font-mono);
-  font-size: 1.75rem;
-  line-height: 1.1;
+  line-height: 1;
 }
 
-.metric__value[data-state="degraded"] {
+.metric__number {
+  font-size: var(--text-2xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.metric__unit {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+
+.metric__value[data-state="degraded"] .metric__number {
   color: var(--status-degraded);
 }
-.metric__value[data-state="down"] {
+.metric__value[data-state="down"] .metric__number {
   color: var(--status-down);
+}
+
+.metric__trend {
+  margin-top: var(--space-3);
 }
 
 .sparkline {
   display: block;
   width: 100%;
-  height: 40px;
+  height: 36px;
   color: var(--fg-muted);
-  margin-top: var(--space-2);
+}
+
+.sparkline__area {
+  fill: currentColor;
+  opacity: 0.1;
 }
 
 .widget--embed {
@@ -371,7 +654,7 @@ a {
 }
 
 .widget--embed .widget__title {
-  padding: var(--space-2) var(--space-3) 0;
+  padding: var(--space-3) var(--space-4) 0;
 }
 
 .widget--embed .widget__body {
@@ -387,23 +670,23 @@ a {
 }
 
 .embed__fallback {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   color: var(--fg-muted);
 }
 
 .button {
   display: inline-block;
-  padding: var(--space-1) var(--space-3);
+  padding: 5px var(--space-3);
   border: var(--border-w) solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--fg);
   text-decoration: none;
-  background: var(--bg);
+  background: var(--bg-hover);
 }
 
-/* ---------------------------------------------------------------- footer */
-
-.footer__warn {
-  color: var(--status-degraded);
+.button:hover {
+  border-color: var(--fg-faint);
 }
 
 /* ---------------------------------------------------------------- responsive shell */
@@ -411,31 +694,52 @@ a {
 @media (max-width: 700px) {
   .shell {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
   .sidebar {
     grid-row: auto;
+    max-height: 75dvh;
+    padding: var(--space-2) var(--space-4);
+    gap: var(--space-2);
     border-right: 0;
-    border-bottom: var(--border-w) solid var(--border);
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
+    border-bottom: var(--border-w) solid var(--border-soft);
   }
-  .sidebar__nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
+  .sidebar__brand {
+    padding: 0;
+  }
+  .sidebar__here {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .sidebar__toggle {
+    display: block;
+    margin-left: auto;
+    padding: var(--space-1) var(--space-3);
+    border: var(--border-w) solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+  .sidebar:not([data-open]) .sidebar__scroll,
+  .sidebar:not([data-open]) .sidebar__account {
+    display: none;
+  }
+  .main {
+    padding: var(--space-4);
   }
   .footer {
     grid-column: 1;
+    padding: var(--space-1) var(--space-4);
   }
-}
-
-.list__field[data-state="down"] {
-  color: var(--status-down);
-}
-.list__field[data-state="degraded"] {
-  color: var(--status-degraded);
 }
 
 /* ---------------------------------------------------------------- sign-in gate */
@@ -512,11 +816,20 @@ a {
   cursor: pointer;
 }
 
+/* The one action on a form. Emphasis by contrast, not hue: colour is reserved for status. */
 .button--primary {
   font: inherit;
-  color: var(--fg);
+  font-weight: 600;
+  color: var(--bg);
+  background: var(--fg);
+  border-color: var(--fg);
   cursor: pointer;
   text-align: center;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--fg-muted);
+  border-color: var(--fg-muted);
 }
 
 .button--primary:disabled {
@@ -623,15 +936,6 @@ a {
 
 /* ---------------------------------------------------------------- workspace pane */
 
-.sidebar__section {
-  margin-top: var(--space-2);
-  padding: var(--space-1) var(--space-2) 0;
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-faint);
-}
-
 .sidebar__nav a[data-state="down"]::before,
 .sidebar__nav a[data-state="degraded"]::before,
 .sidebar__nav a[data-state="unknown"]::before {
@@ -701,4 +1005,45 @@ a {
   font-size: var(--text-xs);
   color: var(--fg-muted);
   overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- sidebar: system link */
+
+/* Provider and process health: an operator's page, set apart from the dashboards. */
+.sidebar__nav a.sidebar__system {
+  margin-top: var(--space-2);
+  color: var(--fg-faint);
+}
+
+/* ---------------------------------------------------------------- system page */
+
+.system {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 1100px;
+}
+
+.system__section {
+  align-self: start;
+}
+
+.board__title .status-dot {
+  display: inline-block;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
+
+.system__alert {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-w) solid color-mix(in srgb, var(--status-down) 50%, var(--border));
+  border-radius: var(--radius);
+  color: var(--status-down);
+  white-space: pre-wrap;
+}
+
+/* The dot and state word carry the status colour; the error text itself stays readable. */
+.list__sub.system__error {
+  color: var(--fg-muted);
+  white-space: normal;
 }

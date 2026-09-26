@@ -72,6 +72,10 @@ class BoardSummary(BaseModel):
     icon: str | None
     widgets: int
     unsupported: int
+    # Workspace apps (embed + open_in: workspace). A board made only of apps is an app
+    # category, not a dashboard; the sidebar needs to know that without waiting for
+    # /apps, which probes every app's framing first.
+    apps: int = 0
 
 
 # ----------------------------------------------------------------------------- engine
@@ -94,6 +98,11 @@ class WidgetEngine:
             icon=doc.metadata.icon,
             widgets=len(doc.spec.widgets),
             unsupported=len(doc.unsupported_widgets),
+            apps=sum(
+                1
+                for w in doc.spec.widgets
+                if isinstance(w, EmbedWidget) and w.display.open_in == "workspace"
+            ),
         )
 
     def referenced_uids(self, doc: BoardDocument) -> set[str]:
@@ -214,6 +223,7 @@ class WidgetEngine:
             {
                 "uid": r.uid,
                 "name": r.name,
+                "title": self._row_title(r, w.display.title),
                 "state": r.state.value,
                 "stale": r.stale,
                 "links": r.links,
@@ -282,6 +292,10 @@ class WidgetEngine:
         return _tile(w, State.UP, data=data)
 
     # ------------------------------------------------------------------ fields
+
+    def _row_title(self, r: Resource, key: str | None) -> str:
+        value = self.field(r, key).value if key else None
+        return str(value) if value not in (None, "") else r.name
 
     def field(self, r: Resource, key: str) -> FieldValue:
         """``name`` / ``state`` / ``kind`` / ``provider`` / ``attrs.x`` / ``links.x`` /

@@ -119,6 +119,10 @@ class ListSource(_Spec):
 class ListDisplay(_Spec):
     fields: list[str] = Field(default_factory=lambda: ["name", "state"])
     empty_text: str = "Nothing to show"
+    # Which field titles each row — e.g. attrs.homepage.name, so a container shows as
+    # "Agregarr" rather than "agregarr". Falls back to the resource name when unset or
+    # empty. Added 2026-09-26, optional: dashboard/v1-compatible (§11.3a).
+    title: str | None = None
 
 
 class MetricSource(_Spec):

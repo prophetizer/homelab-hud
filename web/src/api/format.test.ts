@@ -43,3 +43,17 @@ describe("formatDuration / formatAge", () => {
     expect(formatAge("garbage", now)).toBe("garbage");
   });
 });
+
+describe("found on the live boards", () => {
+  it("shows sub-second durations in milliseconds, not 0s", () => {
+    expect(formatValue(0.0183, "seconds")).toBe("18 ms");
+    expect(formatValue(0.0042, "seconds")).toBe("4.2 ms");
+    expect(formatValue(0, "seconds")).toBe("0s");
+    expect(formatValue(75, "seconds")).toBe("1m 15s");
+  });
+  it("groups thousands in counts and plain numbers", () => {
+    expect(formatValue(184213, "count")).toBe("184,213");
+    expect(formatValue(1843.2, null)).toBe("1,843.2");
+    expect(formatValue(37, "count")).toBe("37");
+  });
+});

@@ -76,6 +76,7 @@ export interface BoardSummary {
   icon: string | null;
   widgets: number;
   unsupported: number;
+  apps: number; // workspace apps; a board of only apps is an app category, not a dashboard
 }
 
 export interface ProviderHealth {
@@ -104,6 +105,8 @@ export interface ResourceData {
 export interface ListItem {
   uid: string;
   name: string;
+  title: string; // display.title's field, or the name
+
   state: State;
   stale: boolean;
   links: Record<string, string>;

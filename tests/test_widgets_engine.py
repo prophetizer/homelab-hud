@@ -296,3 +296,28 @@ async def test_list_filters_on_resource_attrs(config_dir: Path) -> None:
     assert [i["fields"][1]["value"] for i in w.data["items"]] == ["Agregarr", "Scryer"]
     # RBAC's resource scope sees the same selection (a viewer of this board gets these two).
     assert engine.referenced_uids(doc) == {"docker:container:agregarr", "docker:container:scryer"}
+
+
+async def test_list_rows_can_be_titled_by_a_field(config_dir: Path) -> None:
+    """Links rows read "agregarr" above "Agregarr · Plex collections curator": the container
+    name as title, the display name repeated underneath. display.title picks the field."""
+    cache = LiveCache()
+    cache.apply(
+        "docker",
+        "collect",
+        [
+            res("docker:container:agregarr", homepage={"group": "Media Links", "name": "Agregarr"}),
+            res("docker:container:plain", homepage={"group": "Media Links"}),  # no name label
+        ],
+        [],
+    )
+    doc = board(
+        config_dir,
+        GROUPED.replace(
+            "display: {fields: [state, attrs.homepage.name]}",
+            "display: {title: attrs.homepage.name, fields: [state, attrs.homepage.name]}",
+        ),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    titles = {i["name"]: i["title"] for i in w.data["items"]}
+    assert titles == {"agregarr": "Agregarr", "plain": "plain"}  # falls back to the name

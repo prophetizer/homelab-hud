@@ -76,12 +76,16 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
     gap: `${board.layout.gap}px`,
   };
   return (
-    <div className="board board--grid" style={style}>
+    <div className={columns === 1 ? "board board--grid board--stacked" : "board board--grid"} style={style}>
       {board.widgets.map((w) => {
         const span = Math.min(w.grid.w, columns);
+        // One column (a phone): tiles take their content's height instead of the desktop row
+        // span, which left short lists in tall empty boxes. An embed has no content height,
+        // so it keeps its span.
+        const rows = columns === 1 && w.type !== "embed" ? "auto" : `span ${w.grid.h}`;
         const cell: CSSProperties = placed
           ? { gridColumn: `${Math.min(w.grid.col, columns)} / span ${span}`, gridRow: `${w.grid.row} / span ${w.grid.h}` }
-          : { gridColumn: `span ${span}`, gridRow: `span ${w.grid.h}` };
+          : { gridColumn: `span ${span}`, gridRow: rows };
         return (
           <div key={w.id} className="board__cell" style={cell}>
             <Widget widget={w} board={board.name} />

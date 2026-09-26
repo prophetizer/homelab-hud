@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
-// Three routes do not justify a router dependency. Path-based so deep links survive a
+// A handful of routes do not justify a router dependency. Path-based so deep links survive a
 // reload (FastAPI serves index.html for any non-API path).
 import { useEffect, useState } from "react";
 
 export type Route =
-  | { kind: "overview" }
+  | { kind: "home" } // "/" — lands on the Home board (see api/nav.ts landingBoard)
+  | { kind: "system" } // provider and process health
   | { kind: "board"; name: string }
   | { kind: "app"; board: string; widget: string }
   | { kind: "missing"; path: string };
 
 export function parseRoute(pathname: string): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
-  if (path === "/") return { kind: "overview" };
+  if (path === "/") return { kind: "home" };
+  if (path === "/system") return { kind: "system" };
   const m = /^\/boards\/([A-Za-z0-9_-]+)$/.exec(path);
   if (m && m[1] !== undefined) return { kind: "board", name: decodeURIComponent(m[1]) };
   const a = /^\/apps\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/.exec(path);
@@ -27,6 +29,12 @@ export function boardPath(name: string): string {
 
 export function appPath(board: string, widget: string): string {
   return `/apps/${encodeURIComponent(board)}/${encodeURIComponent(widget)}`;
+}
+
+/** Swap the current entry for ``path``: a landing redirect must not leave "/" in history. */
+export function replaceRoute(path: string): void {
+  window.history.replaceState(null, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 export function navigate(path: string): void {
