@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
+from hud.config.redact import redact
+
 
 class ProviderError(Exception):
     """Base for anything a provider raises on purpose. The message is user-facing."""
 
     def __init__(self, provider: str, message: str) -> None:
         self.provider = provider
-        self.message = message
-        super().__init__(f"{provider}: {message}")
+        # User-facing, so never carries a secret — e.g. an httpx error quoting a URL whose
+        # query holds an API key. See hud.config.redact.
+        self.message = redact(message)
+        super().__init__(f"{provider}: {self.message}")
 
 
 class ProviderBuildError(ProviderError):

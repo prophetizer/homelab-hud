@@ -93,6 +93,7 @@ class HttpOptions:
     headers: Mapping[str, str] = field(default_factory=dict)
     auth: httpx.Auth | None = None
     max_connections: int = 4
+    params: Mapping[str, str] = field(default_factory=dict)  # sent on every request
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,7 @@ class ProviderContext:
             timeout=httpx.Timeout(opts.timeout),
             verify=opts.verify_tls,
             headers=dict(opts.headers),
+            params=dict(opts.params),
             auth=opts.auth,
             limits=httpx.Limits(
                 max_connections=opts.max_connections,

@@ -115,6 +115,26 @@ class AuthHeader(BaseModel):
         return _must_be_secret_ref("value", v)
 
 
+class AuthQuery(BaseModel):
+    """A secret sent as a query parameter, for APIs that accept nothing else (SABnzbd's
+    ``apikey``; Jellyfin's ``ApiKey``, the one form not behind its legacy switch). Added
+    2026-09-25; a new auth type is dashboard/v1-compatible (§11.3a). A URL is where secrets
+    leak, so the value is masked in every log line and provider error (hud.config.redact)
+    — but the target app's own access log is beyond HUD's reach: point base_url at the
+    container, not through a reverse proxy that logs query strings."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["query"]
+    param: str = Field(pattern=r"^[A-Za-z0-9_.-]+$")
+    value: str
+
+    @field_validator("value")
+    @classmethod
+    def _ref(cls, v: str) -> str:
+        return _must_be_secret_ref("value", v)
+
+
 def _must_be_secret_ref(field: str, v: str) -> str:
     if not is_secret_ref(v):
         msg = f"{field} must be a ${{secret:<name>}} reference, never a literal credential"
@@ -123,7 +143,8 @@ def _must_be_secret_ref(field: str, v: str) -> str:
 
 
 Auth = Annotated[
-    AuthNone | AuthBearer | AuthApiKey | AuthBasic | AuthHeader, Field(discriminator="type")
+    AuthNone | AuthBearer | AuthApiKey | AuthBasic | AuthHeader | AuthQuery,
+    Field(discriminator="type"),
 ]
 
 

@@ -16,6 +16,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from hud.config.errors import ConfigIssue
 from hud.config.loader import load_yaml
+from hud.config.redact import register as redact_register
 
 SECRET_REF = re.compile(r"^\$\{secret:([A-Za-z0-9][A-Za-z0-9_.-]*)\}$")
 ENV_PREFIX = "HUD_SECRET_"
@@ -135,6 +136,8 @@ class SecretEmptyError(SecretNotFoundError):
 def _non_empty(name: str, value: str, source: str) -> str:
     if not value.strip():
         raise SecretEmptyError(name, source)
+    # Every secret handed out is registered for masking, wherever text leaves HUD.
+    redact_register(value)
     return value
 
 

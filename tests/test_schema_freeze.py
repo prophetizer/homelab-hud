@@ -69,12 +69,11 @@ def test_frozen_kinds_are_the_ones_the_plan_names(published: dict[str, Any]) -> 
 
 
 def test_bundled_templates_are_the_freeze_evidence() -> None:
-    """The freeze's precondition: five real services exercised by hand-written YAML."""
-    templates = sorted(
-        p.stem for p in (Path(__file__).parent.parent / "templates" / "providers").glob("*.yaml")
-    )
-    assert templates == ["home-assistant", "plex", "radarr", "sonarr"]
-    # Plus the two packaged plugins — docker and sonarr — for five distinct services.
+    """The freeze rests on these templates having exercised the spec (with the docker and
+    sonarr plugins, five services). They must stay bundled; more may join (§11.3a)."""
+    folder = Path(__file__).parent.parent / "templates" / "providers"
+    bundled = {p.stem for p in folder.glob("*.yaml")}
+    assert {"home-assistant", "plex", "radarr", "sonarr"} <= bundled
 
 
 # --------------------------------------------------------------- the schema as a schema
@@ -156,3 +155,26 @@ def test_compare_does_not_call_a_parents_embedded_default_breaking() -> None:
     # A default that changes a value is still breaking.
     moved = doc({"kind": "container", "label": None})
     assert compare(before, moved) == ["BREAKING: ListSource.select changed"]
+
+
+def test_compare_treats_a_widened_union_as_additive() -> None:
+    """Found adding the query auth type: Transport.auth's oneOf and discriminator mapping
+    gained a member. The union accepts strictly more, which §11.3a allows in v1."""
+
+    def doc(members: list[str]) -> dict[str, Any]:
+        auth = {
+            "oneOf": [{"$ref": f"#/$defs/{m}"} for m in members],
+            "discriminator": {
+                "propertyName": "type",
+                "mapping": {m.lower(): f"#/$defs/{m}" for m in members},
+            },
+        }
+        return {"$defs": {"Transport": {"properties": {"auth": auth}}}}
+
+    assert compare(doc(["AuthNone", "AuthBasic"]), doc(["AuthNone", "AuthBasic", "AuthQuery"])) == [
+        "additive: Transport.auth accepts AuthQuery as well"
+    ]
+    # Dropping a member refuses configs that validated before.
+    assert compare(doc(["AuthNone", "AuthBasic"]), doc(["AuthNone"])) == [
+        "BREAKING: Transport.auth changed"
+    ]

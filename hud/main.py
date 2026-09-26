@@ -21,7 +21,7 @@ from hud.api.spa import mount_spa
 from hud.auth import AuthError, Authorizer, AuthService
 from hud.collector import LiveCache, StoreWriter
 from hud.collector.scheduler import Collector
-from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver
+from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver, redact
 from hud.providers import ProviderContext, ProviderRegistry
 from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
@@ -32,12 +32,12 @@ from hud.widgets import WidgetEngine
 log = logging.getLogger("hud")
 
 
+LOG_FORMAT = "%(asctime)s %(levelname)-5s %(name)s: %(message)s"
+
+
 def configure_logging(level: str) -> None:
-    logging.basicConfig(
-        level=level.upper(),
-        format="%(asctime)s %(levelname)-5s %(name)s: %(message)s",
-        force=False,
-    )
+    logging.basicConfig(level=level.upper(), format=LOG_FORMAT, force=False)
+    redact.install(LOG_FORMAT)
 
 
 def _load_config(env: HudEnv) -> tuple[ConfigManager, ConfigSnapshot]:

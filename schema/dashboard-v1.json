@@ -155,6 +155,33 @@
       "title": "AuthNone",
       "type": "object"
     },
+    "AuthQuery": {
+      "additionalProperties": false,
+      "description": "A secret sent as a query parameter, for APIs that accept nothing else (SABnzbd's\n``apikey``; Jellyfin's ``ApiKey``, the one form not behind its legacy switch). Added\n2026-09-25; a new auth type is dashboard/v1-compatible (\u00a711.3a). A URL is where secrets\nleak, so the value is masked in every log line and provider error (hud.config.redact)\n\u2014 but the target app's own access log is beyond HUD's reach: point base_url at the\ncontainer, not through a reverse proxy that logs query strings.",
+      "properties": {
+        "param": {
+          "pattern": "^[A-Za-z0-9_.-]+$",
+          "title": "Param",
+          "type": "string"
+        },
+        "type": {
+          "const": "query",
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "param",
+        "value"
+      ],
+      "title": "AuthQuery",
+      "type": "object"
+    },
     "AuthSettings": {
       "additionalProperties": false,
       "description": "Which identity backends run, in precedence order (PLAN.md \u00a710.1).",
@@ -2063,7 +2090,8 @@
               "basic": "#/$defs/AuthBasic",
               "bearer": "#/$defs/AuthBearer",
               "header": "#/$defs/AuthHeader",
-              "none": "#/$defs/AuthNone"
+              "none": "#/$defs/AuthNone",
+              "query": "#/$defs/AuthQuery"
             },
             "propertyName": "type"
           },
@@ -2082,6 +2110,9 @@
             },
             {
               "$ref": "#/$defs/AuthHeader"
+            },
+            {
+              "$ref": "#/$defs/AuthQuery"
             }
           ],
           "title": "Auth"

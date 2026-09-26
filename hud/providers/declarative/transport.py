@@ -20,6 +20,7 @@ from hud.config.schemas.provider import (
     AuthBasic,
     AuthBearer,
     AuthHeader,
+    AuthQuery,
     Paginate,
     Request,
     Transport,
@@ -37,6 +38,7 @@ def build_http_options(ctx: ProviderContext, spec: Transport) -> HttpOptions:
     try:
         base_url = interpolate_env(spec.base_url, ctx.env)
         headers: dict[str, str] = {"Accept": "application/json"}
+        params: dict[str, str] = {}
         auth: httpx.Auth | None = None
         match spec.auth:
             case AuthBearer(token=ref):
@@ -47,6 +49,8 @@ def build_http_options(ctx: ProviderContext, spec: Transport) -> HttpOptions:
                 auth = httpx.BasicAuth(user, ctx.secrets.resolve(secret_name(ref)))
             case AuthHeader(name=name, value=ref):
                 headers[name] = ctx.secrets.resolve(secret_name(ref))
+            case AuthQuery(param=param, value=ref):
+                params[param] = ctx.secrets.resolve(secret_name(ref))
             case _:
                 pass
     except MissingEnvVarError as exc:
@@ -63,6 +67,7 @@ def build_http_options(ctx: ProviderContext, spec: Transport) -> HttpOptions:
         headers=headers,
         auth=auth,
         max_connections=spec.max_connections,
+        params=params,
     )
 
 

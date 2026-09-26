@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Configuration Manager: YAML load, schema validation, hot reload, round-trip write-back."""
 
+from hud.config import redact
 from hud.config.errors import ConfigError, ConfigIssue
 from hud.config.manager import (
     ConfigConflictError,
@@ -22,4 +23,5 @@ __all__ = [
     "SecretEmptyError",
     "SecretNotFoundError",
     "SecretResolver",
+    "redact",
 ]

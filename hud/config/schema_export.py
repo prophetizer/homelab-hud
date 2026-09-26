@@ -114,6 +114,8 @@ def _compare_definition(name: str, before: dict[str, Any], after: dict[str, Any]
         }
         if rest_same and _only_null_keys_added(a.get("default"), b.get("default")):
             out.append(f"additive: {name}.{p} default gains null key(s) from a new optional field")
+        elif (added := _union_widening(a, b)) is not None:
+            out.append(f"additive: {name}.{p} accepts {', '.join(added)} as well")
         else:
             out.append(f"BREAKING: {name}.{p} changed")
     for p in sorted(set(new_props) - set(old_props)):
@@ -130,6 +132,31 @@ def _compare_definition(name: str, before: dict[str, Any], after: dict[str, Any]
     if rest_before != rest_after:
         out.append(f"BREAKING: {name} constraints changed (review)")
     return out
+
+
+def _union_widening(old: dict[str, Any], new: dict[str, Any]) -> list[str] | None:
+    """New members when ``new`` is ``old`` with alternatives added and nothing else
+    changed — accepting strictly more, as a new auth type or widget type does (§11.3a).
+    None when anything else differs."""
+    added: list[str] = []
+    for key in set(old) | set(new):
+        a, b = old.get(key), new.get(key)
+        if a == b:
+            continue
+        if key in ("oneOf", "anyOf") and isinstance(a, list) and isinstance(b, list):
+            if not all(member in b for member in a):
+                return None
+            added += [str(m.get("$ref", m)).rsplit("/", 1)[-1] for m in b if m not in a]
+        elif key == "discriminator" and isinstance(a, dict) and isinstance(b, dict):
+            old_map, new_map = a.get("mapping", {}), b.get("mapping", {})
+            same_rest = {k: v for k, v in a.items() if k != "mapping"} == {
+                k: v for k, v in b.items() if k != "mapping"
+            }
+            if not same_rest or any(new_map.get(k) != v for k, v in old_map.items()):
+                return None
+        else:
+            return None
+    return added or None
 
 
 def _only_null_keys_added(old: Any, new: Any) -> bool:  # noqa: ANN401 — JSON values
