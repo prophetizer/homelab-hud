@@ -1,0 +1,50 @@
+{
+  "time_units": "hours",
+  "num_dns_queries": 184213,
+  "num_blocked_filtering": 31177,
+  "num_replaced_safebrowsing": 12,
+  "num_replaced_safesearch": 0,
+  "num_replaced_parental": 0,
+  "avg_processing_time": 0.0183,
+  "top_queried_domains": [
+    {
+      "example.com": 1024
+    }
+  ],
+  "top_clients": [
+    {
+      "172.31.1.20": 40211
+    }
+  ],
+  "top_blocked_domains": [
+    {
+      "ads.example.net": 911
+    }
+  ],
+  "top_upstreams_responses": [
+    {
+      "https://dns.quad9.net/dns-query": 150000
+    }
+  ],
+  "top_upstreams_avg_time": [
+    {
+      "https://dns.quad9.net/dns-query": 0.021
+    }
+  ],
+  "dns_queries": [
+    7600,
+    7710
+  ],
+  "blocked_filtering": [
+    1290,
+    1301
+  ],
+  "replaced_safebrowsing": [
+    0,
+    1
+  ],
+  "replaced_parental": [
+    0,
+    0
+  ]
+}

@@ -1,0 +1,96 @@
+[
+  {
+    "UserId": "0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "ApplicationVersion": "10.10.0",
+    "IsActive": true,
+    "LastActivityDate": "2026-09-25T20:15:00.0000000Z",
+    "SupportsMediaControl": true,
+    "PlayableMediaTypes": [
+      "Audio",
+      "Video"
+    ],
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed",
+    "Id": "5e55101d0000000000000000000000a1",
+    "UserName": "viewer",
+    "Client": "Jellyfin Web",
+    "DeviceName": "Firefox",
+    "DeviceId": "TW96aWxsYS81LjAgRmlyZWZveA11",
+    "PlayState": {
+      "PositionTicks": 9000000000,
+      "CanSeek": true,
+      "IsPaused": false,
+      "IsMuted": false,
+      "PlayMethod": "Transcode",
+      "RepeatMode": "RepeatNone"
+    },
+    "NowPlayingItem": {
+      "Name": "Strange Dogs",
+      "SeriesName": "The Expanse",
+      "Type": "Episode",
+      "RunTimeTicks": 31800000000,
+      "Id": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1"
+    },
+    "TranscodingInfo": {
+      "Bitrate": 8000000,
+      "IsVideoDirect": false,
+      "IsAudioDirect": true,
+      "Framerate": 23.976,
+      "CompletionPercentage": 41.5
+    }
+  },
+  {
+    "UserId": "0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "ApplicationVersion": "10.10.0",
+    "IsActive": true,
+    "LastActivityDate": "2026-09-25T20:15:00.0000000Z",
+    "SupportsMediaControl": true,
+    "PlayableMediaTypes": [
+      "Audio",
+      "Video"
+    ],
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed",
+    "Id": "5e55101d0000000000000000000000a2",
+    "UserName": "guest",
+    "Client": "Android TV",
+    "DeviceName": "Living Room TV",
+    "DeviceId": "YW5kcm9pZHR2LWxpdmluZy1yb29t",
+    "PlayState": {
+      "PositionTicks": 16200000000,
+      "CanSeek": true,
+      "IsPaused": true,
+      "IsMuted": false,
+      "PlayMethod": "DirectPlay",
+      "RepeatMode": "RepeatNone"
+    },
+    "NowPlayingItem": {
+      "Name": "Arrival",
+      "Type": "Movie",
+      "RunTimeTicks": 69360000000,
+      "Id": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"
+    }
+  },
+  {
+    "UserId": "0a1b2c3d4e5f60718293a4b5c6d7e8f9",
+    "ApplicationVersion": "10.10.0",
+    "IsActive": true,
+    "LastActivityDate": "2026-09-25T20:15:00.0000000Z",
+    "SupportsMediaControl": true,
+    "PlayableMediaTypes": [
+      "Audio",
+      "Video"
+    ],
+    "ServerId": "f00dfeedf00dfeedf00dfeedf00dfeed",
+    "Id": "5e55101d0000000000000000000000a3",
+    "UserName": "viewer",
+    "Client": "Jellyfin iOS",
+    "DeviceName": "iPhone",
+    "DeviceId": "aXBob25lLW1pa2Vn",
+    "PlayState": {
+      "CanSeek": false,
+      "IsPaused": false,
+      "IsMuted": false,
+      "RepeatMode": "RepeatNone"
+    },
+    "NowPlayingItem": null
+  }
+]

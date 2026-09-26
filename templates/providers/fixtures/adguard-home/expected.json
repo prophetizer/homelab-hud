@@ -1,0 +1,31 @@
+{
+  "server": {
+    "resources": {
+      "adguard-home:service:main": "degraded"
+    },
+    "metrics": {}
+  },
+  "stats": {
+    "resources": {
+      "adguard-home:dns:main": "up"
+    },
+    "metrics": {
+      "adguard-home:dns:main/queries": [
+        184213.0,
+        "count"
+      ],
+      "adguard-home:dns:main/blocked": [
+        31177.0,
+        "count"
+      ],
+      "adguard-home:dns:main/blocked_pct": [
+        16.924429871941722,
+        "pct"
+      ],
+      "adguard-home:dns:main/avg_processing_seconds": [
+        0.0183,
+        "seconds"
+      ]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+# Emby — server and active playback sessions.
+#
+# Copy to /config/providers/emby.yaml, then supply:
+#   EMBY_BASE_URL                    e.g. http://emby:8096 (environment)
+#   ${secret:emby_api_key}           API key from Settings → Advanced → API Keys
+#     → /run/secrets/emby_api_key, HUD_SECRET_EMBY_API_KEY, or secrets.yaml
+#
+# Auth: an X-Emby-Token header, per Emby's API key documentation.
+#
+# Emby publishes no machine-readable API spec. Public info is mapped from a live Emby
+# 4.10 server — which differs from Jellyfin's (LocalAddresses, no ProductName or
+# OperatingSystem). Sessions follow the shape Jellyfin forked from Emby and are NOT yet
+# verified against a live Emby: a missing field is a template bug.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: emby
+  labels: { category: media }
+  template:
+    service: Emby
+    icon: mdi:emby
+    docs: https://dev.emby.media/doc/restapi/index.html
+    requires:
+      - { name: EMBY_BASE_URL, kind: env, hint: "Base URL of your Emby server, port 8096" }
+      - { name: emby_api_key, kind: secret, hint: "API key from Settings → Advanced → API Keys" }
+spec:
+  transport:
+    base_url: ${EMBY_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Emby-Token
+      key: ${secret:emby_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # The server. Singleton; the public info endpoint answers without auth too.
+    - name: service
+      request: { path: /System/Info/Public }
+      interval: 5m
+      map:
+        uid:   "emby:service:main"
+        kind:  service
+        name:  "{{ item.ServerName | default('Emby') }}"
+        state: up
+        attrs:
+          version: "{{ item.Version }}"
+
+    # Playback. /Sessions also lists clients that are connected but idle; only a session
+    # with a NowPlayingItem that has a Name is a stream. (A bare `@.NowPlayingItem` test
+    # would keep `"NowPlayingItem": null`, since JSONPath treats a present key as true.)
+    # Keyed on the device: stable across sessions, one stream per device at a time. The
+    # session Id changes every connection and is refused as a uid (invariant 8).
+    - name: sessions
+      request: { path: /Sessions }
+      select: "$[?(@.NowPlayingItem.Name)]"
+      map:
+        uid:   "emby:stream:{{ item.DeviceId }}"
+        kind:  stream
+        name:  >-
+          {{ item.NowPlayingItem.SeriesName ~ ' — ' ~ item.NowPlayingItem.Name
+             if item.NowPlayingItem.SeriesName else item.NowPlayingItem.Name }}
+        state: "{{ 'paused' if item.PlayState.IsPaused else 'up' }}"
+        parent_uid: "emby:service:main"
+        attrs:
+          user:        "{{ item.UserName }}"
+          device:      "{{ item.DeviceName }}"
+          client:      "{{ item.Client }}"
+          media_type:  "{{ item.NowPlayingItem.Type }}"
+          # DirectPlay / DirectStream / Transcode — whether the server is doing the work.
+          play_method: "{{ item.PlayState.PlayMethod }}"
+      metrics:
+        # Positions and runtimes are in ticks: 10,000,000 per second.
+        - name: position_seconds
+          when: "{{ item.PlayState.PositionTicks is defined }}"
+          value: "{{ item.PlayState.PositionTicks | float / 10000000 }}"
+          unit: seconds
+        - name: duration_seconds
+          when: "{{ item.NowPlayingItem.RunTimeTicks is defined }}"
+          value: "{{ item.NowPlayingItem.RunTimeTicks | float / 10000000 }}"
+          unit: seconds
+        - name: progress_pct
+          when: "{{ item.NowPlayingItem.RunTimeTicks | default(0) | float > 0 and item.PlayState.PositionTicks is defined }}"
+          value: "{{ item.PlayState.PositionTicks | float / (item.NowPlayingItem.RunTimeTicks | float) }}"
+          unit: ratio
+        # Only present while transcoding.
+        - name: bitrate_bps
+          when: "{{ item.TranscodingInfo.Bitrate is defined }}"
+          value: "{{ item.TranscodingInfo.Bitrate | float }}"
+          unit: bps

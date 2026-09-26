@@ -168,11 +168,20 @@ code. Each `resources[]` entry is one request, a JSONPath `select`, and a `map` 
 sandboxed Jinja expressions over `item`. `templates/providers/home-assistant.yaml` is the
 worked example; every bundled template ships with a response fixture and a CI test.
 
-Bundled: `home-assistant`, `radarr`, `sonarr`, `plex`. Each template's header states where
-its field shapes came from — Radarr and Sonarr from the vendors' published OpenAPI
-documents, Plex from community documentation, since Plex publishes no API spec. The CI test
-proves each template maps its fixture correctly; it cannot prove your server returns those
-shapes, so treat a missing field as a template bug worth reporting rather than a HUD bug.
+Bundled: `adguard-home`, `emby`, `glances`, `home-assistant`, `jellyfin`, `plex`, `radarr`,
+`sabnzbd`, `sonarr`. Each template's header says where its field shapes came from: a
+vendor's published OpenAPI document (radarr, sonarr, jellyfin, adguard-home), the vendor's
+own source (sabnzbd), a live instance (glances; the public server info of jellyfin and
+emby), or community documentation (plex — Plex publishes no API spec). The CI test proves
+each template maps its fixture correctly; it cannot prove your server returns those shapes,
+so treat a missing field as a template bug worth reporting rather than a HUD bug.
+
+Auth types: `none`, `bearer`, `api_key` (a named header), `basic`, `header`, and `query` for
+the APIs that accept a key nowhere else (SABnzbd; Jellyfin's `ApiKey`). Every secret HUD
+resolves is masked in its logs — tracebacks included — and in provider errors shown in the
+UI, and httpx's per-request log lines (full URLs) are off. HUD cannot mask another
+program's access log, so point a `query`-auth provider at the container directly rather
+than through a reverse proxy that logs query strings.
 
 **Plugin** (`spec.plugin` + `spec.config`) — Python, for anything the declarative tier
 cannot express. Packaged: `docker` (via `linuxserver/socket-proxy`, never the socket;

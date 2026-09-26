@@ -1,0 +1,114 @@
+{
+  "system": {
+    "resources": {
+      "glances:host:main": "up"
+    },
+    "metrics": {}
+  },
+  "cpu": {
+    "resources": {
+      "glances:cpu:main": "up"
+    },
+    "metrics": {
+      "glances:cpu:main/cpu_pct": [
+        64.7,
+        "pct"
+      ],
+      "glances:cpu:main/iowait_pct": [
+        0.4,
+        "pct"
+      ]
+    }
+  },
+  "memory": {
+    "resources": {
+      "glances:memory:main": "up"
+    },
+    "metrics": {
+      "glances:memory:main/used_pct": [
+        50.0,
+        "pct"
+      ],
+      "glances:memory:main/used_bytes": [
+        67513712640.0,
+        "bytes"
+      ],
+      "glances:memory:main/available_bytes": [
+        67462205440.0,
+        "bytes"
+      ],
+      "glances:memory:main/total_bytes": [
+        134975918080.0,
+        "bytes"
+      ]
+    }
+  },
+  "load": {
+    "resources": {
+      "glances:load:main": "up"
+    },
+    "metrics": {
+      "glances:load:main/load1": [
+        12.50341796875,
+        "none"
+      ],
+      "glances:load:main/load5": [
+        11.552734375,
+        "none"
+      ],
+      "glances:load:main/load15": [
+        11.72216796875,
+        "none"
+      ],
+      "glances:load:main/load5_per_core": [
+        0.9627278645833334,
+        "none"
+      ]
+    }
+  },
+  "filesystems": {
+    "resources": {
+      "glances:filesystem:/data/docker": "up",
+      "glances:filesystem:/mnt/plex": "up",
+      "glances:filesystem:/mnt/working": "up"
+    },
+    "metrics": {
+      "glances:filesystem:/data/docker/used_pct": [
+        47.1,
+        "pct"
+      ],
+      "glances:filesystem:/data/docker/free_bytes": [
+        493876449280.0,
+        "bytes"
+      ],
+      "glances:filesystem:/data/docker/total_bytes": [
+        983093510144.0,
+        "bytes"
+      ],
+      "glances:filesystem:/mnt/plex/used_pct": [
+        47.4,
+        "pct"
+      ],
+      "glances:filesystem:/mnt/plex/free_bytes": [
+        490411126784.0,
+        "bytes"
+      ],
+      "glances:filesystem:/mnt/plex/total_bytes": [
+        983093510144.0,
+        "bytes"
+      ],
+      "glances:filesystem:/mnt/working/used_pct": [
+        67.8,
+        "pct"
+      ],
+      "glances:filesystem:/mnt/working/free_bytes": [
+        600627961856.0,
+        "bytes"
+      ],
+      "glances:filesystem:/mnt/working/total_bytes": [
+        1967604101120.0,
+        "bytes"
+      ]
+    }
+  }
+}

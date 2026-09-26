@@ -1,0 +1,81 @@
+# SABnzbd — the download queue and its jobs.
+#
+# Copy to /config/providers/sabnzbd.yaml, then supply:
+#   SABNZBD_BASE_URL                 e.g. http://sabnzbd:8080 (environment)
+#   ${secret:sabnzbd_api_key}        API Key from Config → General → Security
+#     → /run/secrets/sabnzbd_api_key, HUD_SECRET_SABNZBD_API_KEY, or secrets.yaml
+#
+# SABnzbd reads its API key from the query string only — its check_apikey has no header
+# form — so this is a `query` auth. HUD masks the key in every log line and error
+# (hud.config.redact), but not in another program's access log: point SABNZBD_BASE_URL at
+# the container, not through a reverse proxy that logs query strings.
+#
+# Mapped from SABnzbd's source (sabnzbd/api.py, constants.py). Sizes come as strings in
+# MiB (bytes / 2**20) and speed in KiB/s (bytes/s / 2**10); both are normalized here.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: sabnzbd
+  labels: { category: media }
+  template:
+    service: SABnzbd
+    icon: mdi:download
+    docs: https://sabnzbd.org/wiki/configuration/4.5/api
+    requires:
+      - { name: SABNZBD_BASE_URL, kind: env, hint: "Base URL of your SABnzbd web interface" }
+      - { name: sabnzbd_api_key, kind: secret, hint: "API Key from Config → General → Security" }
+spec:
+  transport:
+    base_url: ${SABNZBD_BASE_URL}
+    auth:
+      type: query
+      param: apikey
+      value: ${secret:sabnzbd_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # The queue as a whole. Singleton. "Paused" is a deliberate state, not a fault.
+    - name: queue
+      request: { path: /api, params: { mode: queue, output: json } }
+      select: "$.queue"
+      map:
+        uid:   "sabnzbd:service:main"
+        kind:  service
+        name:  SABnzbd
+        state: "{{ 'paused' if item.status == 'Paused' else 'up' }}"
+        attrs:
+          version:  "{{ item.version }}"
+          status:   "{{ item.status }}"
+          timeleft: "{{ item.timeleft }}"
+      metrics:
+        - { name: speed_bps,       value: "{{ item.kbpersec | float * 1024 }}", unit: bytes_per_sec }
+        - { name: remaining_bytes, value: "{{ item.mbleft | float }}",          unit: mib }
+        - { name: total_bytes,     value: "{{ item.mb | float }}",              unit: mib }
+        - { name: jobs,            value: "{{ item.noofslots | float }}",       unit: count }
+
+    # One resource per job. nzo_id is persisted with the queue, so it identifies the job
+    # for its whole life, across SABnzbd restarts.
+    - name: jobs
+      request: { path: /api, params: { mode: queue, output: json } }
+      select: "$.queue.slots[*]"
+      map:
+        uid:   "sabnzbd:download:{{ item.nzo_id }}"
+        kind:  download
+        name:  "{{ item.filename }}"
+        state: >-
+          {{ 'down' if item.status == 'Failed'
+             else 'paused' if item.status == 'Paused'
+             else 'up' }}
+        parent_uid: "sabnzbd:service:main"
+        attrs:
+          status:   "{{ item.status }}"
+          category: "{{ item.cat }}"
+          priority: "{{ item.priority }}"
+          timeleft: "{{ item.timeleft }}"
+      metrics:
+        - { name: progress_pct,    value: "{{ item.percentage | float }}", unit: pct }
+        - { name: size_bytes,      value: "{{ item.mb | float }}",         unit: mib }
+        - { name: remaining_bytes, value: "{{ item.mbleft | float }}",     unit: mib }

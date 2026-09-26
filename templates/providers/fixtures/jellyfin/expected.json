@@ -1,0 +1,44 @@
+{
+  "service": {
+    "resources": {
+      "jellyfin:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "sessions": {
+    "resources": {
+      "jellyfin:stream:TW96aWxsYS81LjAgRmlyZWZveA11": "up",
+      "jellyfin:stream:YW5kcm9pZHR2LWxpdmluZy1yb29t": "paused"
+    },
+    "metrics": {
+      "jellyfin:stream:TW96aWxsYS81LjAgRmlyZWZveA11/position_seconds": [
+        900.0,
+        "seconds"
+      ],
+      "jellyfin:stream:TW96aWxsYS81LjAgRmlyZWZveA11/duration_seconds": [
+        3180.0,
+        "seconds"
+      ],
+      "jellyfin:stream:TW96aWxsYS81LjAgRmlyZWZveA11/progress_pct": [
+        28.30188679245283,
+        "pct"
+      ],
+      "jellyfin:stream:TW96aWxsYS81LjAgRmlyZWZveA11/bitrate_bps": [
+        8000000.0,
+        "bps"
+      ],
+      "jellyfin:stream:YW5kcm9pZHR2LWxpdmluZy1yb29t/position_seconds": [
+        1620.0,
+        "seconds"
+      ],
+      "jellyfin:stream:YW5kcm9pZHR2LWxpdmluZy1yb29t/duration_seconds": [
+        6936.0,
+        "seconds"
+      ],
+      "jellyfin:stream:YW5kcm9pZHR2LWxpdmluZy1yb29t/progress_pct": [
+        23.356401384083046,
+        "pct"
+      ]
+    }
+  }
+}

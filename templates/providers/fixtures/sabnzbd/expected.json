@@ -1,0 +1,83 @@
+{
+  "queue": {
+    "resources": {
+      "sabnzbd:service:main": "up"
+    },
+    "metrics": {
+      "sabnzbd:service:main/speed_bps": [
+        322122547.2,
+        "bps"
+      ],
+      "sabnzbd:service:main/remaining_bytes": [
+        17179869184.0,
+        "bytes"
+      ],
+      "sabnzbd:service:main/total_bytes": [
+        19327352832.0,
+        "bytes"
+      ],
+      "sabnzbd:service:main/jobs": [
+        4.0,
+        "count"
+      ]
+    }
+  },
+  "jobs": {
+    "resources": {
+      "sabnzbd:download:SABnzbd_nzo_000abcdef": "up",
+      "sabnzbd:download:SABnzbd_nzo_001abcdef": "up",
+      "sabnzbd:download:SABnzbd_nzo_002abcdef": "down",
+      "sabnzbd:download:SABnzbd_nzo_003abcdef": "paused"
+    },
+    "metrics": {
+      "sabnzbd:download:SABnzbd_nzo_000abcdef/progress_pct": [
+        66.0,
+        "pct"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_000abcdef/size_bytes": [
+        3221225472.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_000abcdef/remaining_bytes": [
+        1073741824.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_001abcdef/progress_pct": [
+        0.0,
+        "pct"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_001abcdef/size_bytes": [
+        12884901888.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_001abcdef/remaining_bytes": [
+        12884901888.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_002abcdef/progress_pct": [
+        0.0,
+        "pct"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_002abcdef/size_bytes": [
+        2147483648.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_002abcdef/remaining_bytes": [
+        2147483648.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_003abcdef/progress_pct": [
+        0.0,
+        "pct"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_003abcdef/size_bytes": [
+        1073741824.0,
+        "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_003abcdef/remaining_bytes": [
+        1073741824.0,
+        "bytes"
+      ]
+    }
+  }
+}

@@ -1,0 +1,110 @@
+# Glances — host CPU, memory, load and filesystems over the REST API (v4).
+#
+# Copy to /config/providers/glances.yaml, then supply:
+#   GLANCES_BASE_URL                 e.g. http://glances:61208 (environment)
+# No credential: Glances' web server is unauthenticated unless started with --password.
+# If yours is, add a transport.auth of type basic (username glances) whose password is a
+# secret reference, and list that secret under requires.
+#
+# Mapped from a live Glances 4 instance. Only the system, cpu, mem, load and fs endpoints
+# are read: the process endpoints can carry command lines, and command lines sometimes
+# carry passwords.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: glances
+  labels: { category: infrastructure }
+  template:
+    service: Glances
+    icon: mdi:monitor-dashboard
+    docs: https://glances.readthedocs.io/en/latest/api/restful.html
+    requires:
+      - { name: GLANCES_BASE_URL, kind: env, hint: "Base URL of Glances' web server, port 61208" }
+spec:
+  transport:
+    base_url: ${GLANCES_BASE_URL}
+    timeout: 5s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # The host. Singleton. Glances usually runs in a container, so its `hostname` is the
+    # container id; hr_name ("Alpine Linux 3.24.1 64bit / Linux 7.0.0-31-generic") is
+    # the readable identity.
+    - name: system
+      request: { path: /api/4/system }
+      interval: 1h
+      map:
+        uid:   "glances:host:main"
+        kind:  host
+        name:  "{{ item.hr_name | default(item.hostname) }}"
+        state: up
+        attrs:
+          os:      "{{ item.os_name }}"
+          kernel:  "{{ item.os_version }}"
+          distro:  "{{ item.linux_distro }}"
+
+    - name: cpu
+      request: { path: /api/4/cpu }
+      map:
+        uid:   "glances:cpu:main"
+        kind:  cpu
+        name:  CPU
+        state: up
+      metrics:
+        - { name: cpu_pct,    value: "{{ item.total | float }}",  unit: pct }
+        - { name: iowait_pct, value: "{{ item.iowait | float }}", unit: pct, when: "{{ item.iowait is defined }}" }
+
+    - name: memory
+      request: { path: /api/4/mem }
+      map:
+        uid:   "glances:memory:main"
+        kind:  memory
+        name:  Memory
+        state: up
+      metrics:
+        - { name: used_pct,        value: "{{ item.percent | float }}",   unit: pct }
+        - { name: used_bytes,      value: "{{ item.used | float }}",      unit: bytes }
+        - { name: available_bytes, value: "{{ item.available | float }}", unit: bytes }
+        - { name: total_bytes,     value: "{{ item.total | float }}",     unit: bytes }
+
+    - name: load
+      request: { path: /api/4/load }
+      map:
+        uid:   "glances:load:main"
+        kind:  load
+        name:  Load
+        state: up
+        attrs:
+          cores: "{{ item.cpucore }}"
+      metrics:
+        - { name: load1,  value: "{{ item.min1 | float }}",  unit: none }
+        - { name: load5,  value: "{{ item.min5 | float }}",  unit: none }
+        - { name: load15, value: "{{ item.min15 | float }}", unit: none }
+        # Load per core is what "is the box busy" actually asks.
+        - name: load5_per_core
+          when: "{{ item.cpucore | float > 0 }}"
+          value: "{{ item.min5 | float / (item.cpucore | float) }}"
+          unit: none
+
+    # Filesystems, one per mount point. Found on a live instance: a containerised Glances
+    # also lists Docker's single-file bind mounts (/etc/hostname, /etc/hosts,
+    # /etc/resolv.conf, its own config), each just reporting the disk underneath — noise
+    # that would duplicate a real volume on the board. Those are dropped here.
+    - name: filesystems
+      request: { path: /api/4/fs }
+      select: "$[?(@.mnt_point =~ '^(?!/etc/|/glances/|/proc|/sys|/dev)')]"
+      interval: 5m
+      map:
+        uid:   "glances:filesystem:{{ item.mnt_point }}"
+        kind:  filesystem
+        name:  "{{ item.mnt_point }}"
+        state: "{{ 'degraded' if item.percent | float >= 90 else 'up' }}"
+        attrs:
+          device:  "{{ item.device_name }}"
+          fs_type: "{{ item.fs_type }}"
+      metrics:
+        - { name: used_pct,    value: "{{ item.percent | float }}", unit: pct }
+        - { name: free_bytes,  value: "{{ item.free | float }}",    unit: bytes }
+        - { name: total_bytes, value: "{{ item.size | float }}",    unit: bytes }

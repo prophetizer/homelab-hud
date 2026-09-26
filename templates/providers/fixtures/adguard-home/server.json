@@ -1,0 +1,14 @@
+{
+  "dns_addresses": [
+    "172.31.1.2"
+  ],
+  "dns_port": 53,
+  "http_port": 80,
+  "protection_enabled": false,
+  "protection_disabled_duration": 1800000,
+  "dhcp_available": true,
+  "running": true,
+  "version": "v0.107.63",
+  "language": "en",
+  "start_time": 1758700000000.0
+}

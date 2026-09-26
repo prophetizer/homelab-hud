@@ -1,0 +1,72 @@
+# AdGuard Home — server state and DNS filtering statistics over the control API.
+#
+# Copy to /config/providers/adguard-home.yaml, then supply:
+#   ADGUARD_BASE_URL                 e.g. http://adguardhome:80 (environment)
+#   ${secret:adguard_password}       the password of the AdGuard Home login below
+#     → /run/secrets/adguard_password, HUD_SECRET_ADGUARD_PASSWORD, or secrets.yaml
+# and set transport.auth.username to that login (a plain value — only the password is
+# secret).
+#
+# Mapped from AdGuard Home's published OpenAPI document (openapi/openapi.yaml, 0.107):
+# every path is under /control and authenticated with HTTP basic auth.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: adguard-home
+  labels: { category: infrastructure }
+  template:
+    service: AdGuard Home
+    icon: mdi:shield-check
+    docs: https://github.com/AdguardTeam/AdGuardHome/tree/master/openapi
+    requires:
+      - { name: ADGUARD_BASE_URL, kind: env, hint: "Base URL of AdGuard Home's web interface" }
+      - { name: adguard_password, kind: secret, hint: "Password of the AdGuard Home login" }
+spec:
+  transport:
+    base_url: ${ADGUARD_BASE_URL}
+    auth:
+      type: basic
+      username: admin      # change to your AdGuard Home login
+      password: ${secret:adguard_password}
+    timeout: 5s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The server. Protection switched off is not "up": DNS answers, but nothing is being
+    # filtered — the state a tile most needs to catch.
+    - name: server
+      request: { path: /control/status }
+      map:
+        uid:   "adguard-home:service:main"
+        kind:  service
+        name:  AdGuard Home
+        state: >-
+          {{ 'down' if not item.running
+             else 'degraded' if not item.protection_enabled
+             else 'up' }}
+        attrs:
+          version:            "{{ item.version }}"
+          dns_port:           "{{ item.dns_port }}"
+          protection_enabled: "{{ item.protection_enabled }}"
+
+    # Totals over AdGuard's statistics window (time_units says hours or days).
+    - name: stats
+      request: { path: /control/stats }
+      map:
+        uid:   "adguard-home:dns:main"
+        kind:  dns
+        name:  DNS
+        state: up
+        attrs:
+          window_units: "{{ item.time_units }}"
+      metrics:
+        - { name: queries, value: "{{ item.num_dns_queries | float }}",       unit: count }
+        - { name: blocked, value: "{{ item.num_blocked_filtering | float }}", unit: count }
+        - name: blocked_pct
+          when: "{{ item.num_dns_queries | float > 0 }}"
+          value: "{{ item.num_blocked_filtering | float / (item.num_dns_queries | float) }}"
+          unit: ratio
+        # Seconds per the OpenAPI description, not milliseconds.
+        - { name: avg_processing_seconds, value: "{{ item.avg_processing_time | float }}", unit: seconds }

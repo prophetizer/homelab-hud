@@ -1,0 +1,9 @@
+{
+  "LocalAddresses": [
+    "http://192.0.2.9:8096"
+  ],
+  "RemoteAddresses": [],
+  "ServerName": "emby",
+  "Version": "4.10.0.40",
+  "Id": "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+}

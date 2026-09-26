@@ -1,0 +1,94 @@
+# Jellyfin — server and active playback sessions.
+#
+# Copy to /config/providers/jellyfin.yaml, then supply:
+#   JELLYFIN_BASE_URL                e.g. http://jellyfin:8096 (environment)
+#   ${secret:jellyfin_api_key}       API key from Dashboard → API Keys
+#     → /run/secrets/jellyfin_api_key, HUD_SECRET_JELLYFIN_API_KEY, or secrets.yaml
+#
+# Point JELLYFIN_BASE_URL at the container, not through a reverse proxy: the key travels
+# as a query parameter, and HUD cannot mask it in another program's access log.
+#
+# Mapped from Jellyfin's published OpenAPI document (12.1.0), and checked against a live
+# 12.1.0 server's public info. Auth per Jellyfin's AuthorizationContext source.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: jellyfin
+  labels: { category: media }
+  template:
+    service: Jellyfin
+    icon: mdi:jellyfish
+    docs: https://api.jellyfin.org/
+    requires:
+      - { name: JELLYFIN_BASE_URL, kind: env, hint: "Base URL of your Jellyfin server, port 8096" }
+      - { name: jellyfin_api_key, kind: secret, hint: "API key from Dashboard → API Keys" }
+spec:
+  transport:
+    base_url: ${JELLYFIN_BASE_URL}
+    auth:
+      # The one form Jellyfin always accepts; X-Emby-Token only works with its legacy
+      # authorization switch on. Masked in every HUD log line and error (hud.config.redact).
+      type: query
+      param: ApiKey
+      value: ${secret:jellyfin_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # The server. Singleton; the public info endpoint answers without auth too.
+    - name: service
+      request: { path: /System/Info/Public }
+      interval: 5m
+      map:
+        uid:   "jellyfin:service:main"
+        kind:  service
+        name:  "{{ item.ServerName | default('Jellyfin') }}"
+        state: up
+        attrs:
+          version: "{{ item.Version }}"
+          os:      "{{ item.OperatingSystem }}"
+
+    # Playback. /Sessions also lists clients that are connected but idle; only a session
+    # with a NowPlayingItem that has a Name is a stream. (A bare `@.NowPlayingItem` test
+    # would keep `"NowPlayingItem": null`, since JSONPath treats a present key as true.)
+    # Keyed on the device: stable across sessions, one stream per device at a time. The
+    # session Id changes every connection and is refused as a uid (invariant 8).
+    - name: sessions
+      request: { path: /Sessions }
+      select: "$[?(@.NowPlayingItem.Name)]"
+      map:
+        uid:   "jellyfin:stream:{{ item.DeviceId }}"
+        kind:  stream
+        name:  >-
+          {{ item.NowPlayingItem.SeriesName ~ ' — ' ~ item.NowPlayingItem.Name
+             if item.NowPlayingItem.SeriesName else item.NowPlayingItem.Name }}
+        state: "{{ 'paused' if item.PlayState.IsPaused else 'up' }}"
+        parent_uid: "jellyfin:service:main"
+        attrs:
+          user:        "{{ item.UserName }}"
+          device:      "{{ item.DeviceName }}"
+          client:      "{{ item.Client }}"
+          media_type:  "{{ item.NowPlayingItem.Type }}"
+          # DirectPlay / DirectStream / Transcode — whether the server is doing the work.
+          play_method: "{{ item.PlayState.PlayMethod }}"
+      metrics:
+        # Positions and runtimes are in ticks: 10,000,000 per second.
+        - name: position_seconds
+          when: "{{ item.PlayState.PositionTicks is defined }}"
+          value: "{{ item.PlayState.PositionTicks | float / 10000000 }}"
+          unit: seconds
+        - name: duration_seconds
+          when: "{{ item.NowPlayingItem.RunTimeTicks is defined }}"
+          value: "{{ item.NowPlayingItem.RunTimeTicks | float / 10000000 }}"
+          unit: seconds
+        - name: progress_pct
+          when: "{{ item.NowPlayingItem.RunTimeTicks | default(0) | float > 0 and item.PlayState.PositionTicks is defined }}"
+          value: "{{ item.PlayState.PositionTicks | float / (item.NowPlayingItem.RunTimeTicks | float) }}"
+          unit: ratio
+        # Only present while transcoding.
+        - name: bitrate_bps
+          when: "{{ item.TranscodingInfo.Bitrate is defined }}"
+          value: "{{ item.TranscodingInfo.Bitrate | float }}"
+          unit: bps
