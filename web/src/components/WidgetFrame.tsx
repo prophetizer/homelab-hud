@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { DetailContext } from "./detail";
 import type { ResolvedWidget } from "../api/types";
 import { Icon } from "./widgets/Icon";
 
@@ -29,6 +30,7 @@ function useChanged(state: string | null): string | undefined {
 export function WidgetFrame({ widget, children, className }: Props) {
   const title = widget.title ?? widget.id;
   const changed = useChanged(widget.state);
+  const openDetail = useContext(DetailContext);
   return (
     <section
       className={`widget widget--${widget.type}${className ? ` ${className}` : ""}`}
@@ -39,7 +41,13 @@ export function WidgetFrame({ widget, children, className }: Props) {
       <h2 className="widget__title">
         {widget.state ? <span className="status-dot" data-state={widget.state} aria-label={widget.state} /> : null}
         <Icon name={widget.icon} title={title} size="sm" fallback="none" />
-        <span className="widget__title-text">{title}</span>
+        {openDetail ? (
+          <button type="button" className="widget__title-text widget__open" onClick={() => openDetail(widget.id)} title="Open larger">
+            {title}
+          </button>
+        ) : (
+          <span className="widget__title-text">{title}</span>
+        )}
         {widget.stale ? (
           <span className="badge" title="last known good; the provider is failing">
             stale

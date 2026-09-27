@@ -138,6 +138,9 @@ class ListDisplay(_Spec):
     # Show each row's attrs.image (a poster), served by /api/v1/images through the row's
     # own provider so its credentials stay server-side. Added 2026-09-26, optional.
     image: bool = False
+    # A 24 h availability strip on each row (hourly cells) and the day's uptime %, from
+    # the availability history. Added 2026-09-27, optional: dashboard/v1-compatible.
+    uptime: bool = False
 
 
 class MetricSource(_Spec):

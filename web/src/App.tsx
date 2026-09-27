@@ -4,6 +4,7 @@ import { fetchApps, fetchBoards } from "./api/client";
 import { fetchHealth } from "./api/health";
 import type { Me } from "./api/auth";
 import { BoardView } from "./components/Board";
+import { CommandPalette } from "./components/CommandPalette";
 import { Kiosk } from "./components/Kiosk";
 import { Login } from "./components/Login";
 import { Overview } from "./components/Overview";
@@ -55,6 +56,7 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   const system = <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />;
   return (
     <div className="shell">
+      <CommandPalette boards={boards.data?.boards ?? null} apps={apps.data?.apps ?? null} />
       <Sidebar
         boards={boards.data?.boards ?? null}
         boardsError={boards.error}

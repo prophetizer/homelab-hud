@@ -971,6 +971,11 @@
           ],
           "default": null,
           "title": "Title"
+        },
+        "uptime": {
+          "default": false,
+          "title": "Uptime",
+          "type": "boolean"
         }
       },
       "title": "ListDisplay",
@@ -1029,7 +1034,8 @@
             "icon": null,
             "image": false,
             "layout": "rows",
-            "title": null
+            "title": null,
+            "uptime": false
           }
         },
         "grid": {

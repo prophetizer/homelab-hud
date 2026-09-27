@@ -198,3 +198,14 @@ def test_index_carries_frame_src_allowlist(client: TestClient, tmp_path: Path) -
     assert r.headers["content-security-policy"] == (
         "frame-src 'self' http://portainer.lab:9000 https://grafana.lab"
     )
+
+
+def test_expanded_widget_is_scoped_like_its_board(client: TestClient) -> None:
+    config_dir = Path(client.app.state.env.config_dir)  # type: ignore[attr-defined]
+    (config_dir / "boards").mkdir(exist_ok=True)
+    (config_dir / "boards" / "demo.yaml").write_text(BOARD)
+    client.app.state.config.load()  # type: ignore[attr-defined]
+    r = client.get("/api/v1/boards/demo/widgets/all/expanded")
+    assert r.status_code == 200 and r.json()["id"] == "all"
+    assert client.get("/api/v1/boards/demo/widgets/nope/expanded").status_code == 404
+    assert client.get("/api/v1/boards/nope/widgets/all/expanded").status_code == 404

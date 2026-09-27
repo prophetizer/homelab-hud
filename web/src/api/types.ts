@@ -127,6 +127,7 @@ export interface ListItem {
   bar?: number | null; // display.bar: a percentage drawn as a usage bar
   icon?: string | null; // display.icon: a name /api/v1/icons serves
   image?: boolean; // display.image: /api/v1/images/<uid> has a poster for this row
+  uptime?: { cells: UptimeCell[]; sla: number | null } | null; // display.uptime: the last 24 h
 }
 export interface ListData {
   items: ListItem[];
@@ -184,4 +185,15 @@ export interface App {
   error: string | null;
   framing: Framing;
   icon?: string | null;
+}
+
+/** One bucket of availability history: seconds per state, and what HUD did not see. */
+export interface UptimeCell {
+  t: number;
+  up: number;
+  degraded: number;
+  paused: number;
+  down: number;
+  unknown: number;
+  not_observed: number;
 }

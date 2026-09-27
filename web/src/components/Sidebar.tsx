@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
 import { BrandMark } from "./BrandMark";
+import { openPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
 import type { Me } from "../api/auth";
 import { buildNavigation } from "../api/nav";
@@ -97,6 +98,11 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
       </div>
       {/* Scrolls on its own: 60 apps must not make the whole page scroll. */}
       <div className="sidebar__scroll" id="sidebar-menu" onClick={closeOnNavigate}>
+        <button type="button" className="sidebar__search" onClick={openPalette} title="Search boards, apps and links (Ctrl-K)">
+          <Icon name="mdi-magnify" title="Search" size="sm" />
+          <span className="sidebar__label">Search</span>
+          <kbd className="sidebar__label">Ctrl K</kbd>
+        </button>
         <nav className="sidebar__nav" aria-label="Boards">
           <div className="sidebar__section">Boards</div>
           {nav.boards.map((b) => (

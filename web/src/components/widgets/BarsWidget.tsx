@@ -4,6 +4,7 @@ import { formatValue } from "../../api/format";
 import type { BarsData, ResolvedWidget } from "../../api/types";
 import { useTweened } from "../../hooks/useTweened";
 import { WidgetFrame } from "../WidgetFrame";
+import { Empty } from "./Empty";
 import { valueParts } from "./MetricWidget";
 
 /** One metric across many resources: a strip of columns (per-core CPU) or ranked rows
@@ -28,7 +29,7 @@ export function BarsWidget({ widget }: { widget: ResolvedWidget }) {
         </p>
       ) : null}
       {data.bars.length === 0 ? (
-        <p className="list__empty">{data.empty_text}</p>
+        <Empty icon={widget.icon} text={data.empty_text} />
       ) : data.layout === "columns" ? (
         <div className="bars bars--columns" style={{ "--bars": data.bars.length } as CSSProperties}>
           {data.bars.map((b) => (

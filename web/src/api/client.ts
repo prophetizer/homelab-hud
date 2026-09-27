@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { App, BoardSummary, Placement, ResolvedBoard } from "./types";
+import type { App, BoardSummary, Placement, ResolvedBoard, ResolvedWidget } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -60,6 +60,11 @@ export function fetchBoards(signal?: AbortSignal): Promise<{ boards: BoardSummar
 
 export function fetchBoard(name: string, signal?: AbortSignal): Promise<ResolvedBoard> {
   return getJson(`/api/v1/boards/${encodeURIComponent(name)}`, signal);
+}
+
+/** One tile as its detail view shows it: every row, a day of trend. */
+export function fetchExpanded(board: string, widget: string, signal?: AbortSignal): Promise<ResolvedWidget> {
+  return getJson(`/api/v1/boards/${encodeURIComponent(board)}/widgets/${encodeURIComponent(widget)}/expanded`, signal);
 }
 
 /** The layout editor's save. 409 means the file changed underneath; reload and retry. */

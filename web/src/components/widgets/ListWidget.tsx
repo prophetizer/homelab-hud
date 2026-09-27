@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
+import { useState } from "react";
 import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
+import { Empty } from "./Empty";
 import { Icon } from "./Icon";
 import { Meter } from "./Meter";
 import { Poster } from "./Poster";
 import { valueParts } from "./MetricWidget";
+import { cellState, formatSla } from "./UptimeWidget";
 import { fieldText } from "./Fields";
 
 /**
@@ -41,23 +44,58 @@ export function stateCounts(items: { state: State }[]): string {
     .join(" · ");
 }
 
-/** A wall of status squares: 117 containers readable in one glance, trouble in colour. */
-function Wall({ items }: { items: ListData["items"] }) {
+/** A row's last 24 h as a thin strip of hourly cells, with the day's %. */
+function MiniUptime({ uptime }: { uptime: NonNullable<ListData["items"][number]["uptime"]> }) {
   return (
-    <ul className="wall">
-      {items.map((item) => {
-        const label = `${item.title}: ${item.state}`;
-        return (
-          <li key={item.uid} className="wall__cell" data-state={item.state} data-stale={item.stale || undefined}>
-            {item.links["ui"] ? (
-              <a href={item.links["ui"]} target="_blank" rel="noreferrer noopener" aria-label={label} title={label} />
-            ) : (
-              <span role="img" aria-label={label} title={label} />
-            )}
-          </li>
-        );
-      })}
-    </ul>
+    <span className="mini-uptime" title={uptime.sla === null ? "not observed in 24 h" : `${formatSla(uptime.sla)} over 24 h`}>
+      <span className="mini-uptime__strip">
+        {uptime.cells.map((c) => (
+          <span key={c.t} className="uptime__cell" data-state={cellState(c)} />
+        ))}
+      </span>
+      {uptime.sla !== null ? <span className="mini-uptime__sla">{formatSla(uptime.sla)}</span> : null}
+    </span>
+  );
+}
+
+/** A wall of status squares: 117 containers readable in one glance, trouble in colour. The
+ *  square under the pointer (or keyboard focus) is described in a line beneath the wall —
+ *  a floating card would be clipped at the tile's edge. */
+function Wall({ items }: { items: ListData["items"] }) {
+  const [focus, setFocus] = useState<string | null>(null);
+  const item = items.find((i) => i.uid === focus);
+  return (
+    <>
+      <ul className="wall" onPointerLeave={() => setFocus(null)}>
+        {items.map((it) => {
+          const label = `${it.title}: ${it.state}`;
+          const on = { onPointerEnter: () => setFocus(it.uid), onFocus: () => setFocus(it.uid) };
+          return (
+            <li key={it.uid} className="wall__cell" data-state={it.state} data-stale={it.stale || undefined} data-focus={focus === it.uid || undefined}>
+              {it.links["ui"] ? (
+                <a href={it.links["ui"]} target="_blank" rel="noreferrer noopener" aria-label={label} {...on} />
+              ) : (
+                <span role="img" aria-label={label} tabIndex={0} {...on} />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="wall__inspector" aria-live="polite">
+        {item ? (
+          <>
+            <span className="status-dot" data-state={item.state} />
+            <span className="wall__name">{item.title}</span>
+            <span className="wall__detail">
+              {[item.state, ...item.fields.filter((f) => f.key !== "name" && f.key !== "state" && f.value !== null && f.value !== "").map(fieldText)].join(" · ")}
+            </span>
+            {item.uptime ? <MiniUptime uptime={item.uptime} /> : null}
+          </>
+        ) : (
+          <span className="wall__hint">Point at a square for details</span>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -96,6 +134,7 @@ function Cards({ items }: { items: ListData["items"] }) {
             <span className="card__text">
               <span className="card__title">{item.title}</span>
               {sub.length > 0 ? <span className="card__sub">{sub.map(fieldText).join(" · ")}</span> : null}
+              {item.uptime ? <MiniUptime uptime={item.uptime} /> : null}
             </span>
             <span className="status-dot" data-state={item.state} aria-label={item.state} />
           </>
@@ -187,7 +226,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   return (
     <WidgetFrame widget={widget}>
       {data.items.length === 0 ? (
-        <p className="list__empty">{data.empty_text}</p>
+        <Empty icon={widget.icon} text={data.empty_text} />
       ) : (
         <ul className="list">
           {data.items.map((item) => {

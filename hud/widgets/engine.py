@@ -33,6 +33,7 @@ from hud.config.schemas.board import (
     ListWidget,
     MetricWidget,
     ResourceWidget,
+    Sparkline,
     StaticWidget,
     Threshold,
     UnsupportedWidget,
@@ -212,6 +213,8 @@ class WidgetEngine:
                 return await self._embed(w, page_origin)
             case UptimeWidget():
                 return await self._uptime(w, now)
+            case ListWidget():
+                return await self._list_with_uptime(w, now)
             case _:
                 return self._resolve_sync(w)
 
@@ -297,6 +300,28 @@ class WidgetEngine:
             m = self.cache.metric(r.uid, key.removeprefix("metric."))
             return None if m is None else (0, m.value)
         return _sort_value(r, key)
+
+    def expand(self, w: Widget) -> Widget:
+        """The tile as its detail view shows it: every row, and a day of trend."""
+        if isinstance(w, ListWidget | BarsWidget | UptimeWidget):
+            return w.model_copy(update={"source": w.source.model_copy(update={"limit": None})})
+        if isinstance(w, MetricWidget):
+            display = w.display.model_copy(update={"sparkline": Sparkline(range="24h")})
+            return w.model_copy(update={"display": display})
+        return w
+
+    async def _list_with_uptime(self, w: ListWidget, now: datetime) -> ResolvedWidget:
+        resolved = self._list(w)
+        if not w.display.uptime or self.db is None:
+            return resolved
+        to = int(now.timestamp())
+        frm = to - RANGES["24h"]
+        rows = resolved.data["items"]
+        spans = await asyncio.to_thread(read_spans, self.db, [r["uid"] for r in rows], frm, to, to)
+        for row in rows:
+            s = spans.get(row["uid"], [])
+            row["uptime"] = {"cells": cells(s, frm, to, 24), "sla": ratio(tally(s, frm, to))}
+        return resolved
 
     def _list(self, w: ListWidget) -> ResolvedWidget:
         items, total = self._select(w.source)

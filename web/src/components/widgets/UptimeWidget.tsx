@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { CSSProperties } from "react";
 import { formatDuration } from "../../api/format";
-import type { ResolvedWidget, State } from "../../api/types";
+import type { ResolvedWidget, State, UptimeCell } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
+import { Empty } from "./Empty";
 
-export interface UptimeCell {
-  t: number;
-  up: number;
-  degraded: number;
-  paused: number;
-  down: number;
-  unknown: number;
-  not_observed: number;
-}
+export type { UptimeCell };
 interface UptimeRow {
   uid: string;
   title: string;
@@ -71,7 +64,7 @@ export function UptimeWidget({ widget }: { widget: ResolvedWidget }) {
         {data.show_sla ? ` · uptime over ${data.sla_range}` : ""}
       </p>
       {data.rows.length === 0 ? (
-        <p className="list__empty">{data.empty_text}</p>
+        <Empty icon={widget.icon} text={data.empty_text} />
       ) : (
         <ul className="uptime">
           {data.rows.map((row) => (

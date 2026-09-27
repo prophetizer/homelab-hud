@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import { type Me, hasPermission } from "../api/auth";
-import { fetchBoard } from "../api/client";
+import { fetchBoard, fetchExpanded } from "../api/client";
 import { formatAge } from "../api/format";
-import type { ResolvedBoard, State } from "../api/types";
+import type { ResolvedBoard, ResolvedWidget, State } from "../api/types";
+import { DetailContext } from "./detail";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
 import { LayoutEditor } from "./LayoutEditor";
@@ -18,12 +19,16 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
     POLL_MS,
   );
   const [editing, setEditing] = useState(false);
+  const [detail, setDetail] = useState<string | null>(null);
+  const closeDetail = useCallback(() => setDetail(null), []);
   const { placed } = useColumns(data?.layout ?? { columns: { sm: 1, md: 2, lg: 4 }, gap: 12 });
   if (!data) {
-    return (
-      <div className="board-status" role={error ? "alert" : undefined}>
-        {error ? `Board "${name}": ${error}` : "Loading…"}
+    return error ? (
+      <div className="board-status" role="alert">
+        Board "{name}": {error}
       </div>
+    ) : (
+      <BoardSkeleton />
     );
   }
   // Editing is on the lg grid only: on narrower viewports the board reflows and a drag
@@ -62,9 +67,61 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
           }}
         />
       ) : (
-        <BoardGrid board={data} />
+        <DetailContext.Provider value={setDetail}>
+          <BoardGrid board={data} />
+        </DetailContext.Provider>
       )}
+      {detail ? <DetailOverlay board={name} widget={detail} onClose={closeDetail} /> : null}
     </>
+  );
+}
+
+/** Where tiles will be, while the board loads: shapes, not a word. */
+function BoardSkeleton() {
+  return (
+    <div className="board board--grid board--skeleton" aria-busy="true" aria-label="Loading board">
+      {Array.from({ length: 8 }, (_, i) => (
+        <div key={i} className="skeleton-tile" />
+      ))}
+    </div>
+  );
+}
+
+/** A tile, large: every row, a day of trend. Esc or the backdrop closes it. */
+function DetailOverlay({ board, widget, onClose }: { board: string; widget: string; onClose: () => void }) {
+  const [resolved, setResolved] = useState<ResolvedWidget | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    const ctl = new AbortController();
+    fetchExpanded(board, widget, ctl.signal)
+      .then(setResolved)
+      .catch((e: unknown) => {
+        if (!ctl.signal.aborted) setFailed(e instanceof Error ? e.message : String(e));
+      });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      ctl.abort();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [board, widget, onClose]);
+  return (
+    <div className="detail" role="dialog" aria-modal="true" aria-label="Tile detail" onClick={onClose}>
+      <div className="detail__panel" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="detail__close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+        {resolved ? (
+          <Widget widget={resolved} board={board} />
+        ) : (
+          <p className="board-status" role={failed ? "alert" : "status"}>
+            {failed ?? "Loading…"}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 

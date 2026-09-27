@@ -695,3 +695,25 @@ def test_board_summary_carries_its_worst_state_and_down_count(config_dir: Path) 
     )
     s = WidgetEngine(cache, None).summary(doc)
     assert (s.state, s.down) == (State.DOWN, 2)
+
+
+def test_expand_lifts_the_row_limit_and_lengthens_the_trend(config_dir: Path) -> None:
+    doc = board(
+        config_dir,
+        _board("""
+- id: top
+  type: bars
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: docker }, sort: ["-metric.cpu_pct"], limit: 8, metric: cpu_pct }
+- id: cpu
+  type: metric
+  grid: { col: 2, row: 1 }
+  source: { resource: "glances:cpu:main", metric: cpu_pct }
+"""),
+    )
+    engine = WidgetEngine(LiveCache(), None)
+    bars, cpu = doc.spec.widgets
+    big_bars, big_cpu = engine.expand(bars), engine.expand(cpu)
+    assert big_bars.source.limit is None and bars.source.limit == 8  # type: ignore[union-attr]
+    assert big_cpu.display.sparkline.range == "24h"  # type: ignore[union-attr]
+    assert cpu.display.sparkline is None  # type: ignore[union-attr]  # the board is untouched

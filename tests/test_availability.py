@@ -234,3 +234,39 @@ async def test_uptime_widget_reads_history_for_its_resources(config_dir: Path, d
     assert row["sla"] == 50.0  # an hour up, an hour down; the rest of 30 days unobserved
     assert row["approximate"] is True
     assert w.icon == "plex"
+
+
+async def test_list_rows_carry_a_24h_strip_when_asked(config_dir: Path, db: Engine) -> None:
+    cache = LiveCache()
+    cache.apply("docker", "g", [res("docker:container:web"), res("docker:container:db")], [])
+    with db.begin() as conn:
+        conn.execute(
+            insert(availability),
+            [
+                {
+                    "resource_uid": "docker:container:web",
+                    "state": "down",
+                    "started_at": T - 1800,
+                    "ended_at": None,
+                    "confirmed_at": T,
+                    "approximate": 0,
+                },
+            ],
+        )
+    doc = board(
+        config_dir,
+        _board("""
+- id: apps
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: docker }, sort: [name] }
+  display: { layout: cards, uptime: true }
+"""),
+    )
+    (w,) = (
+        await WidgetEngine(cache, db).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets
+    rows = {i["name"]: i["uptime"] for i in w.data["items"]}
+    assert len(rows["web"]["cells"]) == 24 and rows["web"]["cells"][-1]["down"] == 1800
+    assert rows["web"]["sla"] == 0.0  # observed only while down
+    assert rows["db"]["sla"] is None  # never observed: no number
