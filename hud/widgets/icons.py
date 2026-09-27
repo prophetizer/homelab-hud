@@ -53,6 +53,8 @@ class IconRef:
 def resolve(name: str) -> IconRef | None:
     """The upstream for a label value, or None when it is not a name HUD will fetch."""
     name = name.strip().lower()
+    if name.startswith("mdi:"):  # the board/template spelling (icon: mdi:server)
+        name = "mdi-" + name.removeprefix("mdi:")
     if name.startswith("mdi-"):
         stem = name.removeprefix("mdi-")
         if _STEM.fullmatch(stem):
@@ -64,6 +66,21 @@ def resolve(name: str) -> IconRef | None:
     if ext in TYPES and _STEM.fullmatch(stem):
         return IconRef(f"{stem}.{ext}", f"{DASHBOARD_ICONS}/{ext}/{stem}.{ext}", ext)
     return None
+
+
+def canonical(name: str | None) -> str | None:
+    """The name as /api/v1/icons expects it (``mdi:server`` → ``mdi-server``), or None
+    when it is not one HUD would fetch."""
+    if not name:
+        return None
+    n = name.strip().lower()
+    n = "mdi-" + n.removeprefix("mdi:") if n.startswith("mdi:") else n
+    return n if resolve(n) else None
+
+
+def slug(title: str) -> str:
+    """A dashboard-icons guess from a display name: "Home Assistant" → "home-assistant"."""
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
 
 
 def _looks_like(body: bytes, ext: str) -> bool:
@@ -140,4 +157,4 @@ class IconStore:
             raise
 
 
-__all__ = ["IconRef", "IconStore", "resolve"]
+__all__ = ["IconRef", "IconStore", "canonical", "resolve", "slug"]

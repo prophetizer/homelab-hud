@@ -52,6 +52,7 @@ export interface ResolvedWidget {
   stale: boolean;
   error: string | null;
   data: Record<string, unknown>;
+  icon?: string | null; // header icon: widget.icon, or its single provider's
 }
 
 export interface ResolvedBoard {
@@ -63,6 +64,7 @@ export interface ResolvedBoard {
   revision: string; // of the board's YAML file; PATCH must present it
   resolved_at: string;
   widgets: ResolvedWidget[];
+  summary?: Partial<Record<State, number>>; // distinct resources on the board, by state
 }
 
 export interface Placement {
@@ -113,6 +115,7 @@ export interface ListItem {
   fields: FieldValue[];
   bar?: number | null; // display.bar: a percentage drawn as a usage bar
   icon?: string | null; // display.icon: a name /api/v1/icons serves
+  image?: boolean; // display.image: /api/v1/images/<uid> has a poster for this row
 }
 export interface ListData {
   items: ListItem[];
@@ -167,4 +170,5 @@ export interface App {
   state: State;
   error: string | null;
   framing: Framing;
+  icon?: string | null;
 }

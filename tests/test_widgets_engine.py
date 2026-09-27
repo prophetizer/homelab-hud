@@ -529,3 +529,52 @@ async def test_card_rows_carry_an_icon_only_when_it_is_servable(config_dir: Path
         "plain": None,
         "sonarr": "sonarr.png",
     }
+
+
+async def test_tiles_carry_their_single_providers_icon(config_dir: Path) -> None:
+    """A tile fed by one provider shows its icon; a mixed list shows none; widget.icon
+    overrides, and "none" hides it."""
+    cache = LiveCache()
+    cache.apply(
+        "glances", "g", [res("glances:cpu:main")], [metric("glances:cpu:main", "cpu_pct", 5)]
+    )
+    cache.apply("radarr", "g", [res("radarr:download:a")], [])
+    cache.apply("sonarr", "g", [res("sonarr:download:b")], [])
+    doc = board(
+        config_dir,
+        _board("""
+- id: cpu
+  type: metric
+  grid: { col: 1, row: 1 }
+  source: { resource: "glances:cpu:main", metric: cpu_pct }
+- id: queue
+  type: list
+  grid: { col: 2, row: 1 }
+  source: { select: { kind: download } }
+- id: arr
+  type: list
+  grid: { col: 3, row: 1 }
+  source: { select: { provider: [radarr] } }
+- id: custom
+  type: metric
+  icon: "mdi:chip"
+  grid: { col: 4, row: 1 }
+  source: { resource: "glances:cpu:main", metric: cpu_pct }
+- id: hidden
+  type: metric
+  icon: none
+  grid: { col: 1, row: 2 }
+  source: { resource: "glances:cpu:main", metric: cpu_pct }
+"""),
+    )
+    resolved = await WidgetEngine(cache, None).resolve_board(doc, T0)
+    icons = {w.id: w.icon for w in resolved.widgets}
+    assert icons == {
+        "cpu": "glances",
+        "queue": None,
+        "arr": "radarr",
+        "custom": "mdi-chip",
+        "hidden": None,
+    }
+    # The summary bar: distinct resources on the board, by state.
+    assert resolved.summary == {"up": 3}

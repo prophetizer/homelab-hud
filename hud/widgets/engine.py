@@ -37,6 +37,7 @@ from hud.config.schemas.board import (
 )
 from hud.config.schemas.settings import parse_duration
 from hud.models import Metric, Resource, State, Unit
+from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
@@ -60,6 +61,7 @@ class ResolvedWidget(BaseModel):
     stale: bool = False
     error: str | None = None
     data: dict[str, Any]
+    icon: str | None = None  # header icon: widget.icon, or its single provider's
 
 
 class ResolvedBoard(BaseModel):
@@ -71,6 +73,8 @@ class ResolvedBoard(BaseModel):
     revision: str  # of the board's YAML file; PATCH must present it (optimistic concurrency)
     resolved_at: datetime
     widgets: list[ResolvedWidget]
+    # Distinct resources the board shows, by state: the summary bar's counts.
+    summary: dict[str, int] = {}
 
 
 class BoardSummary(BaseModel):
@@ -138,6 +142,11 @@ class WidgetEngine:
         widgets = await asyncio.gather(
             *(self.resolve(w, now, page_origin=page_origin) for w in doc.spec.widgets)
         )
+        summary: dict[str, int] = {}
+        for uid in self.referenced_uids(doc):
+            r = self.cache.resource(uid)
+            if r is not None:
+                summary[r.state.value] = summary.get(r.state.value, 0) + 1
         return ResolvedBoard(
             name=doc.metadata.name,
             title=doc.metadata.title or doc.metadata.name,
@@ -147,15 +156,31 @@ class WidgetEngine:
             revision=revision,
             resolved_at=now,
             widgets=list(widgets),
+            summary=summary,
         )
 
     async def resolve(
         self, w: Widget, now: datetime, *, page_origin: str | None = None
     ) -> ResolvedWidget:
         try:
-            return await self._dispatch(w, now, page_origin)
+            resolved = await self._dispatch(w, now, page_origin)
         except Exception as exc:  # a bug in one resolver degrades one tile, never the board
-            return _tile(w, State.UNKNOWN, error=f"{type(exc).__name__}: {exc}", data={})
+            resolved = _tile(w, State.UNKNOWN, error=f"{type(exc).__name__}: {exc}", data={})
+        resolved.icon = self._widget_icon(w, resolved)
+        return resolved
+
+    def _widget_icon(self, w: Widget, resolved: ResolvedWidget) -> str | None:
+        """widget.icon ("none" hides it), else the icon of the one provider it shows."""
+        if w.icon is not None:
+            return None if w.icon.strip().lower() == "none" else canonical_icon(w.icon)
+        providers: set[str] = set()
+        if isinstance(w, ResourceWidget | MetricWidget):
+            providers = {w.source.resource.split(":", 1)[0]}
+        elif isinstance(w, ListWidget | BarsWidget):
+            sel = _as_list(w.source.select.provider)
+            rows = resolved.data.get("items") or resolved.data.get("bars") or []
+            providers = set(sel) if sel else {str(i["uid"]).split(":", 1)[0] for i in rows}
+        return canonical_icon(providers.pop()) if len(providers) == 1 else None
 
     async def _dispatch(
         self, w: Widget, now: datetime, page_origin: str | None = None
@@ -250,6 +275,7 @@ class WidgetEngine:
                 "fields": [self.field(r, key).model_dump() for key in w.display.fields],
                 "bar": self._bar(r, w.display.bar),
                 "icon": self._icon(r, w.display.icon),
+                "image": w.display.image and bool(r.attrs.get("image")),
             }
             for r in items
         ]

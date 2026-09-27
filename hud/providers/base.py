@@ -158,6 +158,11 @@ class Provider(ABC):
     async def shutdown(self) -> None:  # noqa: B027 — optional hook, not abstract by design
         """Close clients. Must not raise."""
 
+    async def fetch_image(self, path: str) -> tuple[bytes, str] | None:
+        """A provider-relative image (a poster), fetched with this provider's own client.
+        None by default; Tier 1 providers serve ``attrs.image`` paths."""
+        return None
+
     def group(self, name: str) -> PollGroup:
         for g in self.groups():
             if g.name == name:

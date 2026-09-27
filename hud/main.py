@@ -17,6 +17,7 @@ from sqlalchemy import Engine
 from hud import __version__
 from hud.api import api_v1
 from hud.api.auth import auth_error_response
+from hud.api.images import ImageCache
 from hud.api.spa import mount_spa
 from hud.auth import AuthError, Authorizer, AuthService
 from hud.collector import LiveCache, StoreWriter
@@ -99,6 +100,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.writer = writer
         app.state.widgets = WidgetEngine(cache, app.state.engine)
         app.state.icons = IconStore(env.data_dir / "icons")
+        app.state.images = ImageCache()
         auth = await _start_auth(app.state.engine, secrets, snap)
         app.state.auth = auth
         await registry.apply(snap)

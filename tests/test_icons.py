@@ -10,7 +10,7 @@ import respx
 from fastapi.testclient import TestClient
 
 from hud.main import create_app
-from hud.widgets.icons import DASHBOARD_ICONS, MAX_BYTES, MDI, IconStore, resolve
+from hud.widgets.icons import DASHBOARD_ICONS, MAX_BYTES, MDI, IconStore, canonical, resolve, slug
 from tests.conftest import sign_in_admin
 from tests.test_api_health import _env
 
@@ -26,6 +26,7 @@ SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'
         ("plex", f"{DASHBOARD_ICONS}/svg/plex.svg"),  # bare: the provider name
         ("home-assistant.webp", f"{DASHBOARD_ICONS}/webp/home-assistant.webp"),
         ("mdi-movie-open-star", f"{MDI}/movie-open-star.svg"),
+        ("mdi:server", f"{MDI}/server.svg"),  # the board and template spelling
     ],
 )
 def test_label_values_resolve_to_a_fixed_upstream(name: str, url: str) -> None:
@@ -124,3 +125,13 @@ def test_route_needs_a_session_and_serves_svg_locked_down(client: TestClient) ->
 def test_route_404s_a_refused_name(client: TestClient) -> None:
     sign_in_admin(client)
     assert client.get("/api/v1/icons/sonarr.gif").status_code == 404
+
+
+def test_canonical_names_and_title_guesses() -> None:
+    assert canonical("mdi:Server") == "mdi-server"
+    assert canonical("Sonarr.PNG") == "sonarr.png"
+    assert canonical("/icons/theme-park.svg") is None
+    assert canonical(None) is None
+    assert slug("Home Assistant") == "home-assistant"
+    assert slug("Chrome (Manual)") == "chrome-manual"
+    assert slug("Node-RED") == "node-red"

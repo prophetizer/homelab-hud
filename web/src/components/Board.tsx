@@ -3,7 +3,7 @@ import { type CSSProperties, useState } from "react";
 import { type Me, hasPermission } from "../api/auth";
 import { fetchBoard } from "../api/client";
 import { formatAge } from "../api/format";
-import type { ResolvedBoard } from "../api/types";
+import type { ResolvedBoard, State } from "../api/types";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
 import { LayoutEditor } from "./LayoutEditor";
@@ -46,6 +46,7 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
           ) : null}
         </span>
       </header>
+      <SummaryBar board={data} />
       {editing ? (
         <LayoutEditor
           key={data.revision}
@@ -64,6 +65,49 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
         <BoardGrid board={data} />
       )}
     </>
+  );
+}
+
+const WORST_FIRST: State[] = ["down", "degraded", "unknown", "paused"];
+
+/** "142 resources · 1 down · 3 degraded · 2 tiles failing". Each problem count jumps to the
+ *  first tile in that state; a board with nothing wrong gets one quiet line. */
+export function SummaryBar({ board }: { board: ResolvedBoard }) {
+  const counts = board.summary ?? {};
+  const total = Object.values(counts).reduce((a, b) => a + (b ?? 0), 0);
+  const failing = board.widgets.filter((w) => w.error);
+  const jump = (id: string | undefined) => {
+    if (!id) return;
+    const el = document.getElementById(`widget-${id}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.classList.add("board__cell--flash");
+    window.setTimeout(() => el?.classList.remove("board__cell--flash"), 1600);
+  };
+  if (total === 0 && failing.length === 0) return null;
+  return (
+    <nav className="board__summary" aria-label="Board status">
+      <span className="board__summary-total">
+        <span className="status-dot" data-state={WORST_FIRST.find((s) => counts[s]) ?? "up"} />
+        {total} {total === 1 ? "resource" : "resources"}
+      </span>
+      {WORST_FIRST.filter((s) => counts[s]).map((s) => (
+        <button
+          key={s}
+          type="button"
+          className="board__summary-chip"
+          data-state={s}
+          onClick={() => jump(board.widgets.find((w) => w.state === s)?.id)}
+        >
+          {counts[s]} {s}
+        </button>
+      ))}
+      {failing.length > 0 ? (
+        <button type="button" className="board__summary-chip" data-state="down" onClick={() => jump(failing[0]?.id)}>
+          {failing.length} {failing.length === 1 ? "tile" : "tiles"} failing
+        </button>
+      ) : null}
+      {counts.up ? <span className="board__summary-up">{counts.up} up</span> : null}
+    </nav>
   );
 }
 
@@ -90,7 +134,7 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
           ? { gridColumn: `${Math.min(w.grid.col, columns)} / span ${span}`, gridRow: `${w.grid.row} / span ${w.grid.h}` }
           : { gridColumn: `span ${span}`, gridRow: rows };
         return (
-          <div key={w.id} className="board__cell" style={cell}>
+          <div key={w.id} id={`widget-${w.id}`} className="board__cell" style={cell}>
             <Widget widget={w} board={board.name} />
           </div>
         );

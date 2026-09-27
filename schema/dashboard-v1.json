@@ -389,6 +389,18 @@
         "grid": {
           "$ref": "#/$defs/Grid"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -660,6 +672,18 @@
         "grid": {
           "$ref": "#/$defs/Grid"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -878,6 +902,11 @@
           "default": null,
           "title": "Icon"
         },
+        "image": {
+          "default": false,
+          "title": "Image",
+          "type": "boolean"
+        },
         "layout": {
           "default": "rows",
           "enum": [
@@ -955,12 +984,25 @@
               "state"
             ],
             "icon": null,
+            "image": false,
             "layout": "rows",
             "title": null
           }
         },
         "grid": {
           "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         },
         "id": {
           "title": "Id",
@@ -1217,6 +1259,18 @@
         },
         "grid": {
           "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         },
         "id": {
           "title": "Id",
@@ -1830,6 +1884,18 @@
         "grid": {
           "$ref": "#/$defs/Grid"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -2227,6 +2293,18 @@
         "grid": {
           "$ref": "#/$defs/Grid"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -2432,6 +2510,18 @@
         },
         "grid": {
           "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
         },
         "id": {
           "title": "Id",

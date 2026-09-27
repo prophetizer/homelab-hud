@@ -21,6 +21,7 @@ from hud.api import deps
 from hud.auth import Principal
 from hud.config.schemas import BoardDocument, EmbedWidget
 from hud.models import State
+from hud.widgets.icons import canonical, slug
 from hud.widgets.probe import Framing
 
 router = APIRouter(tags=["apps"])
@@ -37,6 +38,9 @@ class App(BaseModel):
     state: State
     error: str | None
     framing: Framing
+    # widget.icon, else a dashboard-icons guess from the title ("Home Assistant" →
+    # home-assistant). A wrong guess is one remembered 404 and a letter badge.
+    icon: str | None = None
 
 
 class AppList(BaseModel):
@@ -66,6 +70,7 @@ async def _app(request: Request, board: BoardDocument, w: EmbedWidget) -> App:
         state=resolved.state or State.UNKNOWN,
         error=resolved.error,
         framing=Framing.model_validate(resolved.data["framing"]),
+        icon=canonical(w.icon) if w.icon else canonical(slug(w.title or w.id)),
     )
 
 

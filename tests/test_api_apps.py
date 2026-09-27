@@ -159,3 +159,8 @@ def test_framing_is_judged_for_the_page_the_browser_is_on(
             "grafana": True,
             "nodered": False,
         }
+
+
+def test_apps_carry_an_icon_guess_from_their_title(client: TestClient) -> None:
+    apps = {a["widget"]: a["icon"] for a in client.get("/api/v1/apps").json()["apps"]}
+    assert apps == {"tautulli": "tautulli", "portainer": "portainer"}  # title, else the id

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ReactNode } from "react";
 import type { ResolvedWidget } from "../api/types";
+import { Icon } from "./widgets/Icon";
 
 interface Props {
   widget: ResolvedWidget;
@@ -21,6 +22,7 @@ export function WidgetFrame({ widget, children, className }: Props) {
     >
       <h2 className="widget__title">
         {widget.state ? <span className="status-dot" data-state={widget.state} aria-label={widget.state} /> : null}
+        <Icon name={widget.icon} title={title} size="sm" fallback="none" />
         <span className="widget__title-text">{title}</span>
         {widget.stale ? (
           <span className="badge" title="last known good; the provider is failing">

@@ -3,6 +3,7 @@ import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/type
 import { WidgetFrame } from "../WidgetFrame";
 import { Icon } from "./Icon";
 import { Meter } from "./Meter";
+import { Poster } from "./Poster";
 import { valueParts } from "./MetricWidget";
 import { fieldText } from "./Fields";
 
@@ -143,6 +144,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
             return (
               <li key={item.uid} className="list__item" data-stale={item.stale || undefined}>
                 <span className="status-dot" data-state={item.state} aria-label={item.state} />
+                {item.image ? <Poster uid={item.uid} /> : null}
                 <div className="list__main">
                   {item.links["ui"] ? (
                     <a className="list__name" href={item.links["ui"]} target="_blank" rel="noreferrer noopener">

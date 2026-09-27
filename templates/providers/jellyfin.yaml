@@ -71,6 +71,12 @@ spec:
           device:      "{{ item.DeviceName }}"
           client:      "{{ item.Client }}"
           media_type:  "{{ item.NowPlayingItem.Type }}"
+          # The series' poster for an episode, else the item's. A path on this server,
+          # fetched by HUD with its key (never the browser): /api/v1/images.
+          image: >-
+            {{ '/Items/' ~ (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id)
+               ~ '/Images/Primary?maxHeight=240'
+               if (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id) else none }}
           # DirectPlay / DirectStream / Transcode — whether the server is doing the work.
           play_method: "{{ item.PlayState.PlayMethod }}"
       metrics:

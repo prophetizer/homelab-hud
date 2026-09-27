@@ -26,6 +26,7 @@ from hud.providers.declarative.transport import (
     fetch_pages,
 )
 from hud.providers.errors import ProviderBuildError, ProviderPollError
+from hud.providers.images import fetch_image
 
 MAX_ITEM_ERRORS_LOGGED = 3
 
@@ -78,6 +79,11 @@ class DeclarativeProvider(Provider):
 
     async def startup(self) -> None:
         self._client = self.ctx.new_http_client(self._http)
+
+    async def fetch_image(self, path: str) -> tuple[bytes, str] | None:
+        if self._client is None:
+            return None
+        return await fetch_image(self._client, path)
 
     async def shutdown(self) -> None:
         if self._client is not None:

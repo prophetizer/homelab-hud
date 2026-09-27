@@ -140,6 +140,9 @@ class ListDisplay(_Spec):
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None
+    # Show each row's attrs.image (a poster), served by /api/v1/images through the row's
+    # own provider so its credentials stay server-side. Added 2026-09-26, optional.
+    image: bool = False
 
 
 class MetricSource(_Spec):
@@ -235,6 +238,10 @@ class _Widget(_Spec):
     id: str
     title: str | None = None
     grid: Grid
+    # The tile's header icon (an /api/v1/icons name, or "none"). Unset: the icon of the one
+    # provider the tile shows, if it shows one. For an embed, also its sidebar icon.
+    # Added 2026-09-26, optional: dashboard/v1-compatible.
+    icon: str | None = None
 
     @field_validator("id")
     @classmethod

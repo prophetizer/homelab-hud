@@ -95,6 +95,9 @@ spec:
           media_type:   "{{ item.type }}"
           # direct play / copy / transcode — the number that decides whether the box copes.
           decision:     "{{ item.Media[0].Part[0].decision | default('directplay') }}"
+          # The show's poster for an episode, else the item's own. A path on this server,
+          # fetched by HUD with the token (never the browser): /api/v1/images.
+          image:        "{{ item.grandparentThumb or item.thumb }}"
         links:
           ui: "${PLEX_BASE_URL}/web/index.html#!/server/{{ item.machineIdentifier }}"
       metrics:

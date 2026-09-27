@@ -4,6 +4,10 @@ import type { Me } from "../api/auth";
 import { buildNavigation } from "../api/nav";
 import type { App, BoardSummary } from "../api/types";
 import { appPath, boardPath, onLinkClick, type Route } from "../router";
+import { Icon } from "./widgets/Icon";
+
+/** Board icons are written mdi:server in YAML; /api/v1/icons takes mdi-server. */
+const iconName = (icon: string | null) => (icon ? icon.replace(/^mdi:/, "mdi-") : null);
 
 interface Props {
   boards: BoardSummary[] | null;
@@ -61,10 +65,12 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
               aria-current={current("board", b.name)}
               title={b.unsupported > 0 ? `${b.unsupported} widget(s) need a later phase` : undefined}
             >
+              <Icon name={iconName(b.icon)} title={b.title} size="sm" />
               {b.title}
             </a>
           ))}
           <a href="/system" onClick={onLinkClick} aria-current={current("system")} className="sidebar__system">
+            <Icon name="mdi-heart-pulse" title="System" size="sm" />
             System
           </a>
           {boards && boards.length === 0 ? (
@@ -98,6 +104,7 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
                       rel="noreferrer noopener"
                       title={`Opens in a new tab: ${a.framing.reason}`}
                     >
+                      <Icon name={a.icon} title={a.title} size="sm" />
                       {a.title}
                       <span className="sidebar__ext" aria-label="opens in a new tab">
                         ↗
@@ -112,6 +119,7 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
                       title={a.error ?? undefined}
                       data-state={a.state}
                     >
+                      <Icon name={a.icon} title={a.title} size="sm" />
                       {a.title}
                     </a>
                   ),
