@@ -12,7 +12,7 @@ from sqlalchemy import Engine
 
 from hud.collector import LiveCache, Normalized, StoreWriter
 from hud.config import ConfigManager
-from hud.config.schemas import BoardDocument
+from hud.config.schemas import BoardDocument, ListWidget
 from hud.models import Metric, Resource, State, Unit
 from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.widgets import WidgetEngine
@@ -321,3 +321,175 @@ async def test_list_rows_can_be_titled_by_a_field(config_dir: Path) -> None:
     (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
     titles = {i["name"]: i["title"] for i in w.data["items"]}
     assert titles == {"agregarr": "Agregarr", "plain": "plain"}  # falls back to the name
+
+
+def _board(widget: str) -> str:
+    return (
+        "apiVersion: hud/v1\nkind: Board\nmetadata: { name: b }\nspec:\n  widgets:\n"
+        + "\n".join(f"    {line}" for line in widget.strip().splitlines())
+        + "\n"
+    )
+
+
+async def test_bars_draw_one_metric_per_core_in_natural_order(config_dir: Path) -> None:
+    """The per-core CPU tile: cpu2 before cpu10, each bar coloured by its own value, the
+    headline the mean. Colour here is status (invariant 9): up, busy, hot."""
+    cache = LiveCache()
+    cores = {"cpu0": 12.0, "cpu10": 95.0, "cpu2": 80.0, "cpu1": 40.0}
+    cache.apply(
+        "glances",
+        "percpu",
+        [res(f"glances:core:{n}") for n in cores],
+        [metric(f"glances:core:{n}", "cpu_pct", v, Unit.PCT) for n, v in cores.items()],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: cores
+  type: bars
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: glances, kind: core }, sort: [name], metric: cpu_pct }
+  display:
+    layout: columns
+    summary: mean
+    thresholds: [{ gte: 75, state: warn }, { gte: 90, state: error }]
+"""),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    assert w.error is None
+    assert [b["title"] for b in w.data["bars"]] == ["cpu0", "cpu1", "cpu2", "cpu10"]
+    assert [b["state"] for b in w.data["bars"]] == ["up", "up", "degraded", "down"]
+    assert w.data["summary"] == {"kind": "mean", "value": 56.75, "state": "up"}
+    assert (w.data["unit"], w.data["max"], w.data["layout"]) == ("pct", 100.0, "columns")
+    assert w.state is State.UP  # a hot core colours its bar, not the whole tile
+
+
+async def test_bars_rank_the_busiest_with_missing_values_last(config_dir: Path) -> None:
+    """Top containers by CPU. A container with no stats yet must not float to the top of a
+    descending sort (it did: None keys sorted first under reverse=True)."""
+    cache = LiveCache()
+    cpu = {"web": 30.0, "db": 250.0, "cache": 5.0}
+    cache.apply(
+        "docker",
+        "g",
+        [res(f"docker:container:{n}") for n in [*cpu, "new"]]
+        + [res("docker:container:dead", State.DOWN)],
+        [metric(f"docker:container:{n}", "cpu_pct", v, Unit.PCT) for n, v in cpu.items()]
+        + [metric("docker:container:dead", "cpu_pct", 0.0, Unit.PCT)],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: busiest
+  type: bars
+  grid: { col: 1, row: 1 }
+  source:
+    select: { provider: docker }
+    sort: ["-metric.cpu_pct"]
+    limit: 5
+    metric: cpu_pct
+"""),
+    )
+    engine = WidgetEngine(cache, None)
+    (w,) = (await engine.resolve_board(doc, T0)).widgets
+    assert [b["title"] for b in w.data["bars"]] == ["db", "web", "cache", "dead", "new"]
+    assert w.data["bars"][-1]["value"] is None
+    assert w.data["bars"][3]["state"] == "down"  # a down container stays down
+    assert w.data["max"] == 250.0  # over 100 % on a multi-core host: scale to the peak
+    assert (w.data["total"], w.state) == (5, State.DOWN)
+    assert "docker:container:new" in engine.referenced_uids(doc)
+
+
+async def test_metric_total_shows_the_share_and_thresholds_judge_it(config_dir: Path) -> None:
+    """Memory as "70.6 / 128 GiB": thresholds of 80/90 mean percent of the total, which
+    compared against raw bytes would always be crossed."""
+    cache = LiveCache()
+    uid = "glances:memory:main"
+    gib = 1024**3
+    cache.apply(
+        "glances",
+        "memory",
+        [res(uid)],
+        [
+            metric(uid, "used_bytes", 115 * gib, Unit.BYTES),
+            metric(uid, "total_bytes", 128 * gib, Unit.BYTES),
+        ],
+    )
+    doc = board(
+        config_dir,
+        _board(f"""
+- id: mem
+  type: metric
+  grid: {{ col: 1, row: 1 }}
+  source: {{ resource: "{uid}", metric: used_bytes }}
+  display:
+    total: {{ metric: total_bytes }}
+    thresholds: [{{ gte: 80, state: warn }}, {{ gte: 95, state: error }}]
+"""),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    assert w.data["total"] == {"value": 128 * gib, "unit": "bytes", "pct": 115 / 128 * 100}
+    assert w.state is State.DEGRADED  # 89.8 % of the total: warn, not error
+
+
+async def test_list_rows_carry_a_usage_bar(config_dir: Path) -> None:
+    cache = LiveCache()
+    cache.apply(
+        "glances",
+        "fs",
+        [res("glances:filesystem:/data"), res("glances:filesystem:/new")],
+        [metric("glances:filesystem:/data", "used_pct", 47.1, Unit.PCT)],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: disks
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { kind: filesystem }, sort: ["-attrs.missing", name] }
+  display: { fields: [metric.used_pct], bar: metric.used_pct }
+"""),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    assert [(i["name"], i["bar"]) for i in w.data["items"]] == [("/data", 47.1), ("/new", None)]
+
+
+def test_metric_sort_keys_validate(config_dir: Path) -> None:
+    ok = BoardDocument.model_validate(
+        {
+            "apiVersion": "hud/v1",
+            "kind": "Board",
+            "metadata": {"name": "b"},
+            "spec": {
+                "widgets": [
+                    {
+                        "id": "l",
+                        "type": "list",
+                        "grid": {"col": 1, "row": 1},
+                        "source": {"sort": ["-metric.cpu_pct"]},
+                    }
+                ]
+            },
+        }
+    )
+    (w,) = ok.spec.widgets
+    assert isinstance(w, ListWidget)
+    assert w.source.sort == ["-metric.cpu_pct"]
+    with pytest.raises(ValueError, match="unsupported sort key"):
+        BoardDocument.model_validate(
+            {
+                "apiVersion": "hud/v1",
+                "kind": "Board",
+                "metadata": {"name": "b"},
+                "spec": {
+                    "widgets": [
+                        {
+                            "id": "l",
+                            "type": "list",
+                            "grid": {"col": 1, "row": 1},
+                            "source": {"sort": ["metric."]},
+                        }
+                    ]
+                },
+            }
+        )

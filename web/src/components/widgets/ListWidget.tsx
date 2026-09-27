@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { FieldValue, ListData, ResolvedWidget } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
+import { Meter } from "./Meter";
 import { fieldText } from "./Fields";
 
 /**
@@ -48,6 +49,11 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
                     <span className="list__name">{item.title}</span>
                   )}
                   {sub.length > 0 ? <span className="list__sub">{sub.map(fieldText).join(" · ")}</span> : null}
+                  {item.bar !== undefined && item.bar !== null ? (
+                    <span className="list__bar">
+                      <Meter pct={item.bar} state={item.state} label={`${item.bar.toFixed(0)} %`} />
+                    </span>
+                  ) : null}
                 </div>
                 {/* The state never shrinks: it is the loud part of a row that is not fine. */}
                 {state ? (

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { formatAge, formatDuration, formatValue } from "./format";
+import { formatAge, formatDuration, formatValue, formatShare } from "./format";
 
 describe("formatValue", () => {
   it("scales bytes in binary and bps in decimal bits", () => {
@@ -55,5 +55,17 @@ describe("found on the live boards", () => {
     expect(formatValue(184213, "count")).toBe("184,213");
     expect(formatValue(1843.2, null)).toBe("1,843.2");
     expect(formatValue(37, "count")).toBe("37");
+  });
+});
+
+describe("formatShare", () => {
+  it("puts the part on the whole's scale", () => {
+    const gib = 1024 ** 3;
+    expect(formatShare(70.6 * gib, 128 * gib, "bytes")).toEqual(["70.6", "/ 128 GiB"]);
+    expect(formatShare(512 * 1024 ** 2, 2 * gib, "bytes")).toEqual(["0.5", "/ 2 GiB"]);
+    expect(formatShare(1.25 * 1024 ** 4, 3.6 * 1024 ** 4, "bytes")).toEqual(["1.3", "/ 3.6 TiB"]);
+  });
+  it("falls back to each value formatted on its own", () => {
+    expect(formatShare(3, 12, "count")).toEqual(["3", "/ 12"]);
   });
 });

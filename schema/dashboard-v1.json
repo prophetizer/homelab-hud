@@ -246,6 +246,183 @@
       "title": "AuthSettings",
       "type": "object"
     },
+    "BarsDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "empty_text": {
+          "default": "Nothing to show",
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "format": {
+          "$ref": "#/$defs/Format",
+          "default": {
+            "precision": 1,
+            "unit": null
+          }
+        },
+        "layout": {
+          "default": "rows",
+          "enum": [
+            "columns",
+            "rows"
+          ],
+          "title": "Layout",
+          "type": "string"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "enum": [
+                "mean",
+                "max"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "thresholds": {
+          "items": {
+            "$ref": "#/$defs/Threshold"
+          },
+          "title": "Thresholds",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "title": "BarsDisplay",
+      "type": "object"
+    },
+    "BarsSource": {
+      "additionalProperties": true,
+      "properties": {
+        "limit": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "attrs": null,
+            "kind": null,
+            "label": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "sort": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sort",
+          "type": "array"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "BarsSource",
+      "type": "object"
+    },
+    "BarsWidget": {
+      "additionalProperties": true,
+      "description": "One metric across many resources: per-core CPU, busiest containers. Added\n2026-09-26; a new widget type is dashboard/v1-compatible (\u00a711.3a).",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/BarsDisplay",
+          "default": {
+            "empty_text": "Nothing to show",
+            "format": {
+              "precision": 1,
+              "unit": null
+            },
+            "layout": "rows",
+            "max": null,
+            "summary": null,
+            "thresholds": [],
+            "title": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/BarsSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "bars",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "BarsWidget",
+      "type": "object"
+    },
     "Board": {
       "additionalProperties": false,
       "properties": {
@@ -361,6 +538,9 @@
               },
               {
                 "$ref": "#/$defs/EmbedWidget"
+              },
+              {
+                "$ref": "#/$defs/BarsWidget"
               },
               {
                 "$ref": "#/$defs/UnsupportedWidget"
@@ -662,6 +842,18 @@
     "ListDisplay": {
       "additionalProperties": true,
       "properties": {
+        "bar": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bar"
+        },
         "empty_text": {
           "default": "Nothing to show",
           "title": "Empty Text",
@@ -734,6 +926,7 @@
         "display": {
           "$ref": "#/$defs/ListDisplay",
           "default": {
+            "bar": null,
             "empty_text": "Nothing to show",
             "fields": [
               "name",
@@ -867,6 +1060,17 @@
           },
           "title": "Thresholds",
           "type": "array"
+        },
+        "total": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetricRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "title": "MetricDisplay",
@@ -927,6 +1131,32 @@
       "title": "MetricMap",
       "type": "object"
     },
+    "MetricRef": {
+      "additionalProperties": true,
+      "properties": {
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        }
+      },
+      "required": [
+        "metric"
+      ],
+      "title": "MetricRef",
+      "type": "object"
+    },
     "MetricSource": {
       "additionalProperties": true,
       "properties": {
@@ -957,7 +1187,8 @@
               "unit": null
             },
             "sparkline": null,
-            "thresholds": []
+            "thresholds": [],
+            "total": null
           }
         },
         "grid": {

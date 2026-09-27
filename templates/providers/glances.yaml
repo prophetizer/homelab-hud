@@ -56,6 +56,18 @@ spec:
         - { name: cpu_pct,    value: "{{ item.total | float }}",  unit: pct }
         - { name: iowait_pct, value: "{{ item.iowait | float }}", unit: pct, when: "{{ item.iowait is defined }}" }
 
+    # One resource per logical core, for a per-core view (a `bars` widget). cpu_number is
+    # the kernel's core index, stable across restarts. The top-level list is the selection.
+    - name: percpu
+      request: { path: /api/4/percpu }
+      map:
+        uid:   "glances:core:{{ item.cpu_number }}"
+        kind:  core
+        name:  "cpu{{ item.cpu_number }}"
+        state: up
+      metrics:
+        - { name: cpu_pct, value: "{{ item.total | float }}", unit: pct }
+
     - name: memory
       request: { path: /api/4/mem }
       map:

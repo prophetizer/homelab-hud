@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ResolvedWidget } from "../api/types";
+import { BarsWidget } from "./widgets/BarsWidget";
 import { EmbedWidget } from "./widgets/EmbedWidget";
 import { ListWidget } from "./widgets/ListWidget";
 import { MetricWidget } from "./widgets/MetricWidget";
@@ -17,6 +18,8 @@ export function Widget({ widget, board }: { widget: ResolvedWidget; board?: stri
       return <ListWidget widget={widget} />;
     case "metric":
       return <MetricWidget widget={widget} />;
+    case "bars":
+      return <BarsWidget widget={widget} />;
     case "embed":
       return <EmbedWidget widget={widget} board={board} />;
     default:

@@ -20,6 +20,32 @@
       ]
     }
   },
+  "percpu": {
+    "resources": {
+      "glances:core:0": "up",
+      "glances:core:1": "up",
+      "glances:core:2": "up",
+      "glances:core:3": "up"
+    },
+    "metrics": {
+      "glances:core:0/cpu_pct": [
+        42.5,
+        "pct"
+      ],
+      "glances:core:1/cpu_pct": [
+        7.1,
+        "pct"
+      ],
+      "glances:core:2/cpu_pct": [
+        88.0,
+        "pct"
+      ],
+      "glances:core:3/cpu_pct": [
+        0.0,
+        "pct"
+      ]
+    }
+  },
   "memory": {
     "resources": {
       "glances:memory:main": "up"

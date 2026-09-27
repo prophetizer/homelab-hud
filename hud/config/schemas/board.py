@@ -27,7 +27,9 @@ from hud.config.schemas.base import Document, Metadata
 from hud.config.schemas.settings import parse_duration
 from hud.models.enums import State
 
-PHASE1_WIDGET_TYPES: frozenset[str] = frozenset({"static", "resource", "list", "metric", "embed"})
+PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(
+    {"static", "resource", "list", "metric", "embed", "bars"}
+)
 # Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
 LATER_WIDGET_TYPES: dict[str, str] = {
     "chart": "Phase 2",
@@ -38,7 +40,11 @@ LATER_WIDGET_TYPES: dict[str, str] = {
 }
 
 
-_SORT_KEY = re.compile(r"-?(name|state|state_severity|kind|provider|attrs\.[A-Za-z0-9_.-]+)")
+# metric.<name> sorts by the latest value (e.g. "-metric.cpu_pct" for the busiest first).
+# Added 2026-09-26 (brought forward from Phase 2): relaxes a validator, dashboard/v1-compatible.
+_SORT_KEY = re.compile(
+    r"-?(name|state|state_severity|kind|provider|attrs\.[A-Za-z0-9_.-]+|metric\.[A-Za-z0-9_]+)"
+)
 
 
 class _Spec(BaseModel):
@@ -123,6 +129,9 @@ class ListDisplay(_Spec):
     # "Agregarr" rather than "agregarr". Falls back to the resource name when unset or
     # empty. Added 2026-09-26, optional: dashboard/v1-compatible (§11.3a).
     title: str | None = None
+    # A percentage field (0-100) drawn as a usage bar on each row, coloured by the row's
+    # state — e.g. metric.used_pct on filesystems. Added 2026-09-26, optional.
+    bar: str | None = None
 
 
 class MetricSource(_Spec):
@@ -159,10 +168,38 @@ class Threshold(_Spec):
         return self
 
 
+class MetricRef(_Spec):
+    metric: str
+    resource: str | None = None  # defaults to the widget's own resource
+
+
 class MetricDisplay(_Spec):
     format: Format = Format()
     sparkline: Sparkline | None = None
     thresholds: list[Threshold] = Field(default_factory=list)
+    # The whole the value is part of — used_bytes of total_bytes — shown as "70.6 / 128 GiB"
+    # with a usage bar. When set, thresholds compare against the percentage of the total,
+    # not the raw value. Added 2026-09-26, optional: dashboard/v1-compatible.
+    total: MetricRef | None = None
+
+
+class BarsSource(ListSource):
+    metric: str  # drawn for every selected resource
+
+
+class BarsDisplay(_Spec):
+    # columns: a strip of small vertical bars (cores); rows: labelled horizontal bars.
+    layout: Literal["columns", "rows"] = "rows"
+    title: str | None = None  # row label field, as ListDisplay.title
+    format: Format = Format()
+    # Bars are coloured by these (each bar's own value); no threshold crossed is "up".
+    thresholds: list[Threshold] = Field(default_factory=list)
+    # The headline number over the bars: the mean or max of the drawn values.
+    summary: Literal["mean", "max"] | None = None
+    # Full scale. Unset: 100 for percentages (or the largest value, if higher), otherwise
+    # the largest value.
+    max: float | None = Field(default=None, gt=0)
+    empty_text: str = "Nothing to show"
 
 
 class EmbedSource(_Spec):
@@ -223,6 +260,15 @@ class MetricWidget(_Widget):
     display: MetricDisplay = MetricDisplay()
 
 
+class BarsWidget(_Widget):
+    """One metric across many resources: per-core CPU, busiest containers. Added
+    2026-09-26; a new widget type is dashboard/v1-compatible (§11.3a)."""
+
+    type: Literal["bars"]
+    source: BarsSource
+    display: BarsDisplay = BarsDisplay()
+
+
 class EmbedWidget(_Widget):
     type: Literal["embed"]
     source: EmbedSource
@@ -255,6 +301,7 @@ Widget = Annotated[
     | Annotated[ListWidget, Tag("list")]
     | Annotated[MetricWidget, Tag("metric")]
     | Annotated[EmbedWidget, Tag("embed")]
+    | Annotated[BarsWidget, Tag("bars")]
     | Annotated[UnsupportedWidget, Tag("unsupported")],
     Discriminator(_widget_tag),
 ]

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-import { formatAge, formatValue } from "../../api/format";
+import { formatAge, formatShare, formatValue } from "../../api/format";
 import type { MetricData, ResolvedWidget } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
+import { Meter } from "./Meter";
 
 const W = 200;
 const H = 40;
@@ -44,7 +45,11 @@ export function valueParts(text: string, unit: string | null): [string, string] 
 export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as MetricData;
   const precision = data.format?.precision ?? 1;
-  const [number, unit] = valueParts(formatValue(data.value, data.unit, precision), data.unit);
+  const total = data.total && data.value !== null ? data.total : null;
+  // With a total: "70.6 / 128 GiB" over a usage bar. Otherwise the value and its unit.
+  const [number, unit] = total
+    ? formatShare(data.value as number, total.value, data.unit, precision)
+    : valueParts(formatValue(data.value, data.unit, precision), data.unit);
   const age = data.ts ? `${data.resource_name ? `${data.resource_name} · ` : ""}updated ${formatAge(data.ts)}` : undefined;
   const range = data.sparkline && data.sparkline.points.length > 1 ? data.sparkline : null;
   return (
@@ -53,6 +58,12 @@ export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
         <span className="metric__number">{number}</span>
         {unit ? <span className="metric__unit">{unit}</span> : null}
       </p>
+      {total ? (
+        <div className="metric__share">
+          <Meter pct={total.pct} state={widget.state} label={`${total.pct.toFixed(0)} % used`} />
+          <span className="metric__share-text">{total.pct.toFixed(total.pct < 10 ? 1 : 0)} % used</span>
+        </div>
+      ) : null}
       {range ? (
         <div className="metric__trend" title={`last ${range.range}`}>
           <Sparkline points={range.points} />

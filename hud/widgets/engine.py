@@ -11,6 +11,9 @@ provider; the framing probe is the one outbound call, and it is cached.
 from __future__ import annotations
 
 import asyncio
+import re
+import statistics
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -20,13 +23,16 @@ from sqlalchemy import Engine
 from hud.collector import STATE_SEVERITY, LiveCache, ResourceFilter
 from hud.config.schemas import BoardDocument, Widget
 from hud.config.schemas.board import (
+    BarsWidget,
     EmbedWidget,
     Grid,
     Layout,
+    ListSource,
     ListWidget,
     MetricWidget,
     ResourceWidget,
     StaticWidget,
+    Threshold,
     UnsupportedWidget,
 )
 from hud.config.schemas.settings import parse_duration
@@ -112,16 +118,10 @@ class WidgetEngine:
         for w in doc.spec.widgets:
             if isinstance(w, ResourceWidget | MetricWidget):
                 uids.add(w.source.resource)
-            elif isinstance(w, ListWidget):
-                sel = w.source.select
-                flt = ResourceFilter(
-                    provider=_as_list(sel.provider),
-                    kind=_as_list(sel.kind),
-                    state=_as_list(sel.state),
-                    labels=sel.label,
-                    attrs=sel.attrs,
-                )
-                uids.update(r.uid for r in self.cache.resources(flt))
+                if isinstance(w, MetricWidget) and w.display.total is not None:
+                    uids.add(w.display.total.resource or w.source.resource)
+            elif isinstance(w, ListWidget | BarsWidget):
+                uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
         return uids
 
     async def resolve_board(
@@ -160,18 +160,28 @@ class WidgetEngine:
         self, w: Widget, now: datetime, page_origin: str | None = None
     ) -> ResolvedWidget:
         match w:
+            case MetricWidget():
+                return await self._metric(w, now)
+            case EmbedWidget():
+                return await self._embed(w, page_origin)
+            case _:
+                return self._resolve_sync(w)
+
+    def _resolve_sync(self, w: Widget) -> ResolvedWidget:
+        match w:
             case StaticWidget():
                 return self._static(w)
             case ResourceWidget():
                 return self._resource(w)
             case ListWidget():
                 return self._list(w)
-            case MetricWidget():
-                return await self._metric(w, now)
-            case EmbedWidget():
-                return await self._embed(w, page_origin)
-            case UnsupportedWidget():
-                return _tile(w, None, error=w.reason, data={"reason": w.reason})
+            case BarsWidget():
+                return self._bars(w)
+            case _:
+                reason = (
+                    w.reason if isinstance(w, UnsupportedWidget) else f"no resolver for {w.type}"
+                )
+                return _tile(w, None, error=reason, data={"reason": reason})
 
     # ------------------------------------------------------------------ types
 
@@ -202,23 +212,32 @@ class WidgetEngine:
             },
         )
 
-    def _list(self, w: ListWidget) -> ResolvedWidget:
-        sel = w.source.select
-        flt = ResourceFilter(
-            provider=_as_list(sel.provider),
-            kind=_as_list(sel.kind),
-            state=_as_list(sel.state),
-            labels=sel.label,
-            attrs=sel.attrs,
-        )
-        items = self.cache.resources(flt)
-        for key in reversed(w.source.sort):  # stable sorts applied last-key-first
-            items = _sorted(items, key)
+    def _select(self, source: ListSource) -> tuple[list[Resource], int]:
+        """Filter, sort and limit; also returns the count before the limit."""
+        items = self.cache.resources(_filter(source))
+        for key in reversed(source.sort):  # stable sorts applied last-key-first
+            items = self._sorted(items, key)
         total = len(items)
-        if w.source.limit is not None:
-            items = items[: w.source.limit]
-        worst = max((STATE_SEVERITY[r.state] for r in items), default=0)
-        state = next(s for s, sev in STATE_SEVERITY.items() if sev == worst) if items else State.UP
+        if source.limit is not None:
+            items = items[: source.limit]
+        return items, total
+
+    def _sorted(self, items: list[Resource], key: str) -> list[Resource]:
+        """Missing values sort last in either direction."""
+        field = key.lstrip("-")
+        keyed = [(self._sort_value(r, field), r) for r in items]
+        present = [(v, r) for v, r in keyed if v is not None]
+        present.sort(key=lambda vr: vr[0], reverse=key.startswith("-"))
+        return [r for _, r in present] + [r for v, r in keyed if v is None]
+
+    def _sort_value(self, r: Resource, key: str) -> Any:  # noqa: ANN401
+        if key.startswith("metric."):
+            m = self.cache.metric(r.uid, key.removeprefix("metric."))
+            return None if m is None else (0, m.value)
+        return _sort_value(r, key)
+
+    def _list(self, w: ListWidget) -> ResolvedWidget:
+        items, total = self._select(w.source)
         rows = [
             {
                 "uid": r.uid,
@@ -228,12 +247,13 @@ class WidgetEngine:
                 "stale": r.stale,
                 "links": r.links,
                 "fields": [self.field(r, key).model_dump() for key in w.display.fields],
+                "bar": self._bar(r, w.display.bar),
             }
             for r in items
         ]
         return _tile(
             w,
-            state,
+            _worst(items),
             stale=any(r.stale for r in items),
             data={"items": rows, "total": total, "empty_text": w.display.empty_text},
         )
@@ -250,12 +270,16 @@ class WidgetEngine:
                 error=f"no {missing} for {uid!r}",
                 data={"value": None, "unit": None, "ts": None, "sparkline": None},
             )
-        state = State.UP
-        for t in w.display.thresholds:
-            above = t.gte is not None and m.value >= t.gte
-            below = t.lte is not None and m.value <= t.lte
-            if above or below:
-                state = State.DOWN if t.state == "error" else State.DEGRADED
+        total: dict[str, Any] | None = None
+        pct: float | None = None
+        if w.display.total is not None:
+            ref = w.display.total
+            t = self.cache.metric(ref.resource or uid, ref.metric)
+            if t is not None and t.value > 0:
+                pct = m.value / t.value * 100
+                total = {"value": t.value, "unit": t.unit.value, "pct": pct}
+        # With a total, thresholds judge the share of it (memory at 90 %), not raw bytes.
+        state = _threshold_state(m.value if pct is None else pct, w.display.thresholds)
         sparkline = None
         if w.display.sparkline is not None and self.db is not None:
             span = parse_duration(w.display.sparkline.range)
@@ -273,6 +297,60 @@ class WidgetEngine:
                 "resource_name": r.name,
                 "format": w.display.format.model_dump(),
                 "sparkline": sparkline,
+                "total": total,
+            },
+        )
+
+    def _bars(self, w: BarsWidget) -> ResolvedWidget:
+        items, total = self._select(w.source)
+        name, unit = w.source.metric, None
+        bars: list[dict[str, Any]] = []
+        values: list[float] = []
+        for r in items:
+            m = self.cache.metric(r.uid, name)
+            if m is not None:
+                unit = m.unit
+                values.append(m.value)
+            bars.append(
+                {
+                    "uid": r.uid,
+                    "title": self._row_title(r, w.display.title),
+                    "value": None if m is None else m.value,
+                    # A bar is coloured by its own value; a down resource stays down.
+                    "state": (
+                        r.state.value
+                        if r.state is not State.UP or m is None
+                        else _threshold_state(m.value, w.display.thresholds).value
+                    ),
+                    "stale": r.stale,
+                    "links": r.links,
+                }
+            )
+        summary = None
+        if w.display.summary and values:
+            v = statistics.fmean(values) if w.display.summary == "mean" else max(values)
+            summary = {
+                "kind": w.display.summary,
+                "value": v,
+                "state": _threshold_state(v, w.display.thresholds).value,
+            }
+        scale = w.display.max
+        if scale is None:
+            peak = max(values, default=0.0)
+            scale = max(100.0, peak) if unit is Unit.PCT else (peak or 1.0)
+        return _tile(
+            w,
+            _worst(items),
+            stale=any(r.stale for r in items),
+            data={
+                "layout": w.display.layout,
+                "unit": None if unit is None else unit.value,
+                "max": scale,
+                "format": w.display.format.model_dump(),
+                "summary": summary,
+                "bars": bars,
+                "total": total,
+                "empty_text": w.display.empty_text,
             },
         )
 
@@ -292,6 +370,12 @@ class WidgetEngine:
         return _tile(w, State.UP, data=data)
 
     # ------------------------------------------------------------------ fields
+
+    def _bar(self, r: Resource, key: str | None) -> float | None:
+        if key is None:
+            return None
+        v = self.field(r, key).value
+        return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
 
     def _row_title(self, r: Resource, key: str | None) -> str:
         value = self.field(r, key).value if key else None
@@ -333,6 +417,33 @@ def _tile(
     )
 
 
+def _filter(source: ListSource) -> ResourceFilter:
+    sel = source.select
+    return ResourceFilter(
+        provider=_as_list(sel.provider),
+        kind=_as_list(sel.kind),
+        state=_as_list(sel.state),
+        labels=sel.label,
+        attrs=sel.attrs,
+    )
+
+
+def _worst(items: Sequence[Resource]) -> State:
+    worst = max((STATE_SEVERITY[r.state] for r in items), default=0)
+    return next(s for s, sev in STATE_SEVERITY.items() if sev == worst) if items else State.UP
+
+
+def _threshold_state(value: float, thresholds: list[Threshold]) -> State:
+    """The last threshold crossed wins; none crossed is up."""
+    state = State.UP
+    for t in thresholds:
+        above = t.gte is not None and value >= t.gte
+        below = t.lte is not None and value <= t.lte
+        if above or below:
+            state = State.DOWN if t.state == "error" else State.DEGRADED
+    return state
+
+
 def _as_list[T](v: T | list[T] | None) -> list[T] | None:
     if v is None:
         return None
@@ -364,23 +475,31 @@ def _dig(node: Any, path: str) -> Any:  # noqa: ANN401
     return node
 
 
-def _sorted(items: list[Resource], key: str) -> list[Resource]:
-    field = key.lstrip("-")
-    return sorted(items, key=lambda r: _sort_value(r, field), reverse=key.startswith("-"))
+def _natural(text: str) -> tuple[str | int, ...]:
+    """cpu2 before cpu10. Digits land at odd indexes, so ints only meet ints."""
+    return tuple(int(p) if i % 2 else p for i, p in enumerate(re.split(r"(\d+)", text.lower())))
 
 
-def _sort_value(r: Resource, key: str) -> tuple[int, Any]:
-    """Sortable tuple; None sorts last regardless of direction by the leading flag."""
+def _sort_value(r: Resource, key: str) -> Any:  # noqa: ANN401
+    """A comparable value, or None for "missing" (the caller puts those last). Numbers
+    and text never meet: numbers are keyed (0, n) and text (1, ...)."""
+    if key.startswith("attrs."):
+        return _scalar_sort_value(_dig(r.attrs, key.removeprefix("attrs.")))
     if key == "state_severity":
         return (0, STATE_SEVERITY[r.state])
-    if key in ("name", "kind", "provider"):
-        return (0, str(getattr(r, key)).lower())
     if key == "state":
-        return (0, r.state.value)
-    if key.startswith("attrs."):
-        v = _dig(r.attrs, key.removeprefix("attrs."))
-        return (1, "") if v is None else (0, v if isinstance(v, int | float) else str(v).lower())
-    return (1, "")
+        return (1, (r.state.value,))
+    if key in ("name", "kind", "provider"):
+        return (1, _natural(str(getattr(r, key))))
+    return None
+
+
+def _scalar_sort_value(v: Any) -> Any:  # noqa: ANN401
+    if v is None:
+        return None
+    if isinstance(v, int | float) and not isinstance(v, bool):
+        return (0, v)
+    return (1, _natural(str(v)))
 
 
 __all__ = ["BoardSummary", "FieldValue", "ResolvedBoard", "ResolvedWidget", "WidgetEngine"]

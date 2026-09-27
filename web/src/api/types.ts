@@ -111,6 +111,7 @@ export interface ListItem {
   stale: boolean;
   links: Record<string, string>;
   fields: FieldValue[];
+  bar?: number | null; // display.bar: a percentage drawn as a usage bar
 }
 export interface ListData {
   items: ListItem[];
@@ -124,6 +125,25 @@ export interface MetricData {
   resource_name?: string;
   format?: { unit: string | null; precision: number };
   sparkline: { range: string; points: [number, number][] } | null;
+  total?: { value: number; unit: Unit; pct: number } | null; // display.total
+}
+export interface Bar {
+  uid: string;
+  title: string;
+  value: number | null;
+  state: State;
+  stale: boolean;
+  links: Record<string, string>;
+}
+export interface BarsData {
+  layout: "columns" | "rows";
+  unit: Unit | null;
+  max: number;
+  format: { unit: string | null; precision: number };
+  summary: { kind: "mean" | "max"; value: number; state: State } | null;
+  bars: Bar[];
+  total: number;
+  empty_text: string;
 }
 export interface EmbedData {
   url: string;

@@ -69,6 +69,21 @@ export function formatValue(value: unknown, unit: Unit | null, precision = 1): s
   }
 }
 
+/** "70.6", "/ 128 GiB": a part and its whole on the whole's scale, so they read as one
+ *  quantity ("70.6 / 128 GiB", not "70.6 GiB / 128 GiB" or "72,294 MiB / 128 GiB"). */
+export function formatShare(value: number, total: number, unit: Unit | null, precision = 1): [string, string] {
+  if (unit === "bytes" || unit === "bps") {
+    const [units, base] = unit === "bytes" ? [BINARY, 1024] : [BITS, 1000];
+    let i = 0;
+    for (let t = Math.abs(total); t >= base && i < units.length - 1; t /= base) i += 1;
+    const div = base ** i;
+    const digits = i === 0 ? 0 : precision;
+    const whole = Number((total / div).toFixed(digits)).toLocaleString("en-US");
+    return [(value / div).toFixed(digits), `/ ${whole} ${units[i]}`];
+  }
+  return [formatValue(value, unit, precision), `/ ${formatValue(total, unit, precision)}`];
+}
+
 export function formatAge(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return "never";
   const t = Date.parse(iso);

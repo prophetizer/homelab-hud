@@ -178,3 +178,23 @@ def test_compare_treats_a_widened_union_as_additive() -> None:
     assert compare(doc(["AuthNone", "AuthBasic"]), doc(["AuthNone"])) == [
         "BREAKING: Transport.auth changed"
     ]
+
+
+def test_compare_treats_a_widened_union_inside_a_list_as_additive() -> None:
+    """Found adding the bars widget type: BoardSpec.widgets is an array whose items are the
+    widget union, so the new member sits one level down, under ``items``."""
+
+    def doc(members: list[str], extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        items = {"oneOf": [{"$ref": f"#/$defs/{m}"} for m in members], **(extra or {})}
+        widgets = {"items": items, "title": "Widgets", "type": "array"}
+        return {"$defs": {"BoardSpec": {"properties": {"widgets": widgets}}}}
+
+    before = doc(["ListWidget", "UnsupportedWidget"])
+    assert compare(before, doc(["ListWidget", "BarsWidget", "UnsupportedWidget"])) == [
+        "additive: BoardSpec.widgets accepts BarsWidget as well"
+    ]
+    assert compare(before, doc(["ListWidget"])) == ["BREAKING: BoardSpec.widgets changed"]
+    # Anything else changing under items is still a change to review.
+    assert compare(before, doc(["ListWidget", "UnsupportedWidget"], {"maxItems": 5})) == [
+        "BREAKING: BoardSpec.widgets changed"
+    ]

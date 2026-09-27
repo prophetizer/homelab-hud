@@ -1047,3 +1047,178 @@ a.list__name:hover {
   color: var(--fg-muted);
   white-space: normal;
 }
+
+/* ---------------------------------------------------------------- meters and bars */
+/* Status-lit (invariant 9): a bar is filled in the status colour of what it measures,
+   so a healthy board has colour and a busy one shows where. Nothing here is decorative:
+   the hue always means up, busy (degraded), hot (down), paused or unknown. */
+
+.meter {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.meter__fill,
+.bars__fill {
+  display: block;
+  background: var(--status-unknown);
+  transition:
+    width 0.5s ease,
+    height 0.5s ease,
+    background-color 0.5s ease;
+}
+
+.meter__fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.meter[data-state="up"] .meter__fill,
+[data-state="up"] > .bars__fill {
+  background: var(--status-up);
+}
+.meter[data-state="degraded"] .meter__fill,
+[data-state="degraded"] > .bars__fill {
+  background: var(--status-degraded);
+}
+.meter[data-state="down"] .meter__fill,
+[data-state="down"] > .bars__fill {
+  background: var(--status-down);
+}
+.meter[data-state="paused"] .meter__fill,
+[data-state="paused"] > .bars__fill {
+  background: var(--status-paused);
+}
+
+.metric__share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.metric__share .meter {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.metric__share-text {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.list__bar {
+  display: block;
+  max-width: 18rem;
+  margin-top: 5px;
+}
+
+.list__bar .meter {
+  height: 4px;
+}
+
+.bars__caption {
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+
+.bars__summary {
+  margin-bottom: var(--space-3);
+}
+
+/* Columns: one per resource, as tall as the value. The track stays visible so an idle
+   core reads as idle, not missing. */
+.bars--columns {
+  display: grid;
+  grid-template-columns: repeat(var(--bars, 8), minmax(0, 1fr));
+  gap: 3px;
+  height: 3.75rem;
+}
+
+.bars__col {
+  position: relative;
+  min-width: 0;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.bars--columns .bars__fill {
+  position: absolute;
+  inset: auto 0 0;
+}
+
+.bars--rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bars__row {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, 9rem) minmax(0, 1fr) 4.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.bars__label {
+  overflow: hidden;
+  color: var(--fg);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.bars__label:hover {
+  text-decoration: underline;
+}
+
+.bars__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.bars--rows .bars__fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.bars__value {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Stale data keeps its shape but loses its confidence (invariant 6). */
+[data-stale] > .bars__fill,
+[data-stale] .bars__fill {
+  opacity: 0.45;
+}
+
+@container (max-width: 300px) {
+  .bars__row {
+    grid-template-columns: minmax(3rem, 6rem) minmax(0, 1fr) 3.75rem;
+    gap: var(--space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter__fill,
+  .bars__fill {
+    transition: none;
+  }
+}
