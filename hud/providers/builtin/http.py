@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.providers.sdk import (
     Metric,
     PluginConfig,

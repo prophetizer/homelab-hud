@@ -47,6 +47,45 @@
       "title": "ActionSpec",
       "type": "object"
     },
+    "Appearance": {
+      "additionalProperties": false,
+      "description": "Opt-in backdrop (invariant 9 amendment, 2026-09-27): an image of the admin's choosing\nbehind the boards, dimmed and optionally blurred, with translucent cards. Surfaces\nonly; ``--status-*`` never changes. Off unless ``background`` names a file.",
+      "properties": {
+        "background": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Background"
+        },
+        "blur": {
+          "default": 0,
+          "maximum": 40,
+          "minimum": 0,
+          "title": "Blur",
+          "type": "integer"
+        },
+        "dim": {
+          "default": 60,
+          "maximum": 95,
+          "minimum": 50,
+          "title": "Dim",
+          "type": "integer"
+        },
+        "translucent": {
+          "default": true,
+          "title": "Translucent",
+          "type": "boolean"
+        }
+      },
+      "title": "Appearance",
+      "type": "object"
+    },
     "AuthApiKey": {
       "additionalProperties": false,
       "properties": {
@@ -830,6 +869,54 @@
         "row"
       ],
       "title": "Grid",
+      "type": "object"
+    },
+    "HeaderSettings": {
+      "additionalProperties": false,
+      "description": "The strip above every board (\u00a712, header): greeting, clock, search, weather, stats.\n\nInstance-wide and admin-authored: every signed-in user sees what is named here, whatever\ntheir boards show \u2014 so name only what everyone may see.",
+      "properties": {
+        "clock": {
+          "default": true,
+          "title": "Clock",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "greeting": {
+          "default": true,
+          "title": "Greeting",
+          "type": "boolean"
+        },
+        "search": {
+          "default": "duckduckgo",
+          "title": "Search",
+          "type": "string"
+        },
+        "stats": {
+          "items": {
+            "$ref": "#/$defs/HeroStat"
+          },
+          "maxItems": 8,
+          "title": "Stats",
+          "type": "array"
+        },
+        "weather": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weather"
+        }
+      },
+      "title": "HeaderSettings",
       "type": "object"
     },
     "HeroStat": {
@@ -2364,6 +2451,12 @@
         "spec": {
           "$ref": "#/$defs/SettingsSpec",
           "default": {
+            "appearance": {
+              "background": null,
+              "blur": 0,
+              "dim": 60,
+              "translucent": true
+            },
             "auth": {
               "backends": [
                 "local"
@@ -2398,6 +2491,14 @@
                 "lifetime": "7d"
               }
             },
+            "header": {
+              "clock": true,
+              "enabled": true,
+              "greeting": true,
+              "search": "duckduckgo",
+              "stats": [],
+              "weather": null
+            },
             "retention": {
               "rollup_1d": "forever",
               "rollup_1h": "180d",
@@ -2420,6 +2521,15 @@
     "SettingsSpec": {
       "additionalProperties": true,
       "properties": {
+        "appearance": {
+          "$ref": "#/$defs/Appearance",
+          "default": {
+            "background": null,
+            "blur": 0,
+            "dim": 60,
+            "translucent": true
+          }
+        },
         "auth": {
           "$ref": "#/$defs/AuthSettings",
           "default": {
@@ -2455,6 +2565,17 @@
               "cookie_name": "hud_session",
               "lifetime": "7d"
             }
+          }
+        },
+        "header": {
+          "$ref": "#/$defs/HeaderSettings",
+          "default": {
+            "clock": true,
+            "enabled": true,
+            "greeting": true,
+            "search": "duckduckgo",
+            "stats": [],
+            "weather": null
           }
         },
         "retention": {

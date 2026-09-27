@@ -42,7 +42,7 @@ from hud.config.schemas.board import (
     UnsupportedWidget,
     UptimeWidget,
 )
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.models import Metric, Resource, State, Unit
 from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
@@ -286,11 +286,11 @@ class WidgetEngine:
                 "resource": r.model_dump(mode="json"),
                 "fields": [f.model_dump() for f in fields],
                 "style": w.display.style,
-                "stats": [self._stat(s) for s in w.display.stats],
+                "stats": [self.stat(s) for s in w.display.stats],
             },
         )
 
-    def _stat(self, s: HeroStat) -> dict[str, Any]:
+    def stat(self, s: HeroStat) -> dict[str, Any]:
         """One hero reading; a missing metric is a reading with no value, not an error."""
         m = self.cache.metric(s.resource, s.metric)
         return {

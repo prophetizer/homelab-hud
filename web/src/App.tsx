@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-import { useEffect } from "react";
+import { type CSSProperties, useEffect } from "react";
 import { fetchApps, fetchBoards } from "./api/client";
 import { fetchHealth } from "./api/health";
+import { type HeaderAppearance, fetchHeader } from "./api/header";
 import type { Me } from "./api/auth";
 import { BoardView } from "./components/Board";
 import { CommandPalette } from "./components/CommandPalette";
+import { HeaderBar } from "./components/Header";
 import { Kiosk } from "./components/Kiosk";
 import { Login } from "./components/Login";
 import { Overview } from "./components/Overview";
@@ -17,6 +19,7 @@ import { boardPath, replaceRoute, useRoute } from "./router";
 
 const HEALTH_MS = 15_000;
 const BOARDS_MS = 30_000;
+const HEADER_MS = 30_000;
 
 export function App() {
   const { session, signIn, setUp, signUp, signOut } = useSession();
@@ -41,6 +44,7 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   const health = usePoll(`health:${me.subject}`, fetchHealth, HEALTH_MS);
   const boards = usePoll(`boards:${me.subject}`, fetchBoards, BOARDS_MS);
   const apps = usePoll(`apps:${me.subject}`, fetchApps, BOARDS_MS);
+  const header = usePoll(`header:${me.subject}`, fetchHeader, HEADER_MS);
   const providers = health.data?.providers ?? [];
   const unhealthy = providers.filter((p) => p.status === "degraded" || p.status === "error").length;
   const landing = boards.data ? landingBoard(buildNavigation(boards.data.boards, []).boards) : null;
@@ -54,9 +58,14 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
     return <Kiosk me={me} boards={boards.data?.boards ?? null} names={route.boards} every={route.every} />;
   }
   const system = <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />;
+  const withHeader = route.kind === "board" || route.kind === "system";
   return (
-    <div className="shell">
-      <CommandPalette boards={boards.data?.boards ?? null} apps={apps.data?.apps ?? null} />
+    <div className="shell" {...backdrop(header.data?.appearance ?? null)}>
+      <CommandPalette
+        boards={boards.data?.boards ?? null}
+        apps={apps.data?.apps ?? null}
+        searchUrl={header.data?.search_url ?? null}
+      />
       <Sidebar
         boards={boards.data?.boards ?? null}
         boardsError={boards.error}
@@ -66,6 +75,7 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
         onSignOut={onSignOut}
       />
       <main className={route.kind === "app" ? "main main--workspace" : "main"}>
+        {withHeader && header.data?.enabled ? <HeaderBar header={header.data} me={me} /> : null}
         {route.kind === "system" ? (
           system
         ) : route.kind === "home" ? (
@@ -98,4 +108,23 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
       </footer>
     </div>
   );
+}
+
+/** The opt-in backdrop (settings appearance:): the image, how much page colour is laid over
+ *  it, and whether cards let it through. Surfaces only; status colours never change. */
+function backdrop(look: HeaderAppearance | null): {
+  "data-backdrop"?: true;
+  "data-translucent"?: true | undefined;
+  style?: CSSProperties;
+} {
+  if (!look?.background) return {};
+  return {
+    "data-backdrop": true,
+    "data-translucent": look.translucent || undefined,
+    style: {
+      "--backdrop-image": `url("${look.background}")`,
+      "--backdrop-dim": `${look.dim}%`,
+      "--backdrop-blur": `${look.blur}px`,
+    } as CSSProperties,
+  };
 }

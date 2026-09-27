@@ -6,24 +6,12 @@ import re
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from hud.config.schemas.base import Document
+from hud.config.schemas.board import HeroStat
+from hud.config.schemas.duration import parse_duration
 from hud.config.secrets import is_secret_ref
-
-_DURATION = re.compile(r"^(\d+)([smhd])$")
-_UNIT_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-
-
-def parse_duration(text: str) -> int:
-    """``'48h'`` → seconds. Also accepts ``'forever'`` → 0 (meaning no expiry)."""
-    if text == "forever":
-        return 0
-    m = _DURATION.fullmatch(text.strip())
-    if m is None:
-        msg = f"invalid duration {text!r}; use <n>s|m|h|d or 'forever'"
-        raise ValueError(msg)
-    return int(m.group(1)) * _UNIT_SECONDS[m.group(2)]
 
 
 class Retention(BaseModel):
@@ -184,6 +172,78 @@ class AuthSettings(BaseModel):
         return self
 
 
+# Web search from the header and Ctrl-K. The query goes from the browser straight to the
+# engine; HUD never sees it. ``{q}`` is replaced with the URL-encoded query.
+SEARCH_ENGINES = {
+    "duckduckgo": "https://duckduckgo.com/?q={q}",
+    "google": "https://www.google.com/search?q={q}",
+    "bing": "https://www.bing.com/search?q={q}",
+    "startpage": "https://www.startpage.com/do/search?query={q}",
+    "kagi": "https://kagi.com/search?q={q}",
+    "brave": "https://search.brave.com/search?q={q}",
+}
+_BACKGROUND = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.(?:jpe?g|png|webp)")
+
+
+class HeaderSettings(BaseModel):
+    """The strip above every board (§12, header): greeting, clock, search, weather, stats.
+
+    Instance-wide and admin-authored: every signed-in user sees what is named here, whatever
+    their boards show — so name only what everyone may see.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    greeting: bool = True
+    clock: bool = True
+    # A preset name, a custom ``https://…{q}…`` URL, or "none".
+    search: str = "duckduckgo"
+    weather: str | None = None  # a weather resource uid, e.g. weather:current:home
+    stats: list[HeroStat] = Field(default_factory=list, max_length=8)
+
+    @field_validator("search")
+    @classmethod
+    def _search(cls, v: str) -> str:
+        if v in SEARCH_ENGINES or v == "none":
+            return v
+        if v.startswith("https://") and "{q}" in v:
+            return v
+        names = ", ".join([*SEARCH_ENGINES, "none"])
+        msg = f"search must be one of {names}, or an https URL containing {{q}}"
+        raise ValueError(msg)
+
+    @property
+    def search_url(self) -> str | None:
+        return None if self.search == "none" else SEARCH_ENGINES.get(self.search, self.search)
+
+
+class Appearance(BaseModel):
+    """Opt-in backdrop (invariant 9 amendment, 2026-09-27): an image of the admin's choosing
+    behind the boards, dimmed and optionally blurred, with translucent cards. Surfaces
+    only; ``--status-*`` never changes. Off unless ``background`` names a file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    background: str | None = None  # a file name in /config/backgrounds/
+    # Percent of the page colour laid over it. At least 50: any image, even a white one,
+    # must leave text readable (text straight on the backdrop also gets a halo).
+    dim: int = Field(default=60, ge=50, le=95)
+    blur: int = Field(default=0, ge=0, le=40)  # px
+    translucent: bool = True  # cards let the backdrop through (only with a background)
+
+    @field_validator("background")
+    @classmethod
+    def _file_name(cls, v: str | None) -> str | None:
+        if v is not None and not _BACKGROUND.fullmatch(v):
+            msg = (
+                "background must be a file name in /config/backgrounds/ "
+                "(.jpg, .png or .webp), not a path or URL"
+            )
+            raise ValueError(msg)
+        return v
+
+
 class SettingsSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -192,6 +252,8 @@ class SettingsSpec(BaseModel):
     theme: Literal["dark", "light", "auto"] = "dark"
     retention: Retention = Retention()
     auth: AuthSettings = AuthSettings()
+    header: HeaderSettings = HeaderSettings()
+    appearance: Appearance = Appearance()
 
     @field_validator("timezone")
     @classmethod
@@ -218,6 +280,17 @@ spec:
   title: HUD
   timezone: UTC          # IANA name, e.g. America/Chicago
   theme: dark            # dark | light | auto
+  header:                # the strip above every board; everyone signed in sees it
+    greeting: true
+    clock: true
+    search: duckduckgo   # duckduckgo | google | bing | startpage | kagi | brave | none | https://…{q}
+    # weather: weather:current:home   # a weather provider's resource (providers/weather.yaml)
+    # stats:
+    #   - { resource: glances:host:main, metric: cpu_percent, label: CPU }
+  # appearance:          # opt-in backdrop: put the image in /config/backgrounds/
+  #   background: wallpaper.jpg
+  #   dim: 60            # 50-95, percent of the page colour laid over the image
+  #   blur: 0            # px
   retention:             # how long each tier of history is kept (PLAN §6.2)
     samples: 48h
     rollup_5m: 14d

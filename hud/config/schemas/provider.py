@@ -18,7 +18,7 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from hud.config.schemas.base import Document, Metadata
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.config.secrets import is_secret_ref
 
 HttpMethod = Literal["GET", "POST"]

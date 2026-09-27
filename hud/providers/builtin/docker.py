@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import Field, field_validator
 
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.providers.sdk import (
     HttpOptions,
     Metric,

@@ -8,6 +8,7 @@ from hud.api.auth import router as auth_router
 from hud.api.boards import router as boards_router
 from hud.api.events import router as events_router
 from hud.api.guard import csrf_guard
+from hud.api.header import router as header_router
 from hud.api.health import router as health_router
 from hud.api.icons import router as icons_router
 from hud.api.images import router as images_router
@@ -24,5 +25,6 @@ api_v1.include_router(boards_router)
 api_v1.include_router(apps_router)
 api_v1.include_router(icons_router)
 api_v1.include_router(images_router)
+api_v1.include_router(header_router)
 
 __all__ = ["api_v1"]

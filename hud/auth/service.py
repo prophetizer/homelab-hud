@@ -43,7 +43,7 @@ from hud.auth.principal import Principal
 from hud.auth.rbac import Authorizer
 from hud.auth.store import AuthStore, User, UserExistsError
 from hud.config.schemas import AuthSettings
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 
 if TYPE_CHECKING:
     from hud.config import ConfigSnapshot, SecretResolver

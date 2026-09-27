@@ -24,7 +24,7 @@ from pydantic import (
 )
 
 from hud.config.schemas.base import Document, Metadata
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.models.enums import State
 
 PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(

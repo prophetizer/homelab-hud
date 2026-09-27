@@ -37,6 +37,7 @@ dev = [
 docker = "hud.providers.builtin.docker:DockerProvider"
 http = "hud.providers.builtin.http:HttpChecks"
 sonarr = "hud.providers.builtin.sonarr:SonarrProvider"
+weather = "hud.providers.builtin.weather:Weather"
 
 [build-system]
 requires = ["hatchling"]

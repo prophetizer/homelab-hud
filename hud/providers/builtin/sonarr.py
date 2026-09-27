@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 from pydantic import Field, SecretStr, field_validator
 
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.providers.images import fetch_image
 from hud.providers.sdk import (
     Event,

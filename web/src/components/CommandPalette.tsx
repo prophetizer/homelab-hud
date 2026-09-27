@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchBoard } from "../api/client";
 import { fuzzyScore } from "../api/fuzzy";
+import { searchHref } from "../api/header";
 import { buildNavigation } from "../api/nav";
 import type { App, BoardSummary, ListData } from "../api/types";
 import { appPath, boardPath, navigate } from "../router";
@@ -10,7 +11,7 @@ import { Icon } from "./widgets/Icon";
 interface Entry {
   key: string;
   title: string;
-  kind: "Board" | "App" | "Link" | "Page";
+  kind: "Board" | "App" | "Link" | "Page" | "Web";
   icon: string | null;
   go: () => void;
 }
@@ -24,7 +25,15 @@ const openExternal = (url: string) => () => window.open(url, "_blank", "noopener
 
 /** Ctrl-K: every board, app and link card, fuzzy-matched. Link cards come from the
  *  dashboard boards, fetched once when the palette first opens. */
-export function CommandPalette({ boards, apps }: { boards: BoardSummary[] | null; apps: App[] | null }) {
+export function CommandPalette({
+  boards,
+  apps,
+  searchUrl = null,
+}: {
+  boards: BoardSummary[] | null;
+  apps: App[] | null;
+  searchUrl?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -105,8 +114,14 @@ export function CommandPalette({ boards, apps }: { boards: BoardSummary[] | null
       .map((e) => ({ e, s: fuzzyScore(query, e.title) }))
       .filter((x): x is { e: Entry; s: number } => x.s !== null);
     if (query.trim()) scored.sort((a, b) => b.s - a.s);
-    return scored.slice(0, 50).map((x) => x.e);
-  }, [entries, query]);
+    const found = scored.slice(0, 50).map((x) => x.e);
+    // Last, always: hand the words to the web search engine (settings header.search).
+    const href = searchUrl && query.trim() ? searchHref(searchUrl, query) : null;
+    if (href) {
+      found.push({ key: "web", title: `Search the web for “${query.trim()}”`, kind: "Web", icon: "mdi-magnify", go: openExternal(href) });
+    }
+    return found;
+  }, [entries, query, searchUrl]);
 
   if (!open) return null;
   const choose = (e: Entry | undefined) => {
@@ -120,7 +135,7 @@ export function CommandPalette({ boards, apps }: { boards: BoardSummary[] | null
         <input
           ref={input}
           className="palette__input"
-          placeholder="Go to a board, app or link…"
+          placeholder={searchUrl ? "Go to a board, app or link, or search the web…" : "Go to a board, app or link…"}
           value={query}
           aria-controls="palette-results"
           aria-activedescendant={results[active] ? `palette-${active}` : undefined}

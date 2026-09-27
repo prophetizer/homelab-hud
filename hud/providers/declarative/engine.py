@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 import httpx
 
 from hud.config.schemas import ProviderDocument, ResourceSpec
-from hud.config.schemas.settings import parse_duration
+from hud.config.schemas.duration import parse_duration
 from hud.providers.base import PollGroup, PollResult, Provider, ProviderContext, ProviderTier
 from hud.providers.declarative.mapper import ItemError, ResourceMapper
 from hud.providers.declarative.select import SelectError, Selector

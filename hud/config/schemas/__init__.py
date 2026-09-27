@@ -13,6 +13,7 @@ from hud.config.schemas.board import (
     UnsupportedWidget,
     Widget,
 )
+from hud.config.schemas.duration import parse_duration
 from hud.config.schemas.provider import ProviderDocument, ProviderSpec, ResourceSpec
 from hud.config.schemas.rbac import DEFAULT_RBAC_YAML, RbacDocument, RbacSpec
 from hud.config.schemas.settings import (
@@ -21,7 +22,6 @@ from hud.config.schemas.settings import (
     Retention,
     SettingsDocument,
     SettingsSpec,
-    parse_duration,
 )
 
 KIND_SCHEMAS: dict[str, type[Document]] = {
