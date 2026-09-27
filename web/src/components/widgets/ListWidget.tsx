@@ -164,6 +164,7 @@ function MediaCards({ items }: { items: ListData["items"] }) {
         const { sub, values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
         return (
           <li key={item.uid} className="media-card" data-state={item.state} data-stale={item.stale || undefined}>
+            {item.backdrop ? <Poster uid={item.uid} variant="backdrop" className="media-card__backdrop" /> : null}
             {item.image ? <Poster uid={item.uid} large /> : null}
             <div className="media-card__body">
               <span className="media-card__title">
@@ -200,8 +201,50 @@ function MediaCards({ items }: { items: ListData["items"] }) {
   );
 }
 
+/** A shelf: the latest posters in a row that scrolls sideways, newest first. */
+function Shelf({ items }: { items: ListData["items"] }) {
+  return (
+    <ul className="shelf">
+      {items.map((item) => {
+        // Numbers too: Plex's addedAt is epoch seconds, shown as an age.
+        const { sub, values } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        const detail = [...sub, ...values];
+        const body = (
+          <>
+            <span className="shelf__art">
+              {item.image ? <Poster uid={item.uid} className="shelf__poster" /> : <span className="shelf__blank">{item.title.charAt(0)}</span>}
+            </span>
+            <span className="shelf__title" title={item.title}>
+              {item.title}
+            </span>
+            {detail.length > 0 ? <span className="shelf__sub">{detail.map(fieldText).join(" · ")}</span> : null}
+          </>
+        );
+        return (
+          <li key={item.uid} className="shelf__item">
+            {item.links["ui"] ? (
+              <a href={item.links["ui"]} target="_blank" rel="noreferrer noopener">
+                {body}
+              </a>
+            ) : (
+              body
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  if (data.layout === "shelf" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        <Shelf items={data.items} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "media" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>

@@ -127,6 +127,7 @@ export interface ListItem {
   bar?: number | null; // display.bar: a percentage drawn as a usage bar
   icon?: string | null; // display.icon: a name /api/v1/icons serves
   image?: boolean; // display.image: /api/v1/images/<uid> has a poster for this row
+  backdrop?: boolean; // ... and /api/v1/images/<uid>?variant=backdrop has background art
   uptime?: { cells: UptimeCell[]; sla: number | null } | null; // display.uptime: the last 24 h
   trend?: [number, number][]; // display.trend: the last 6 h of one metric
 }
@@ -134,7 +135,7 @@ export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
-  layout?: "rows" | "grid" | "cards" | "media";
+  layout?: "rows" | "grid" | "cards" | "media" | "shelf";
 }
 export interface MetricData {
   value: number | null;

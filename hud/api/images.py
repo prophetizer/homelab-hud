@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 from collections import OrderedDict
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
@@ -57,11 +57,15 @@ class ImageCache:
 
 
 @router.get("/images/{uid:path}")
-async def get_image(request: Request, uid: str) -> Response:
+async def get_image(
+    request: Request, uid: str, variant: Literal["image", "backdrop"] = "image"
+) -> Response:
+    """``variant`` picks the resource's attrs.image (a poster) or attrs.backdrop (fanart).
+    Either way the path is the resource's own, never the caller's."""
     p = await deps.principal(request)
     visible = deps.visible_uids(request, p)
     r = deps.cache(request).resource(uid)
-    path = r.attrs.get("image") if r is not None else None
+    path = r.attrs.get(variant) if r is not None else None
     # One answer for "not yours", "gone" and "no image": nothing to learn from the status.
     if r is None or (visible is not None and uid not in visible) or not isinstance(path, str):
         raise HTTPException(status_code=404, detail="no image")

@@ -98,6 +98,8 @@ spec:
           # The show's poster for an episode, else the item's own. A path on this server,
           # fetched by HUD with the token (never the browser): /api/v1/images.
           image:        "{{ item.grandparentThumb or item.thumb }}"
+          # The show's or film's background art, drawn blurred behind the now-playing card.
+          backdrop:     "{{ item.grandparentArt or item.art }}"
         links:
           ui: "${PLEX_BASE_URL}/web/index.html#!/server/{{ item.machineIdentifier }}"
       metrics:
@@ -112,6 +114,48 @@ spec:
           when: "{{ item.Media[0].bitrate is defined }}"
           value: "{{ item.Media[0].bitrate | float }}"
           unit: kbps
+
+    # What is playing, as one number for a service card. Singleton.
+    - name: activity
+      request:
+        method: GET
+        path: /status/sessions
+        headers: { Accept: application/json }
+      select: "$.MediaContainer"
+      interval: 30s
+      map:
+        uid:   "plex:activity:main"
+        kind:  activity
+        name:  Activity
+        state: up
+        parent_uid: "plex:service:main"
+      metrics:
+        - { name: streams, value: "{{ item.size | default(0) | float }}", unit: count }
+
+    # Recently added, newest first: a shelf of posters. Episodes show their show's poster.
+    - name: recent
+      request:
+        method: GET
+        path: /library/recentlyAdded
+        headers: { Accept: application/json }
+        params: { X-Plex-Container-Start: "0", X-Plex-Container-Size: "12" }
+      select: "$.MediaContainer.Metadata[*]"
+      interval: 5m
+      map:
+        uid:   "plex:recent:{{ item.ratingKey }}"
+        kind:  recent
+        name: >-
+          {{ (item.grandparentTitle ~ ' — ' ~ item.title) if item.grandparentTitle
+             else (item.parentTitle ~ ' — ' ~ item.title) if item.parentTitle
+             else item.title }}
+        state: up
+        parent_uid: "plex:service:main"
+        attrs:
+          media_type: "{{ item.type }}"
+          year:       "{{ item.year }}"
+          added_at:   "{{ item.addedAt }}"
+          image:      "{{ item.grandparentThumb or item.parentThumb or item.thumb }}"
+          backdrop:   "{{ item.grandparentArt or item.art }}"
 
     # Libraries. `uuid` is assigned once when the library is created and survives renames
     # and key renumbering, so it is the stable native id here.
@@ -134,3 +178,20 @@ spec:
           scanner:      "{{ item.scanner }}"
         links:
           ui: "${PLEX_BASE_URL}/web/index.html#!/media/{{ item.key }}"
+
+    # How many libraries, as one number for a service card. Singleton.
+    - name: catalog
+      request:
+        method: GET
+        path: /library/sections
+        headers: { Accept: application/json }
+      select: "$.MediaContainer"
+      interval: 30m
+      map:
+        uid:   "plex:catalog:main"
+        kind:  catalog
+        name:  Libraries
+        state: up
+        parent_uid: "plex:service:main"
+      metrics:
+        - { name: libraries, value: "{{ item.size | default(0) | float }}", unit: count }

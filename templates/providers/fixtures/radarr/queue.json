@@ -44,9 +44,19 @@
       "timeleft": "00:23:14",
       "movieId": 42,
       "movie": {
-        "id": 42,
-        "title": "Arrival",
-        "year": 2016
+        "title": "Arrival.2016.1080p.BluRay.x264",
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/42/poster.jpg?lastWrite=638000000000000000",
+            "remoteUrl": "https://image.tmdb.org/t/p/original/x.jpg"
+          },
+          {
+            "coverType": "fanart",
+            "url": "/MediaCover/42/fanart.jpg?lastWrite=638000000000000000",
+            "remoteUrl": "https://image.tmdb.org/t/p/original/y.jpg"
+          }
+        ]
       }
     },
     {

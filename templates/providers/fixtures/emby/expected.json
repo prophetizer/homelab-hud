@@ -40,5 +40,12 @@
         "pct"
       ]
     }
+  },
+  "recent": {
+    "resources": {
+      "emby:recent:foundation-s2e3": "up",
+      "emby:recent:arrival-2016": "up"
+    },
+    "metrics": {}
   }
 }

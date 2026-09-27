@@ -100,7 +100,7 @@ def client(tmp_path: Path) -> Iterator[tuple[TestClient, _Plex]]:
     with TestClient(app) as c:
         cache = app.state.cache
         cache.register_provider("plex", {})
-        attrs = {"image": "/library/metadata/1/thumb/2"}
+        attrs = {"image": "/library/metadata/1/thumb/2", "backdrop": "/library/metadata/1/art/3"}
         stream = Resource(
             uid="plex:stream:7",
             provider="plex",
@@ -138,3 +138,12 @@ def test_route_hides_resources_the_callers_boards_do_not_show(
     monkeypatch.setattr(deps, "visible_uids", lambda request, p: set())
     assert c.get("/api/v1/images/plex:stream:7").status_code == 404
     assert plex.calls == []
+
+
+def test_route_serves_the_backdrop_variant(client: tuple[TestClient, _Plex]) -> None:
+    c, plex = client
+    sign_in_admin(c)
+    assert c.get("/api/v1/images/plex:stream:7?variant=backdrop").status_code == 200
+    assert plex.calls == ["/library/metadata/1/art/3"]
+    # Only the two known attributes: the caller cannot name another.
+    assert c.get("/api/v1/images/plex:stream:7?variant=url").status_code == 422

@@ -48,7 +48,17 @@
       "series": {
         "id": 5,
         "title": "The Expanse",
-        "year": 2015
+        "year": 2015,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/5/poster.jpg?lastWrite=638000000000000000"
+          },
+          {
+            "coverType": "fanart",
+            "url": "/MediaCover/5/fanart.jpg?lastWrite=638000000000000000"
+          }
+        ]
       },
       "episode": {
         "id": 611,

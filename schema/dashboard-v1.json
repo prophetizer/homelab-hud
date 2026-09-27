@@ -1086,7 +1086,8 @@
             "rows",
             "grid",
             "cards",
-            "media"
+            "media",
+            "shelf"
           ],
           "title": "Layout",
           "type": "string"

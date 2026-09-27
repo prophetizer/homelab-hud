@@ -450,6 +450,7 @@ class WidgetEngine:
                 "bar": self._bar(r, w.display.bar),
                 "icon": self._icon(r, w.display.icon),
                 "image": w.display.image and bool(r.attrs.get("image")),
+                "backdrop": w.display.image and bool(r.attrs.get("backdrop")),
             }
             for r in items
         ]

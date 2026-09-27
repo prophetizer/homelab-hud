@@ -17,6 +17,7 @@ import httpx
 from pydantic import Field, SecretStr, field_validator
 
 from hud.config.schemas.settings import parse_duration
+from hud.providers.images import fetch_image
 from hud.providers.sdk import (
     Event,
     HttpOptions,
@@ -126,7 +127,7 @@ class SonarrProvider(PluginProvider):
         now = datetime.now(UTC)
         health = await self._health_items()
         page_size = str(self.config.queue_page_size)
-        queue = await self._get("/api/v3/queue", pageSize=page_size, page="1")
+        queue = await self._get("/api/v3/queue", pageSize=page_size, page="1", includeSeries="true")
         records = queue.get("records") if isinstance(queue, dict) else None
         if not isinstance(records, list):
             raise ProviderPollError(self.name, "/api/v3/queue: no records list in response")
@@ -153,6 +154,16 @@ class SonarrProvider(PluginProvider):
                         ts=now,
                     )
                 )
+        for name, kind in (("health_errors", "error"), ("health_warnings", "warning")):
+            result.metrics.append(
+                Metric.from_source(
+                    resource_uid=service.uid,
+                    name=name,
+                    value=float(sum(1 for h in health if h.get("type") == kind)),
+                    source_unit=SourceUnit.COUNT,
+                    ts=now,
+                )
+            )
         total = queue.get("totalRecords", len(result.resources) - 1)
         result.metrics.append(
             Metric.from_source(
@@ -229,6 +240,11 @@ class SonarrProvider(PluginProvider):
             "protocol": rec.get("protocol"),
             "download_client": rec.get("downloadClient"),
             "indexer": rec.get("indexer"),
+            "reason": _first_message(rec),
+            # Paths on this Sonarr (MediaCover), fetched with the API key by HUD's image
+            # route (fetch_image below) — never handed to the browser.
+            "image": _cover(series, "poster"),
+            "backdrop": _cover(series, "fanart"),
         }
         resource = Resource(
             uid=make_uid(self.name, DOWNLOAD_KIND, str(rec_id)),
@@ -241,6 +257,11 @@ class SonarrProvider(PluginProvider):
             fetched_at=now,
         )
         return resource, progress
+
+    async def fetch_image(self, path: str) -> tuple[bytes, str] | None:
+        if self._client is None:
+            return None
+        return await fetch_image(self._client, path)
 
     def _health_events(self, health: list[dict[str, Any]], now: datetime) -> list[Event]:
         current: dict[tuple[str, str], Severity] = {}
@@ -295,3 +316,19 @@ class SonarrProvider(PluginProvider):
 def _label(key: tuple[str, str]) -> str:
     source, message = key
     return f"{source}: {message}" if source else message
+
+
+def _cover(series: dict[str, Any], cover_type: str) -> str | None:
+    """The series' image of this type as a path on Sonarr (``/MediaCover/...``), or None."""
+    for image in series.get("images") or []:
+        if isinstance(image, dict) and image.get("coverType") == cover_type and image.get("url"):
+            return str(image["url"])
+    return None
+
+
+def _first_message(rec: dict[str, Any]) -> str | None:
+    """Why an import is stuck, in Sonarr's words: the first status message, if any."""
+    for status in rec.get("statusMessages") or []:
+        for message in (status or {}).get("messages") or []:
+            return str(message)
+    return None

@@ -134,7 +134,7 @@ class ListDisplay(_Spec):
     # "is anything wrong among these 117" at a glance. cards: a card per resource — an app
     # (icon, name, description) or, when it has a value, a reading (21.5 °C). Added
     # 2026-09-26, optional.
-    layout: Literal["rows", "grid", "cards", "media"] = "rows"
+    layout: Literal["rows", "grid", "cards", "media", "shelf"] = "rows"
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None

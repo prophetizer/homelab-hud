@@ -172,3 +172,38 @@ async def test_api_key_rejected_and_bad_queue(config_dir: Path, api: respx.MockR
             await p.poll("collect")
     finally:
         await p.shutdown()
+
+
+async def test_queue_items_carry_cover_paths_and_the_stuck_reason(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """Posters come from series.images (includeSeries=true) as paths on Sonarr, fetched
+    later through this provider's own client; the browser never sees the key."""
+    queue = json.loads(json.dumps(QUEUE))
+    rec = queue["records"][0]
+    rec["series"]["images"] = [
+        {"coverType": "poster", "url": "/MediaCover/7/poster.jpg?lastWrite=1"},
+        {"coverType": "fanart", "url": "/MediaCover/7/fanart.jpg?lastWrite=1"},
+    ]
+    rec["statusMessages"] = [{"title": "x", "messages": ["No files found are eligible for import"]}]
+    route = api.get(f"{URL}/api/v3/queue").mock(return_value=httpx.Response(200, json=queue))
+    p = build(config_dir)
+    await p.startup()
+    try:
+        result = await p.poll("collect")
+        assert route.calls.last.request.url.params["includeSeries"] == "true"
+        download = next(r for r in result.resources if r.kind == "download")
+        assert download.attrs["image"] == "/MediaCover/7/poster.jpg?lastWrite=1"
+        assert download.attrs["backdrop"] == "/MediaCover/7/fanart.jpg?lastWrite=1"
+        assert download.attrs["reason"] == "No files found are eligible for import"
+        health = {m.name: m.value for m in result.metrics if m.name.startswith("health_")}
+        assert set(health) == {"health_errors", "health_warnings"}
+        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 16
+        img = api.get(f"{URL}/MediaCover/7/poster.jpg").mock(
+            return_value=httpx.Response(200, content=jpeg)
+        )
+        assert await p.fetch_image("/MediaCover/7/poster.jpg?lastWrite=1") == (jpeg, "image/jpeg")
+        assert img.calls.last.request.headers["X-Api-Key"] == "k" * 32  # its own auth, server-side
+        assert await p.fetch_image("//evil.example/x.jpg") is None  # never another host
+    finally:
+        await p.shutdown()

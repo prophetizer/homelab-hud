@@ -1,0 +1,28 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "ratingKey": "501",
+        "type": "episode",
+        "title": "The Last Signal",
+        "grandparentTitle": "Foundation",
+        "parentTitle": "Season 2",
+        "addedAt": 1790000000,
+        "year": 2025,
+        "thumb": "/library/metadata/501/thumb/1",
+        "grandparentThumb": "/library/metadata/400/thumb/1",
+        "grandparentArt": "/library/metadata/400/art/1"
+      },
+      {
+        "ratingKey": "502",
+        "type": "movie",
+        "title": "Arrival",
+        "addedAt": 1789990000,
+        "year": 2016,
+        "thumb": "/library/metadata/502/thumb/1",
+        "art": "/library/metadata/502/art/1"
+      }
+    ]
+  }
+}

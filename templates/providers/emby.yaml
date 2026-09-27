@@ -53,6 +53,39 @@ spec:
     # would keep `"NowPlayingItem": null`, since JSONPath treats a present key as true.)
     # Keyed on the device: stable across sessions, one stream per device at a time. The
     # session Id changes every connection and is refused as a uid (invariant 8).
+    # Recently added movies and episodes, newest first: a shelf of posters. Queried by
+    # DateCreated without a user id — accepted with an API key by the versions this was
+    # written against, but UNVERIFIED on a live server: test before relying on it.
+    - name: recent
+      request:
+        path: /Items
+        params:
+          Recursive: "true"
+          SortBy: DateCreated
+          SortOrder: Descending
+          IncludeItemTypes: "Movie,Episode"
+          Limit: "12"
+          Fields: "DateCreated,ProductionYear"
+      select: "$.Items[*]"
+      interval: 5m
+      map:
+        # Not item.Id: re-adding an item mints a new one (invariant 8). What it IS is stable.
+        uid: >-
+          emby:recent:{{ ((item.SeriesName ~ '-s' ~ item.ParentIndexNumber ~ 'e' ~ item.IndexNumber)
+                          if item.SeriesName else (item.Name ~ '-' ~ item.ProductionYear))
+                         | lower | replace(' ', '-') }}
+        kind:  recent
+        name: >-
+          {{ (item.SeriesName ~ ' — ' ~ item.Name) if item.SeriesName else item.Name }}
+        state: up
+        parent_uid: "emby:service:main"
+        attrs:
+          media_type: "{{ item.Type }}"
+          year:       "{{ item.ProductionYear }}"
+          added_at:   "{{ item.DateCreated }}"
+          image: >-
+            {{ '/Items/' ~ (item.SeriesId or item.Id) ~ '/Images/Primary?maxHeight=300' }}
+
     - name: sessions
       request: { path: /Sessions }
       select: "$[?(@.NowPlayingItem.Name)]"
@@ -74,6 +107,10 @@ spec:
           image: >-
             {{ '/Items/' ~ (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id)
                ~ '/Images/Primary?maxHeight=240'
+               if (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id) else none }}
+          backdrop: >-
+            {{ '/Items/' ~ (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id)
+               ~ '/Images/Backdrop?maxWidth=960'
                if (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id) else none }}
           # DirectPlay / DirectStream / Transcode — whether the server is doing the work.
           play_method: "{{ item.PlayState.PlayMethod }}"

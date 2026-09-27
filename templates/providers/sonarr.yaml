@@ -78,11 +78,25 @@ spec:
     # be matched) has no episodeId. Episode-first also keeps the uid unchanged when
     # a pending item is grabbed, rather than forking its history at that moment
     # (invariant 8). The queue row's own `id` changes, so it is never used.
+    # The queue in one number, for a service card. Singleton.
+    - name: queue_status
+      request: { method: GET, path: /api/v3/queue/status }
+      interval: 60s
+      map:
+        uid:   "sonarr:queue:main"
+        kind:  queue
+        name:  Queue
+        state: >-
+          {{ 'down' if item.errors else 'degraded' if item.warnings else 'up' }}
+        parent_uid: "sonarr:service:main"
+      metrics:
+        - { name: queued, value: "{{ item.totalCount | float }}", unit: count }
+
     - name: queue
       request:
         method: GET
         path: /api/v3/queue
-        params: { pageSize: "50", includeUnknownItems: "true" }
+        params: { pageSize: "50", includeUnknownItems: "true", includeSeries: "true" }
       select: "$.records[*]"
       interval: 30s
       map:
@@ -106,6 +120,18 @@ spec:
           download_client: "{{ item.downloadClient }}"
           indexer:         "{{ item.indexer }}"
           error:           "{{ item.errorMessage }}"
+          # Why an import is stuck, in Sonarr's words — the first status message, if any.
+          reason: >-
+            {{ (item.statusMessages[0].messages[0] if item.statusMessages
+                and item.statusMessages[0].messages else none) }}
+          # Poster and fanart as paths on this Sonarr (MediaCover), fetched by HUD with the
+          # API key through /api/v1/images — never by the browser.
+          image: >-
+            {{ (item.series.images | selectattr('coverType', 'equalto', 'poster')
+                | map(attribute='url') | first) if item.series and item.series.images else none }}
+          backdrop: >-
+            {{ (item.series.images | selectattr('coverType', 'equalto', 'fanart')
+                | map(attribute='url') | first) if item.series and item.series.images else none }}
       metrics:
         - { name: size_bytes,      value: "{{ item.size | float }}",     unit: bytes }
         - { name: remaining_bytes, value: "{{ item.sizeleft | float }}", unit: bytes }

@@ -40,5 +40,12 @@
         "pct"
       ]
     }
+  },
+  "recent": {
+    "resources": {
+      "jellyfin:recent:foundation-s2e3": "up",
+      "jellyfin:recent:arrival-2016": "up"
+    },
+    "metrics": {}
   }
 }

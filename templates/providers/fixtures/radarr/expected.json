@@ -72,6 +72,17 @@
       ]
     }
   },
+  "queue_status": {
+    "resources": {
+      "radarr:queue:main": "degraded"
+    },
+    "metrics": {
+      "radarr:queue:main/queued": [
+        3.0,
+        "count"
+      ]
+    }
+  },
   "diskspace": {
     "resources": {
       "radarr:storage:/media/movies": "up",
