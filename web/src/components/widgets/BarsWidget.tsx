@@ -2,6 +2,7 @@
 import type { CSSProperties } from "react";
 import { formatValue } from "../../api/format";
 import type { BarsData, ResolvedWidget } from "../../api/types";
+import { useTweened } from "../../hooks/useTweened";
 import { WidgetFrame } from "../WidgetFrame";
 import { valueParts } from "./MetricWidget";
 
@@ -13,7 +14,8 @@ export function BarsWidget({ widget }: { widget: ResolvedWidget }) {
   const fmt = (v: number | null) => formatValue(v, data.unit, precision);
   const pct = (v: number | null) => (v === null ? 0 : Math.max(0, Math.min(100, (v / data.max) * 100)));
   const summary = data.summary;
-  const [number, unit] = summary ? valueParts(fmt(summary.value), data.unit) : ["", ""];
+  const headline = useTweened(summary ? summary.value : null);
+  const [number, unit] = summary ? valueParts(fmt(headline), data.unit) : ["", ""];
   return (
     <WidgetFrame widget={widget}>
       {summary ? (

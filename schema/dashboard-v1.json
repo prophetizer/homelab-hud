@@ -1120,6 +1120,15 @@
           ],
           "default": null
         },
+        "style": {
+          "default": "number",
+          "enum": [
+            "number",
+            "gauge"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
         "thresholds": {
           "items": {
             "$ref": "#/$defs/Threshold"
@@ -1253,6 +1262,7 @@
               "unit": null
             },
             "sparkline": null,
+            "style": "number",
             "thresholds": [],
             "total": null
           }

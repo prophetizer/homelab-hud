@@ -331,6 +331,7 @@ class WidgetEngine:
                 "format": w.display.format.model_dump(),
                 "sparkline": sparkline,
                 "total": total,
+                "style": w.display.style,
             },
         )
 

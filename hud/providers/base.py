@@ -66,6 +66,15 @@ class PollResult:
         self.events.extend(other.events)
 
 
+class GroupTiming(BaseModel):
+    """How long a poll group's last run took, against the timeout it runs under."""
+
+    name: str
+    seconds: float
+    timeout: float
+    ok: bool
+
+
 class ProviderHealth(BaseModel):
     """Per-provider state as reported in ``/api/v1/health`` and ``/api/v1/providers``."""
 
@@ -80,6 +89,9 @@ class ProviderHealth(BaseModel):
     consecutive_failures: int = 0
     circuit_open_until: datetime | None = None
     resource_count: int = 0
+    # Each polled group's last run time, slowest first: a provider creeping toward its
+    # timeout shows before it trips the breaker.
+    timings: list[GroupTiming] = []
 
 
 @dataclass(frozen=True)

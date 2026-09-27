@@ -192,6 +192,10 @@ class MetricDisplay(_Spec):
     # with a usage bar. When set, thresholds compare against the percentage of the total,
     # not the raw value. Added 2026-09-26, optional: dashboard/v1-compatible.
     total: MetricRef | None = None
+    # number: the value large. gauge: a status-coloured dial for a percentage — the value
+    # itself when its unit is pct, else its share of `total`; anything else stays a
+    # number. Added 2026-09-26, optional: dashboard/v1-compatible.
+    style: Literal["number", "gauge"] = "number"
 
 
 class BarsSource(ListSource):

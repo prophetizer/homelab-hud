@@ -3,6 +3,18 @@ import { formatBytes, formatUptime, type Health } from "../api/health";
 import { formatAge } from "../api/format";
 import type { ProviderHealth } from "../api/types";
 import type { TileState } from "./Tile";
+import { Icon } from "./widgets/Icon";
+import { Meter } from "./widgets/Meter";
+
+/** The slowest group's last poll against its timeout: past half is the early warning. */
+function pollState(t: { seconds: number; timeout: number; ok: boolean }): TileState {
+  if (!t.ok) return "down";
+  return t.seconds / t.timeout >= 0.5 ? "degraded" : "up";
+}
+
+function formatSeconds(s: number): string {
+  return s < 1 ? `${Math.round(s * 1000)} ms` : `${s.toFixed(1)} s`;
+}
 
 interface Props {
   health: Health | null;
@@ -107,6 +119,7 @@ export function Overview({ health, error, fetchedAt }: Props) {
                   return (
                     <li key={p.name} className="list__item">
                       <span className="status-dot" data-state={PROVIDER_STATE[p.status]} aria-label={p.status} />
+                      <Icon name={p.name} title={p.name} size="sm" />
                       <div className="list__main">
                         <span className="list__name">{p.name}</span>
                         {bad && p.last_error ? (
@@ -123,6 +136,19 @@ export function Overview({ health, error, fetchedAt }: Props) {
                         </span>
                       ) : null}
                       <div className="list__values">
+                        {p.timings?.[0] ? (
+                          <span
+                            className="list__field system__poll"
+                            title={`slowest poll: ${p.timings[0].name}, ${formatSeconds(p.timings[0].seconds)} of a ${formatSeconds(p.timings[0].timeout)} timeout`}
+                          >
+                            <Meter
+                              pct={(p.timings[0].seconds / p.timings[0].timeout) * 100}
+                              state={pollState(p.timings[0])}
+                              label="poll time against timeout"
+                            />
+                            {formatSeconds(p.timings[0].seconds)}
+                          </span>
+                        ) : null}
                         <span className="list__field" title="resources">
                           {p.resource_count} resources
                         </span>

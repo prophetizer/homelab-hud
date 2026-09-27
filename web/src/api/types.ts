@@ -93,6 +93,7 @@ export interface ProviderHealth {
   consecutive_failures: number;
   circuit_open_until: string | null;
   resource_count: number;
+  timings?: { name: string; seconds: number; timeout: number; ok: boolean }[]; // slowest first
 }
 
 // Per-type widget payloads (data field), as the engine emits them.
@@ -131,6 +132,7 @@ export interface MetricData {
   format?: { unit: string | null; precision: number };
   sparkline: { range: string; points: [number, number][] } | null;
   total?: { value: number; unit: Unit; pct: number } | null; // display.total
+  style?: "number" | "gauge";
 }
 export interface Bar {
   uid: string;

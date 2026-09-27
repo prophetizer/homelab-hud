@@ -56,6 +56,11 @@
   /* Monochrome (Material Design) icons are black glyphs; this lifts them to the text
      colour on a dark surface. Brand icons are left in their own colours. */
   --icon-mono-filter: invert(0.82);
+
+  /* Depth, neutral only: a tile sits on the page by shadow and a faint top light, never
+     by hue (invariant 9). */
+  --shadow-tile: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 24px -14px rgb(0 0 0 / 0.7);
+  --tile-highlight: linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0) 42%);
 }
 
 :root[data-theme="light"] {
@@ -70,4 +75,6 @@
   --fg-muted: #4e5966;
   --fg-faint: #6a7582;
   --icon-mono-filter: none;
+  --shadow-tile: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 20px -14px rgb(15 23 42 / 0.25);
+  --tile-highlight: none;
 }

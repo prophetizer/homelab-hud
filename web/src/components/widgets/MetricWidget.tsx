@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import { formatAge, formatShare, formatValue } from "../../api/format";
 import type { MetricData, ResolvedWidget } from "../../api/types";
+import { useTweened } from "../../hooks/useTweened";
 import { WidgetFrame } from "../WidgetFrame";
+import { Gauge } from "./Gauge";
 import { Meter } from "./Meter";
 
 const W = 200;
@@ -46,19 +48,37 @@ export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as MetricData;
   const precision = data.format?.precision ?? 1;
   const total = data.total && data.value !== null ? data.total : null;
+  const value = useTweened(data.value);
+  const pct = useTweened(total ? total.pct : data.unit === "pct" ? data.value : null);
   // With a total: "70.6 / 128 GiB" over a usage bar. Otherwise the value and its unit.
-  const [number, unit] = total
-    ? formatShare(data.value as number, total.value, data.unit, precision)
-    : valueParts(formatValue(data.value, data.unit, precision), data.unit);
+  const [number, unit] =
+    total && value !== null
+      ? formatShare(value, total.value, data.unit, precision)
+      : valueParts(formatValue(value, data.unit, precision), data.unit);
   const age = data.ts ? `${data.resource_name ? `${data.resource_name} · ` : ""}updated ${formatAge(data.ts)}` : undefined;
   const range = data.sparkline && data.sparkline.points.length > 1 ? data.sparkline : null;
+  const gauge = data.style === "gauge" && pct !== null;
   return (
     <WidgetFrame widget={widget}>
-      <p className="metric__value" data-state={widget.state ?? undefined} title={age}>
-        <span className="metric__number">{number}</span>
-        {unit ? <span className="metric__unit">{unit}</span> : null}
-      </p>
-      {total ? (
+      {gauge ? (
+        <div className="metric__gauge" title={age}>
+          <Gauge pct={pct} state={widget.state}>
+            <span className="metric__number">{pct.toFixed(pct < 10 ? 1 : 0)}</span>
+            <span className="metric__unit">%</span>
+          </Gauge>
+          {total ? (
+            <p className="metric__gauge-caption">
+              <span className="metric__gauge-value">{number}</span> {unit}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="metric__value" data-state={widget.state ?? undefined} title={age}>
+          <span className="metric__number">{number}</span>
+          {unit ? <span className="metric__unit">{unit}</span> : null}
+        </p>
+      )}
+      {total && !gauge ? (
         <div className="metric__share">
           <Meter pct={total.pct} state={widget.state} label={`${total.pct.toFixed(0)} % used`} />
           <span className="metric__share-text">{total.pct.toFixed(total.pct < 10 ? 1 : 0)} % used</span>

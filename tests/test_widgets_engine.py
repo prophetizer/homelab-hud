@@ -424,12 +424,14 @@ async def test_metric_total_shows_the_share_and_thresholds_judge_it(config_dir: 
   source: {{ resource: "{uid}", metric: used_bytes }}
   display:
     total: {{ metric: total_bytes }}
+    style: gauge
     thresholds: [{{ gte: 80, state: warn }}, {{ gte: 95, state: error }}]
 """),
     )
     (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
     assert w.data["total"] == {"value": 128 * gib, "unit": "bytes", "pct": 115 / 128 * 100}
     assert w.state is State.DEGRADED  # 89.8 % of the total: warn, not error
+    assert w.data["style"] == "gauge"  # the SPA draws the share as a dial
 
 
 async def test_list_rows_carry_a_usage_bar(config_dir: Path) -> None:

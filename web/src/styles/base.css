@@ -1557,3 +1557,151 @@ a.card__link:focus-visible {
     padding-left: calc(8px + var(--space-3) * 2 + 2.25rem);
   }
 }
+
+/* ---------------------------------------------------------------- depth and brand */
+
+.widget {
+  background-image: var(--tile-highlight);
+  box-shadow: var(--shadow-tile);
+}
+
+.widget--embed {
+  background-image: none;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.brand__mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- gauge */
+
+.metric__gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.gauge {
+  position: relative;
+  width: min(100%, 8.5rem);
+  aspect-ratio: 1;
+}
+
+.gauge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gauge__track,
+.gauge__fill {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.gauge__track {
+  stroke: var(--bg-hover);
+}
+
+.gauge__fill {
+  stroke: var(--status-unknown);
+  transition:
+    stroke-dasharray 0.6s ease,
+    stroke 0.5s ease;
+}
+
+.gauge[data-state="up"] .gauge__fill {
+  stroke: var(--status-up);
+}
+.gauge[data-state="degraded"] .gauge__fill {
+  stroke: var(--status-degraded);
+}
+.gauge[data-state="down"] .gauge__fill {
+  stroke: var(--status-down);
+}
+
+.gauge__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.15em;
+  padding-top: 38%;
+}
+
+.metric__gauge-caption {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.metric__gauge-value {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- live motion */
+/* Motion that means something changed: a down dot breathes until it recovers, and a tile
+   glows in its new status colour for a moment when its state flips. */
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-down) 22%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--status-down) 0%, transparent);
+  }
+}
+
+.status-dot[data-state="down"] {
+  animation: hud-pulse 1.8s ease-in-out infinite;
+}
+
+.widget[data-changed] {
+  transition: box-shadow 0.4s ease;
+}
+.widget[data-changed="up"] {
+  box-shadow: var(--shadow-tile), 0 0 0 1px var(--status-up), 0 0 22px -6px var(--status-up);
+}
+.widget[data-changed="degraded"] {
+  box-shadow: var(--shadow-tile), 0 0 0 1px var(--status-degraded), 0 0 22px -6px var(--status-degraded);
+}
+.widget[data-changed="down"] {
+  box-shadow: var(--shadow-tile), 0 0 0 1px var(--status-down), 0 0 22px -6px var(--status-down);
+}
+
+/* ---------------------------------------------------------------- system page poll time */
+
+.system__poll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.system__poll .meter {
+  width: 3.5rem;
+  height: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot[data-state="down"] {
+    animation: none;
+  }
+  .gauge__fill,
+  .widget[data-changed] {
+    transition: none;
+  }
+}

@@ -29,7 +29,14 @@ from hud.collector.breaker import CircuitBreaker
 from hud.collector.cache import LiveCache
 from hud.collector.normalize import Normalized, normalize
 from hud.models import Event
-from hud.providers.base import PollGroup, Provider, ProviderHealth, ProviderStatus, ProviderTier
+from hud.providers.base import (
+    GroupTiming,
+    PollGroup,
+    Provider,
+    ProviderHealth,
+    ProviderStatus,
+    ProviderTier,
+)
 from hud.providers.errors import ProviderPollError
 from hud.providers.registry import ProviderRegistry, RegistryDiff
 
@@ -66,6 +73,7 @@ class _GroupRun:
     last_poll: datetime | None = None
     last_success: datetime | None = None
     last_error: str | None = None
+    last_seconds: float | None = None  # how long the last run took, success or not
     running: bool = False
 
 
@@ -164,8 +172,14 @@ class Collector:
         run.running = True
         run.last_poll = datetime.now(UTC)
         provider = runs.provider
+        started = self._clock()
         try:
-            result = await asyncio.wait_for(provider.poll(group_name), timeout=run.group.timeout)
+            try:
+                result = await asyncio.wait_for(
+                    provider.poll(group_name), timeout=run.group.timeout
+                )
+            finally:
+                run.last_seconds = self._clock() - started
         except TimeoutError:
             self._failed(provider_name, run, f"timed out after {run.group.timeout:g}s")
             return False
@@ -287,6 +301,20 @@ class Collector:
             consecutive_failures=max((g.breaker.consecutive_failures for g in groups), default=0),
             circuit_open_until=open_until,
             resource_count=self.cache.provider_resource_count(name),
+            timings=sorted(
+                (
+                    GroupTiming(
+                        name=g.group.name,
+                        seconds=g.last_seconds,
+                        timeout=g.group.timeout,
+                        ok=g.last_error is None,
+                    )
+                    for g in groups
+                    if g.last_seconds is not None
+                ),
+                key=lambda t: t.seconds,
+                reverse=True,
+            ),
         )
 
 

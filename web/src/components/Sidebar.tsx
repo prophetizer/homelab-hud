@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
+import { BrandMark } from "./BrandMark";
 import type { Me } from "../api/auth";
 import { buildNavigation } from "../api/nav";
 import type { App, BoardSummary } from "../api/types";
@@ -41,7 +42,10 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
   return (
     <aside className="sidebar" data-open={menuOpen ? "" : undefined}>
       <div className="sidebar__bar">
-        <div className="sidebar__brand">HUD</div>
+        <div className="sidebar__brand">
+          <BrandMark />
+          HUD
+        </div>
         {here ? <span className="sidebar__here">{here}</span> : null}
         <button
           className="sidebar__toggle"

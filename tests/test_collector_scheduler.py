@@ -330,3 +330,27 @@ def test_collector_hands_apscheduler_the_demoting_logger() -> None:
     registry = ProviderRegistry(factory=lambda *_: None, context_factory=lambda _: None)  # type: ignore[arg-type,return-value]
     collector = Collector(registry, LiveCache())
     assert isinstance(collector._scheduler._logger, SchedulerLog)
+
+
+async def test_health_reports_how_long_each_group_took(harness: Harness) -> None:
+    """The System page's poll-time bar: slow is visible before it trips the breaker."""
+    collector, registry, _, clock, manager = harness
+    await registry.apply(manager.load())
+    collector.start()
+    try:
+        provider = registry.get("p")
+        assert isinstance(provider, Script)
+        real_poll = provider.poll
+
+        async def slow_poll(group: str) -> PollResult:
+            clock.t += 0.15  # the injected clock: "took 150 ms"
+            return await real_poll(group)
+
+        provider.poll = slow_poll  # type: ignore[method-assign]
+        assert await collector.run_group("p", "main") is True
+        health = collector.provider_health("p")
+        assert health is not None
+        (t,) = health.timings
+        assert (t.name, round(t.seconds, 3), t.timeout, t.ok) == ("main", 0.15, 0.2, True)
+    finally:
+        await collector.stop()

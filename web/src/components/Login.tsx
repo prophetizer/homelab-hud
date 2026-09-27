@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { type FormEvent, useState } from "react";
+import { BrandMark } from "./BrandMark";
 import { type Backends, oidcStartUrl } from "../api/auth";
 
 interface Props {
@@ -48,7 +49,10 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
   return (
     <div className="gate">
       <form className="gate__card" onSubmit={submit} aria-labelledby="gate-title">
-        <div className="sidebar__brand">HUD</div>
+        <div className="sidebar__brand">
+          <BrandMark />
+          HUD
+        </div>
         <h1 id="gate-title" className="gate__title">
           {title}
         </h1>
