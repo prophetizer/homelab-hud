@@ -150,7 +150,7 @@ def test_compare_does_not_call_a_parents_embedded_default_breaking() -> None:
     before = doc({"kind": None, "label": None})
     after = doc({"label": None, "kind": None, "attrs": None})
     assert compare(before, after) == [
-        "additive: ListSource.select default gains null key(s) from a new optional field"
+        "additive: ListSource.select default gains a new optional field at its default"
     ]
     # A default that changes a value is still breaking.
     moved = doc({"kind": "container", "label": None})
@@ -198,3 +198,29 @@ def test_compare_treats_a_widened_union_inside_a_list_as_additive() -> None:
     assert compare(before, doc(["ListWidget", "UnsupportedWidget"], {"maxItems": 5})) == [
         "BREAKING: BoardSpec.widgets changed"
     ]
+
+
+def test_compare_accepts_an_embedded_default_gaining_the_fields_own_default() -> None:
+    """Found adding ListDisplay.layout (default "rows"): ListWidget.display's embedded
+    default gained "layout": "rows" — not null, but exactly the new field's default."""
+
+    def doc(embedded: dict[str, Any], layout_default: str = "rows") -> dict[str, Any]:
+        display = {"$ref": "#/$defs/ListDisplay", "default": embedded}
+        child = {"properties": {"layout": {"default": layout_default, "enum": ["rows", "grid"]}}}
+        return {
+            "$defs": {
+                "ListWidget": {"properties": {"display": display}},
+                "ListDisplay": child,
+            }
+        }
+
+    before = doc({"fields": ["name"]})
+    before["$defs"]["ListDisplay"] = {"properties": {}}
+    assert compare(before, doc({"fields": ["name"], "layout": "rows"})) == [
+        "additive: ListDisplay.layout added (optional)",
+        "additive: ListWidget.display default gains a new optional field at its default",
+    ]
+    # An embedded value that differs from the field's own default changes meaning.
+    assert "BREAKING: ListWidget.display changed" in compare(
+        before, doc({"fields": ["name"], "layout": "grid"})
+    )

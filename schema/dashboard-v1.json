@@ -866,6 +866,15 @@
           "title": "Fields",
           "type": "array"
         },
+        "layout": {
+          "default": "rows",
+          "enum": [
+            "rows",
+            "grid"
+          ],
+          "title": "Layout",
+          "type": "string"
+        },
         "title": {
           "anyOf": [
             {
@@ -932,6 +941,7 @@
               "name",
               "state"
             ],
+            "layout": "rows",
             "title": null
           }
         },

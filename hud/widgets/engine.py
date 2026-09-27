@@ -255,7 +255,12 @@ class WidgetEngine:
             w,
             _worst(items),
             stale=any(r.stale for r in items),
-            data={"items": rows, "total": total, "empty_text": w.display.empty_text},
+            data={
+                "items": rows,
+                "total": total,
+                "empty_text": w.display.empty_text,
+                "layout": w.display.layout,
+            },
         )
 
     async def _metric(self, w: MetricWidget, now: datetime) -> ResolvedWidget:

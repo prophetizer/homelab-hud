@@ -132,6 +132,9 @@ class ListDisplay(_Spec):
     # A percentage field (0-100) drawn as a usage bar on each row, coloured by the row's
     # state — e.g. metric.used_pct on filesystems. Added 2026-09-26, optional.
     bar: str | None = None
+    # rows: one line per resource. grid: a wall of status squares, one per resource, for
+    # "is anything wrong among these 117" at a glance. Added 2026-09-26, optional.
+    layout: Literal["rows", "grid"] = "rows"
 
 
 class MetricSource(_Spec):

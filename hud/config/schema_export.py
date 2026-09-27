@@ -94,11 +94,13 @@ def compare(published: dict[str, Any], fresh: dict[str, Any]) -> list[str]:
         elif after is None:
             out.append(f"BREAKING: definition {name} removed")
         else:
-            out.extend(_compare_definition(name, before, after))
+            out.extend(_compare_definition(name, before, after, new_defs))
     return out
 
 
-def _compare_definition(name: str, before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+def _compare_definition(
+    name: str, before: dict[str, Any], after: dict[str, Any], defs: dict[str, Any] | None = None
+) -> list[str]:
     old_props, new_props = before.get("properties", {}), after.get("properties", {})
     old_req, new_req = set(before.get("required", [])), set(after.get("required", []))
     out = [f"BREAKING: {name}.{p} removed" for p in sorted(set(old_props) - set(new_props))]
@@ -107,13 +109,14 @@ def _compare_definition(name: str, before: dict[str, Any], after: dict[str, Any]
         if a == b:
             continue
         # A parent's embedded default copies a child's defaults, so a new optional field
-        # in the child shows up here as the parent default gaining `"field": null` — the
-        # same value the field defaults to. Not a break: every config means what it did.
+        # in the child shows up here as the parent default gaining `"field": <its default>`
+        # (null, or e.g. layout: "rows"). Not a break: every config means what it did.
         rest_same = {k: v for k, v in a.items() if k != "default"} == {
             k: v for k, v in b.items() if k != "default"
         }
-        if rest_same and _only_null_keys_added(a.get("default"), b.get("default")):
-            out.append(f"additive: {name}.{p} default gains null key(s) from a new optional field")
+        child = _ref_defaults(b, defs or {})
+        if rest_same and _only_default_keys_added(a.get("default"), b.get("default"), child):
+            out.append(f"additive: {name}.{p} default gains a new optional field at its default")
         elif (added := _union_widening(a, b)) is not None:
             out.append(f"additive: {name}.{p} accepts {', '.join(added)} as well")
         else:
@@ -163,6 +166,25 @@ def _union_widening(old: dict[str, Any], new: dict[str, Any]) -> list[str] | Non
         else:
             return None
     return added or None
+
+
+def _ref_defaults(prop: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
+    """The property defaults of the definition ``prop`` references, if it references one."""
+    ref = prop.get("$ref") or next(
+        (m.get("$ref") for m in prop.get("allOf", []) if isinstance(m, dict)), None
+    )
+    target = defs.get(str(ref).rsplit("/", 1)[-1], {}) if ref else {}
+    return {k: v["default"] for k, v in target.get("properties", {}).items() if "default" in v}
+
+
+def _only_default_keys_added(old: Any, new: Any, child: dict[str, Any]) -> bool:  # noqa: ANN401
+    """Top-level added keys may carry the child's own default; deeper ones must be null."""
+    if isinstance(old, dict) and isinstance(new, dict):
+        keep = all(k in new and _only_null_keys_added(v, new[k]) for k, v in old.items())
+        return keep and all(
+            new[k] is None or (k in child and new[k] == child[k]) for k in set(new) - set(old)
+        )
+    return bool(old == new)
 
 
 def _only_null_keys_added(old: Any, new: Any) -> bool:  # noqa: ANN401 — JSON values

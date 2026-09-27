@@ -65,7 +65,7 @@ export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
         </div>
       ) : null}
       {range ? (
-        <div className="metric__trend" title={`last ${range.range}`}>
+        <div className="metric__trend" data-state={widget.stale ? undefined : (widget.state ?? undefined)} title={`last ${range.range}`}>
           <Sparkline points={range.points} />
         </div>
       ) : null}

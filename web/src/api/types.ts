@@ -117,6 +117,7 @@ export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
+  layout?: "rows" | "grid";
 }
 export interface MetricData {
   value: number | null;

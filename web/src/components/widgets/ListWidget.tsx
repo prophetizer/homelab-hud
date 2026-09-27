@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import type { FieldValue, ListData, ResolvedWidget } from "../../api/types";
+import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
 import { Meter } from "./Meter";
 import { fieldText } from "./Fields";
@@ -27,8 +27,47 @@ export function splitFields(fields: readonly FieldValue[]): { sub: FieldValue[];
   return { sub, values, state };
 }
 
+const STATE_ORDER: State[] = ["down", "degraded", "unknown", "paused", "up"];
+
+/** "3 down · 2 unknown · 112 up": worst first, so the count that matters leads. */
+export function stateCounts(items: { state: State }[]): string {
+  const counts = new Map<State, number>();
+  for (const i of items) counts.set(i.state, (counts.get(i.state) ?? 0) + 1);
+  return STATE_ORDER.filter((s) => counts.has(s))
+    .map((s) => `${counts.get(s)} ${s}`)
+    .join(" · ");
+}
+
+/** A wall of status squares: 117 containers readable in one glance, trouble in colour. */
+function Wall({ items }: { items: ListData["items"] }) {
+  return (
+    <ul className="wall">
+      {items.map((item) => {
+        const label = `${item.title}: ${item.state}`;
+        return (
+          <li key={item.uid} className="wall__cell" data-state={item.state} data-stale={item.stale || undefined}>
+            {item.links["ui"] ? (
+              <a href={item.links["ui"]} target="_blank" rel="noreferrer noopener" aria-label={label} title={label} />
+            ) : (
+              <span role="img" aria-label={label} title={label} />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  if (data.layout === "grid" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        <p className="wall__summary">{stateCounts(data.items)}</p>
+        <Wall items={data.items} />
+      </WidgetFrame>
+    );
+  }
   return (
     <WidgetFrame widget={widget}>
       {data.items.length === 0 ? (

@@ -452,6 +452,7 @@ async def test_list_rows_carry_a_usage_bar(config_dir: Path) -> None:
     )
     (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
     assert [(i["name"], i["bar"]) for i in w.data["items"]] == [("/data", 47.1), ("/new", None)]
+    assert w.data["layout"] == "rows"  # the default; `grid` draws the status wall
 
 
 def test_metric_sort_keys_validate(config_dir: Path) -> None:
