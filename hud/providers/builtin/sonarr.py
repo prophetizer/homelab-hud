@@ -318,11 +318,20 @@ def _label(key: tuple[str, str]) -> str:
     return f"{source}: {message}" if source else message
 
 
+# The sized copies Sonarr keeps beside each original: a tile never needs a multi-MB file,
+# and HUD refuses anything over 2 MiB.
+_SIZED = {
+    "poster": ("/poster.jpg", "/poster-500.jpg"),
+    "fanart": ("/fanart.jpg", "/fanart-360.jpg"),
+}
+
+
 def _cover(series: dict[str, Any], cover_type: str) -> str | None:
     """The series' image of this type as a path on Sonarr (``/MediaCover/...``), or None."""
     for image in series.get("images") or []:
         if isinstance(image, dict) and image.get("coverType") == cover_type and image.get("url"):
-            return str(image["url"])
+            original, sized = _SIZED.get(cover_type, ("", ""))
+            return str(image["url"]).replace(original, sized) if original else str(image["url"])
     return None
 
 

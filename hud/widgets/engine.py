@@ -302,6 +302,24 @@ class WidgetEngine:
             ).value,
         }
 
+    def _grouped(self, w: ListWidget) -> list[list[Resource]]:
+        """Every selected row (unlimited), grouped by ``display.group``, in sort order: a
+        group sits where its first member does. Rows without a value stay alone."""
+        key = w.display.group or ""
+        ordered, _ = self._select(w.source.model_copy(update={"limit": None}))
+        groups: dict[str, list[Resource]] = {}
+        out: list[list[Resource]] = []
+        for r in ordered:
+            value = self.field(r, key).value
+            if value in (None, ""):
+                out.append([r])
+            elif str(value) in groups:
+                groups[str(value)].append(r)
+            else:
+                groups[str(value)] = [r]
+                out.append(groups[str(value)])
+        return out
+
     def _select(self, source: ListSource) -> tuple[list[Resource], int]:
         """Filter, sort and limit; also returns the count before the limit."""
         items = self.cache.resources(_filter(source))
@@ -437,12 +455,26 @@ class WidgetEngine:
         )
 
     def _list(self, w: ListWidget) -> ResolvedWidget:
-        items, total = self._select(w.source)
+        if w.display.group:
+            groups = self._grouped(w)
+            total = len(groups)
+            if w.source.limit is not None:
+                groups = groups[: w.source.limit]
+            items = [g[0] for g in groups]
+            counts = {g[0].uid: (len(g), self.field(g[0], w.display.group).value) for g in groups}
+        else:
+            items, total = self._select(w.source)
+            counts = {}
         rows = [
             {
                 "uid": r.uid,
                 "name": r.name,
-                "title": self._row_title(r, w.display.title),
+                "title": (
+                    str(counts[r.uid][1])
+                    if r.uid in counts and counts[r.uid][1] not in (None, "")
+                    else self._row_title(r, w.display.title)
+                ),
+                "group_count": counts[r.uid][0] if r.uid in counts else 1,
                 "state": r.state.value,
                 "stale": r.stale,
                 "links": r.links,

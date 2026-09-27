@@ -95,11 +95,14 @@ spec:
           media_type:   "{{ item.type }}"
           # direct play / copy / transcode — the number that decides whether the box copes.
           decision:     "{{ item.Media[0].Part[0].decision | default('directplay') }}"
-          # The show's poster for an episode, else the item's own. A path on this server,
-          # fetched by HUD with the token (never the browser): /api/v1/images.
-          image:        "{{ item.grandparentThumb or item.thumb }}"
+          # The show's poster for an episode, else the item's own, resized by Plex's photo
+          # transcoder: originals can be several MB (over HUD's 2 MiB cap) and a tile needs
+          # 300 px. A path on this server, fetched by HUD with the token: /api/v1/images.
+          image: >-
+            {{ '/photo/:/transcode?width=300&height=450&minSize=1&upscale=1&url=' ~ ((item.grandparentThumb or item.thumb) | urlencode) if (item.grandparentThumb or item.thumb) else none }}
           # The show's or film's background art, drawn blurred behind the now-playing card.
-          backdrop:     "{{ item.grandparentArt or item.art }}"
+          backdrop: >-
+            {{ '/photo/:/transcode?width=960&height=540&minSize=1&upscale=1&url=' ~ ((item.grandparentArt or item.art) | urlencode) if (item.grandparentArt or item.art) else none }}
         links:
           ui: "${PLEX_BASE_URL}/web/index.html#!/server/{{ item.machineIdentifier }}"
       metrics:
@@ -138,7 +141,7 @@ spec:
         method: GET
         path: /library/recentlyAdded
         headers: { Accept: application/json }
-        params: { X-Plex-Container-Start: "0", X-Plex-Container-Size: "12" }
+        params: { X-Plex-Container-Start: "0", X-Plex-Container-Size: "24" }
       select: "$.MediaContainer.Metadata[*]"
       interval: 5m
       map:
@@ -154,8 +157,13 @@ spec:
           media_type: "{{ item.type }}"
           year:       "{{ item.year }}"
           added_at:   "{{ item.addedAt }}"
-          image:      "{{ item.grandparentThumb or item.parentThumb or item.thumb }}"
-          backdrop:   "{{ item.grandparentArt or item.art }}"
+          # The show, for grouping new episodes and seasons into one card per show.
+          show: >-
+            {{ item.grandparentTitle or (item.parentTitle if item.type == 'season' else none) }}
+          image: >-
+            {{ '/photo/:/transcode?width=300&height=450&minSize=1&upscale=1&url=' ~ ((item.grandparentThumb or item.parentThumb or item.thumb) | urlencode) if (item.grandparentThumb or item.parentThumb or item.thumb) else none }}
+          backdrop: >-
+            {{ '/photo/:/transcode?width=960&height=540&minSize=1&upscale=1&url=' ~ ((item.grandparentArt or item.art) | urlencode) if (item.grandparentArt or item.art) else none }}
 
     # Libraries. `uuid` is assigned once when the library is created and survives renames
     # and key renumbering, so it is the stable native id here.

@@ -193,16 +193,20 @@ async def test_queue_items_carry_cover_paths_and_the_stuck_reason(
         result = await p.poll("collect")
         assert route.calls.last.request.url.params["includeSeries"] == "true"
         download = next(r for r in result.resources if r.kind == "download")
-        assert download.attrs["image"] == "/MediaCover/7/poster.jpg?lastWrite=1"
-        assert download.attrs["backdrop"] == "/MediaCover/7/fanart.jpg?lastWrite=1"
+        # The sized copies, not the originals (which can exceed HUD's 2 MiB image cap).
+        assert download.attrs["image"] == "/MediaCover/7/poster-500.jpg?lastWrite=1"
+        assert download.attrs["backdrop"] == "/MediaCover/7/fanart-360.jpg?lastWrite=1"
         assert download.attrs["reason"] == "No files found are eligible for import"
         health = {m.name: m.value for m in result.metrics if m.name.startswith("health_")}
         assert set(health) == {"health_errors", "health_warnings"}
         jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 16
-        img = api.get(f"{URL}/MediaCover/7/poster.jpg").mock(
+        img = api.get(f"{URL}/MediaCover/7/poster-500.jpg").mock(
             return_value=httpx.Response(200, content=jpeg)
         )
-        assert await p.fetch_image("/MediaCover/7/poster.jpg?lastWrite=1") == (jpeg, "image/jpeg")
+        assert await p.fetch_image("/MediaCover/7/poster-500.jpg?lastWrite=1") == (
+            jpeg,
+            "image/jpeg",
+        )
         assert img.calls.last.request.headers["X-Api-Key"] == "k" * 32  # its own auth, server-side
         assert await p.fetch_image("//evil.example/x.jpg") is None  # never another host
     finally:

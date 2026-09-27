@@ -130,6 +130,7 @@ export interface ListItem {
   backdrop?: boolean; // ... and /api/v1/images/<uid>?variant=backdrop has background art
   uptime?: { cells: UptimeCell[]; sla: number | null } | null; // display.uptime: the last 24 h
   trend?: [number, number][]; // display.trend: the last 6 h of one metric
+  group_count?: number; // display.group: how many rows this one stands for
 }
 export interface ListData {
   items: ListItem[];

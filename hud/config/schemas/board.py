@@ -147,6 +147,10 @@ class ListDisplay(_Spec):
     # A metric drawn as a small trend on each row (the last 6 h), e.g. response_seconds.
     # Added 2026-09-27, optional.
     trend: str | None = None
+    # Rows sharing this field's value become one row: the first (per `sort`) represents
+    # the group, titled by the value, with a count — "Foundation · 3 new". Rows without a
+    # value stay single. The limit counts groups. Added 2026-09-27, optional.
+    group: str | None = None
 
 
 class MetricSource(_Spec):

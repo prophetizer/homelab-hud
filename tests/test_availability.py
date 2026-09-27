@@ -433,3 +433,56 @@ async def test_list_rows_carry_a_trend_of_their_metric(config_dir: Path, db: Eng
     ).widgets  # type: ignore[arg-type]
     (row,) = w.data["items"]
     assert len(row["trend"]) == 10 and row["trend"][-1][1] == pytest.approx(0.9)
+
+
+async def test_shelf_groups_new_episodes_by_show(config_dir: Path) -> None:
+    """Emby lists each new episode; ten of one show would fill a shelf. Grouped, the show is
+    one card with a count, placed where its newest episode sorts; movies stay single."""
+
+    def item(uid: str, added: str, show: str | None) -> Resource:
+        r = res(uid)
+        attrs = {"added_at": added, **({"show": show} if show else {})}
+        return r.model_copy(update={"attrs": attrs})
+
+    cache = _cache_with(
+        item("emby:recent:fma-1", "2026-09-26T16:32Z", "Fullmetal Alchemist: Brotherhood"),
+        item("emby:recent:fma-2", "2026-09-26T22:40Z", "Fullmetal Alchemist: Brotherhood"),
+        item("emby:recent:lost", "2026-09-27T18:14Z", None),
+        item("emby:recent:snl", "2026-09-27T13:32Z", "Saturday Night Live"),
+        item("emby:recent:fma-3", "2026-09-26T22:12Z", "Fullmetal Alchemist: Brotherhood"),
+    )
+    doc = _one(
+        """
+- id: shelf
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: emby }, sort: ["-attrs.added_at"], limit: 2 }
+  display: { layout: shelf, group: attrs.show }
+""",
+        config_dir,
+    )
+    (w,) = (
+        await WidgetEngine(cache, None).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    got = [(i["title"], i["group_count"], i["uid"]) for i in w.data["items"]]
+    assert got == [("lost", 1, "emby:recent:lost"), ("Saturday Night Live", 1, "emby:recent:snl")]
+    assert w.data["total"] == 3  # three groups; the limit counted groups, not episodes
+    doc3 = _one(
+        """
+- id: shelf
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: emby }, sort: ["-attrs.added_at"] }
+  display: { layout: shelf, group: attrs.show }
+""",
+        config_dir,
+    )
+    (w,) = (
+        await WidgetEngine(cache, None).resolve_board(doc3, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    fma = w.data["items"][2]
+    assert (fma["title"], fma["group_count"], fma["uid"]) == (
+        "Fullmetal Alchemist: Brotherhood",
+        3,
+        "emby:recent:fma-2",  # the newest episode represents the show (its poster, its date)
+    )

@@ -64,7 +64,7 @@ spec:
           SortBy: DateCreated
           SortOrder: Descending
           IncludeItemTypes: "Movie,Episode"
-          Limit: "12"
+          Limit: "50"  # enough that grouping by show still leaves a full shelf
           Fields: "DateCreated,ProductionYear"
       select: "$.Items[*]"
       interval: 5m
@@ -83,6 +83,8 @@ spec:
           media_type: "{{ item.Type }}"
           year:       "{{ item.ProductionYear }}"
           added_at:   "{{ item.DateCreated }}"
+          # The show, for grouping new episodes into one card per show.
+          show:       "{{ item.SeriesName }}"
           image: >-
             {{ '/Items/' ~ (item.SeriesId or item.Id) ~ '/Images/Primary?maxHeight=300' }}
 

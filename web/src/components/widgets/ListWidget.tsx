@@ -209,6 +209,7 @@ function Shelf({ items }: { items: ListData["items"] }) {
         // Numbers too: Plex's addedAt is epoch seconds, shown as an age.
         const { sub, values } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
         const detail = [...sub, ...values];
+        const many = (item.group_count ?? 1) > 1 ? `${item.group_count} new` : null;
         const body = (
           <>
             <span className="shelf__art">
@@ -217,7 +218,9 @@ function Shelf({ items }: { items: ListData["items"] }) {
             <span className="shelf__title" title={item.title}>
               {item.title}
             </span>
-            {detail.length > 0 ? <span className="shelf__sub">{detail.map(fieldText).join(" · ")}</span> : null}
+            {detail.length > 0 || many ? (
+              <span className="shelf__sub">{[many, ...detail.map(fieldText)].filter(Boolean).join(" · ")}</span>
+            ) : null}
           </>
         );
         return (
