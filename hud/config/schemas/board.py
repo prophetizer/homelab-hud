@@ -131,7 +131,7 @@ class ListDisplay(_Spec):
     # "is anything wrong among these 117" at a glance. cards: a card per resource — an app
     # (icon, name, description) or, when it has a value, a reading (21.5 °C). Added
     # 2026-09-26, optional.
-    layout: Literal["rows", "grid", "cards"] = "rows"
+    layout: Literal["rows", "grid", "cards", "media"] = "rows"
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None
@@ -209,6 +209,9 @@ class MetricDisplay(_Spec):
     # itself when its unit is pct, else its share of `total`; anything else stays a
     # number. Added 2026-09-26, optional: dashboard/v1-compatible.
     style: Literal["number", "gauge"] = "number"
+    # Show the change against this long ago (↑ 12 % vs 1h), from stored samples. Unset:
+    # no delta. Added 2026-09-27, optional: dashboard/v1-compatible.
+    delta: Literal["15m", "1h", "6h", "24h"] | None = None
 
 
 class BarsSource(ListSource):

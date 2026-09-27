@@ -3,12 +3,12 @@ import { useState } from "react";
 
 /** A row's poster, served by HUD through the row's own provider (/api/v1/images), so the
  *  media server's token never reaches the browser. Gone without a trace if it fails. */
-export function Poster({ uid }: { uid: string }) {
+export function Poster({ uid, large }: { uid: string; large?: boolean }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
   return (
     <img
-      className="poster"
+      className={large ? "poster poster--lg" : "poster"}
       src={`/api/v1/images/${encodeURIComponent(uid)}`}
       alt=""
       decoding="async"

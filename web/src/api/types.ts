@@ -79,6 +79,8 @@ export interface BoardSummary {
   widgets: number;
   unsupported: number;
   apps: number; // workspace apps; a board of only apps is an app category, not a dashboard
+  state?: State | null; // the worst state among the resources it shows
+  down?: number;
 }
 
 export interface ProviderHealth {
@@ -130,7 +132,7 @@ export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
-  layout?: "rows" | "grid" | "cards";
+  layout?: "rows" | "grid" | "cards" | "media";
 }
 export interface MetricData {
   value: number | null;
@@ -141,6 +143,7 @@ export interface MetricData {
   sparkline: { range: string; points: [number, number][] } | null;
   total?: { value: number; unit: Unit; pct: number } | null; // display.total
   style?: "number" | "gauge";
+  delta?: { window: string; then: number; change: number; pct: number | null } | null;
 }
 export interface Bar {
   uid: string;

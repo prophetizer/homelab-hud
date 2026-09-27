@@ -21,4 +21,9 @@ describe("parseRoute", () => {
   it("round-trips board names", () => {
     expect(parseRoute(boardPath("infra-lab"))).toEqual({ kind: "board", name: "infra-lab" });
   });
+  it("parses kiosk rotation settings, clamped", () => {
+    expect(parseRoute("/kiosk", "?boards=home,infra&every=45")).toEqual({ kind: "kiosk", boards: ["home", "infra"], every: 45 });
+    expect(parseRoute("/kiosk", "")).toEqual({ kind: "kiosk", boards: [], every: 30 });
+    expect(parseRoute("/kiosk", "?every=1&boards=home,../x")).toEqual({ kind: "kiosk", boards: ["home"], every: 10 });
+  });
 });

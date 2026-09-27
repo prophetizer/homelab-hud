@@ -91,6 +91,10 @@ class BoardSummary(BaseModel):
     # category, not a dashboard; the sidebar needs to know that without waiting for
     # /apps, which probes every app's framing first.
     apps: int = 0
+    # The worst state among the resources the board shows, and how many are down: the
+    # sidebar's per-board dot and count. None for a board that shows no resources.
+    state: State | None = None
+    down: int = 0
 
 
 # ----------------------------------------------------------------------------- engine
@@ -107,7 +111,10 @@ class WidgetEngine:
     # ------------------------------------------------------------------ boards
 
     def summary(self, doc: BoardDocument) -> BoardSummary:
+        shown = [r for uid in self.referenced_uids(doc) if (r := self.cache.resource(uid))]
         return BoardSummary(
+            state=_worst(shown) if shown else None,
+            down=sum(1 for r in shown if r.state is State.DOWN),
             name=doc.metadata.name,
             title=doc.metadata.title or doc.metadata.name,
             icon=doc.metadata.icon,
@@ -361,8 +368,29 @@ class WidgetEngine:
                 "sparkline": sparkline,
                 "total": total,
                 "style": w.display.style,
+                "delta": await self._delta(w, m.value, now),
             },
         )
+
+    async def _delta(self, w: MetricWidget, value: float, now: datetime) -> dict[str, Any] | None:
+        """The change against ``display.delta`` ago, from the stored sample nearest that time
+        (within 5 minutes); None when there is no such sample rather than a guess."""
+        if w.display.delta is None or self.db is None:
+            return None
+        target = int(now.timestamp()) - parse_duration(w.display.delta)
+        near = await asyncio.to_thread(
+            read_samples, self.db, w.source.resource, w.source.metric, target - 300, target + 300
+        )
+        if not near:
+            return None
+        _, then = min(near, key=lambda p: abs(p[0] - target))
+        change = value - then
+        return {
+            "window": w.display.delta,
+            "then": then,
+            "change": change,
+            "pct": change / abs(then) * 100 if then else None,
+        }
 
     def _bars(self, w: BarsWidget) -> ResolvedWidget:
         items, total = self._select(w.source)

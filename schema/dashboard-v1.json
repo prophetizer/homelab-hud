@@ -954,7 +954,8 @@
           "enum": [
             "rows",
             "grid",
-            "cards"
+            "cards",
+            "media"
           ],
           "title": "Layout",
           "type": "string"
@@ -1144,6 +1145,24 @@
     "MetricDisplay": {
       "additionalProperties": true,
       "properties": {
+        "delta": {
+          "anyOf": [
+            {
+              "enum": [
+                "15m",
+                "1h",
+                "6h",
+                "24h"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delta"
+        },
         "format": {
           "$ref": "#/$defs/Format",
           "default": {
@@ -1299,6 +1318,7 @@
         "display": {
           "$ref": "#/$defs/MetricDisplay",
           "default": {
+            "delta": null,
             "format": {
               "precision": 1,
               "unit": null

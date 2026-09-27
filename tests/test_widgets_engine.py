@@ -624,3 +624,74 @@ async def test_hero_strip_reads_stats_from_other_resources(config_dir: Path) -> 
         ("Memory", None, "unknown"),
     ]
     assert {"glances:cpu:main", "glances:uptime:main"} <= engine.referenced_uids(doc)
+
+
+async def test_metric_delta_compares_with_the_stored_sample_nearest_the_window(
+    config_dir: Path, db: Engine
+) -> None:
+    from sqlalchemy import insert  # noqa: PLC0415
+
+    from hud.store.tables import samples, series  # noqa: PLC0415
+
+    uid = "adguard-home:dns:main"
+    now = int(T0.timestamp())
+    with db.begin() as conn:
+        sid = conn.execute(
+            insert(series).values(
+                provider="adguard-home",
+                resource_uid=uid,
+                metric="queries",
+                unit="count",
+                first_seen=now - 7200,
+                last_seen=now,
+            )
+        ).inserted_primary_key[0]
+        conn.execute(
+            insert(samples),
+            [
+                {"series_id": sid, "ts": now - 3600 + d, "value": v}
+                for d, v in [(-200, 90.0), (20, 100.0)]
+            ],
+        )
+    cache = LiveCache()
+    cache.apply("adguard-home", "g", [res(uid)], [metric(uid, "queries", 112.0)])
+
+    def tile(delta: str) -> str:
+        return _board(f"""
+- id: q
+  type: metric
+  grid: {{ col: 1, row: 1 }}
+  source: {{ resource: "{uid}", metric: queries }}
+  display: {{ delta: {delta} }}
+""")
+
+    (w,) = (await WidgetEngine(cache, db).resolve_board(board(config_dir, tile("1h")), T0)).widgets
+    assert w.data["delta"] == {"window": "1h", "then": 100.0, "change": 12.0, "pct": 12.0}
+    # No sample near 24 h ago: no delta, not a guess.
+    (w,) = (await WidgetEngine(cache, db).resolve_board(board(config_dir, tile("24h")), T0)).widgets
+    assert w.data["delta"] is None
+
+
+def test_board_summary_carries_its_worst_state_and_down_count(config_dir: Path) -> None:
+    cache = LiveCache()
+    cache.apply(
+        "docker",
+        "g",
+        [
+            res("docker:container:a"),
+            res("docker:container:b", State.DOWN),
+            res("docker:container:c", State.DOWN),
+        ],
+        [],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: all
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: docker } }
+"""),
+    )
+    s = WidgetEngine(cache, None).summary(doc)
+    assert (s.state, s.down) == (State.DOWN, 2)

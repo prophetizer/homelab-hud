@@ -8,6 +8,30 @@ import type { App, BoardSummary } from "../api/types";
 import { appPath, boardPath, onLinkClick, type Route } from "../router";
 import { Icon } from "./widgets/Icon";
 
+const RAIL_KEY = "hud.rail";
+
+/** The icon-only rail, per browser. Applied to <html data-rail> so the shell's width token
+ *  follows it before React renders anything else. */
+function railStored(): boolean {
+  let on = false;
+  try {
+    on = localStorage.getItem(RAIL_KEY) === "1";
+  } catch {
+    // no storage: expanded
+  }
+  document.documentElement.toggleAttribute("data-rail", on);
+  return on;
+}
+
+function saveRail(on: boolean): void {
+  document.documentElement.toggleAttribute("data-rail", on);
+  try {
+    localStorage.setItem(RAIL_KEY, on ? "1" : "0");
+  } catch {
+    // no storage: lasts until reload
+  }
+}
+
 /** Board icons are written mdi:server in YAML; /api/v1/icons takes mdi-server. */
 const iconName = (icon: string | null) => (icon ? icon.replace(/^mdi:/, "mdi-") : null);
 
@@ -29,6 +53,7 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
   const openGroup = route.kind === "app" ? route.board : null;
   // On a phone the sidebar is a one-line bar; the menu opens over the page on demand.
   const [menuOpen, setMenuOpen] = useState(false);
+  const [rail, setRail] = useState(railStored);
   const here =
     route.kind === "system"
       ? "System"
@@ -45,8 +70,20 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
       <div className="sidebar__bar">
         <div className="sidebar__brand">
           <BrandMark />
-          HUD
+          <span className="sidebar__label">HUD</span>
         </div>
+        <button
+          className="sidebar__rail-toggle"
+          type="button"
+          aria-pressed={rail}
+          title={rail ? "Expand the sidebar" : "Collapse to icons"}
+          onClick={() => {
+            setRail(!rail);
+            saveRail(!rail);
+          }}
+        >
+          {rail ? "»" : "«"}
+        </button>
         {here ? <span className="sidebar__here">{here}</span> : null}
         <button
           className="sidebar__toggle"
@@ -68,15 +105,19 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
               href={boardPath(b.name)}
               onClick={onLinkClick}
               aria-current={current("board", b.name)}
-              title={b.unsupported > 0 ? `${b.unsupported} widget(s) need a later phase` : undefined}
+              title={[b.title, b.down ? `${b.down} down` : null, b.unsupported > 0 ? `${b.unsupported} widget(s) need a later phase` : null]
+                .filter(Boolean)
+                .join(" · ")}
             >
               <Icon name={iconName(b.icon)} title={b.title} size="sm" />
-              {b.title}
+              <span className="sidebar__label">{b.title}</span>
+              {b.state ? <span className="status-dot sidebar__state" data-state={b.state} aria-label={b.state} /> : null}
+              {b.down ? <span className="sidebar__down">{b.down}</span> : null}
             </a>
           ))}
           <a href="/system" onClick={onLinkClick} aria-current={current("system")} className="sidebar__system">
             <Icon name="mdi-heart-pulse" title="System" size="sm" />
-            System
+            <span className="sidebar__label">System</span>
           </a>
           {boards && boards.length === 0 ? (
             <p className="sidebar__hint">No boards yet — add one under /config/boards/.</p>

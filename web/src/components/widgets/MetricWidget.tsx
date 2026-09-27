@@ -83,6 +83,17 @@ export function valueParts(text: string, unit: string | null): [string, string] 
   return [text, ""];
 }
 
+/** "↑ 12 % vs 1h": which way the value moved. Neutral on purpose — up is not good or bad,
+ *  and colour is reserved for status (invariant 9). */
+export function deltaText(d: NonNullable<MetricData["delta"]>, unit: MetricData["unit"], precision: number): string {
+  const arrow = d.change > 0 ? "↑" : d.change < 0 ? "↓" : "→";
+  const size =
+    d.pct !== null && unit !== "pct"
+      ? `${Math.abs(d.pct) < 10 ? Math.abs(d.pct).toFixed(1) : Math.abs(d.pct).toFixed(0)} %`
+      : formatValue(Math.abs(d.change), unit, precision);
+  return d.change === 0 ? `→ no change vs ${d.window}` : `${arrow} ${size} vs ${d.window}`;
+}
+
 export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as MetricData;
   const precision = data.format?.precision ?? 1;
@@ -117,6 +128,11 @@ export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
           {unit ? <span className="metric__unit">{unit}</span> : null}
         </p>
       )}
+      {data.delta ? (
+        <p className="metric__delta" data-dir={data.delta.change > 0 ? "up" : data.delta.change < 0 ? "down" : "flat"}>
+          {deltaText(data.delta, data.unit, precision)}
+        </p>
+      ) : null}
       {total && !gauge ? (
         <div className="metric__share">
           <Meter pct={total.pct} state={widget.state} label={`${total.pct.toFixed(0)} % used`} />

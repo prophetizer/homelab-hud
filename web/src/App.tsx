@@ -4,6 +4,7 @@ import { fetchApps, fetchBoards } from "./api/client";
 import { fetchHealth } from "./api/health";
 import type { Me } from "./api/auth";
 import { BoardView } from "./components/Board";
+import { Kiosk } from "./components/Kiosk";
 import { Login } from "./components/Login";
 import { Overview } from "./components/Overview";
 import { Sidebar } from "./components/Sidebar";
@@ -48,6 +49,9 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
     if (route.kind === "home" && landing) replaceRoute(boardPath(landing));
   }, [route.kind, landing]);
 
+  if (route.kind === "kiosk") {
+    return <Kiosk me={me} boards={boards.data?.boards ?? null} names={route.boards} every={route.every} />;
+  }
   const system = <Overview health={health.data} error={health.error} fetchedAt={health.fetchedAt} />;
   return (
     <div className="shell">

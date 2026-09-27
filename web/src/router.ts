@@ -8,11 +8,24 @@ export type Route =
   | { kind: "system" } // provider and process health
   | { kind: "board"; name: string }
   | { kind: "app"; board: string; widget: string }
+  | { kind: "kiosk"; boards: string[]; every: number } // full-screen rotation for a wall display
   | { kind: "missing"; path: string };
 
-export function parseRoute(pathname: string): Route {
+/** /kiosk?boards=home,infra&every=30 — no boards means every dashboard board. */
+export function parseKiosk(search: string): { kind: "kiosk"; boards: string[]; every: number } {
+  const q = new URLSearchParams(search);
+  const boards = (q.get("boards") ?? "")
+    .split(",")
+    .map((b) => b.trim())
+    .filter((b) => /^[A-Za-z0-9_-]+$/.test(b));
+  const every = Number.parseInt(q.get("every") ?? "", 10);
+  return { kind: "kiosk", boards, every: Number.isFinite(every) ? Math.min(3600, Math.max(10, every)) : 30 };
+}
+
+export function parseRoute(pathname: string, search = ""): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return { kind: "home" };
+  if (path === "/kiosk") return parseKiosk(search);
   if (path === "/system") return { kind: "system" };
   const m = /^\/boards\/([A-Za-z0-9_-]+)$/.exec(path);
   if (m && m[1] !== undefined) return { kind: "board", name: decodeURIComponent(m[1]) };
@@ -45,9 +58,9 @@ export function navigate(path: string): void {
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
+  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname, window.location.search));
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute(window.location.pathname));
+    const onPop = () => setRoute(parseRoute(window.location.pathname, window.location.search));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);

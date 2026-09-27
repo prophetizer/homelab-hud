@@ -171,6 +171,8 @@ def test_boards_endpoints(client: TestClient) -> None:
         "widgets": 3,
         "unsupported": 1,
         "apps": 0,
+        "state": "down",
+        "down": 1,
     }
     body = client.get("/api/v1/boards/demo").json()
     assert body["title"] == "Demo Board" and body["generation"] >= 1

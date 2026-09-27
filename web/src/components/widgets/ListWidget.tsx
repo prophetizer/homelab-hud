@@ -116,8 +116,59 @@ function Cards({ items }: { items: ListData["items"] }) {
   );
 }
 
+/** Now playing as cards: the poster first, then what, who and where, and how far in. */
+function MediaCards({ items }: { items: ListData["items"] }) {
+  return (
+    <ul className="media-cards">
+      {items.map((item) => {
+        const { sub, values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        return (
+          <li key={item.uid} className="media-card" data-state={item.state} data-stale={item.stale || undefined}>
+            {item.image ? <Poster uid={item.uid} large /> : null}
+            <div className="media-card__body">
+              <span className="media-card__title">
+                <span className="status-dot" data-state={item.state} aria-label={item.state} />
+                {item.links["ui"] ? (
+                  <a href={item.links["ui"]} target="_blank" rel="noreferrer noopener">
+                    {item.title}
+                  </a>
+                ) : (
+                  item.title
+                )}
+              </span>
+              {sub.length > 0 ? <span className="media-card__sub">{sub.map(fieldText).join(" · ")}</span> : null}
+              {item.bar !== undefined && item.bar !== null ? (
+                <Meter pct={item.bar} state={item.state} label={`${item.bar.toFixed(0)} % played`} />
+              ) : null}
+              <span className="media-card__meta">
+                {state ? (
+                  <span className="list__state" data-state={state}>
+                    {state}
+                  </span>
+                ) : null}
+                {values.map((f) => (
+                  <span key={f.key} title={f.label}>
+                    {fieldText(f)}
+                  </span>
+                ))}
+              </span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  if (data.layout === "media" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        <MediaCards items={data.items} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "cards" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
