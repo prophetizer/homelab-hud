@@ -236,7 +236,8 @@ async def test_plan_media_board_resolves_with_empty_cache(config_dir: Path) -> N
     assert w["arr-health"].data["empty_text"] == "No services discovered"
     assert w["queue-depth"].state is State.UNKNOWN
     assert "no resource" in (w["queue-depth"].error or "")
-    assert w["plex-uptime"].error == "widget type 'uptime' arrives in Phase 2"
+    # Real since Phase 2 slice 1; without a metrics store it says so instead of guessing.
+    assert w["plex-uptime"].error == "uptime needs the metrics store"
     assert w["tautulli"].state is State.UNKNOWN
     assert (w["tautulli"].error or "").startswith("unreachable")
 

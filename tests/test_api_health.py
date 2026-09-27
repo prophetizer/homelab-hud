@@ -43,7 +43,7 @@ def test_empty_config_boots_and_health_reports(tmp_path: Path) -> None:
         assert body["db"]["size_bytes"] > 0
         assert body["db"]["revisions"] == {
             "dashboard": "0002_sessions",
-            "metrics": "0001_baseline",
+            "metrics": "0002_availability_confirmation",
         }
         assert body["uptime_seconds"] >= 0
     assert (env.config_dir / "settings.yaml").exists(), "bootstrap must write settings.yaml"

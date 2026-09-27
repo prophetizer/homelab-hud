@@ -21,6 +21,7 @@ from pydantic import BaseModel
 from sqlalchemy import Engine
 
 from hud.collector import STATE_SEVERITY, LiveCache, ResourceFilter
+from hud.collector.availability import effective_state
 from hud.config.schemas import BoardDocument, Widget
 from hud.config.schemas.board import (
     BarsWidget,
@@ -35,6 +36,7 @@ from hud.config.schemas.board import (
     StaticWidget,
     Threshold,
     UnsupportedWidget,
+    UptimeWidget,
 )
 from hud.config.schemas.settings import parse_duration
 from hud.models import Metric, Resource, State, Unit
@@ -42,6 +44,7 @@ from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
+from hud.widgets.uptime import RANGES, cells, ratio, read_spans, tally
 
 # ----------------------------------------------------------------------------- payloads
 
@@ -130,6 +133,11 @@ class WidgetEngine:
                     uids.update(stat.resource for stat in w.display.stats)
             elif isinstance(w, ListWidget | BarsWidget):
                 uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
+            elif isinstance(w, UptimeWidget):
+                if w.source.resource:
+                    uids.add(w.source.resource)
+                else:
+                    uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
         return uids
 
     async def resolve_board(
@@ -177,11 +185,13 @@ class WidgetEngine:
         if w.icon is not None:
             return None if w.icon.strip().lower() == "none" else canonical_icon(w.icon)
         providers: set[str] = set()
-        if isinstance(w, ResourceWidget | MetricWidget):
-            providers = {w.source.resource.split(":", 1)[0]}
-        elif isinstance(w, ListWidget | BarsWidget):
+        single = _single_resource(w)
+        if single is not None:
+            providers = {single.split(":", 1)[0]}
+        elif isinstance(w, ListWidget | BarsWidget | UptimeWidget):
             sel = _as_list(w.source.select.provider)
-            rows = resolved.data.get("items") or resolved.data.get("bars") or []
+            data = resolved.data
+            rows = data.get("items") or data.get("bars") or data.get("rows") or []
             providers = set(sel) if sel else {str(i["uid"]).split(":", 1)[0] for i in rows}
         return canonical_icon(providers.pop()) if len(providers) == 1 else None
 
@@ -193,6 +203,8 @@ class WidgetEngine:
                 return await self._metric(w, now)
             case EmbedWidget():
                 return await self._embed(w, page_origin)
+            case UptimeWidget():
+                return await self._uptime(w, now)
             case _:
                 return self._resolve_sync(w)
 
@@ -405,6 +417,54 @@ class WidgetEngine:
             },
         )
 
+    async def _uptime(self, w: UptimeWidget, now: datetime) -> ResolvedWidget:
+        d = w.display
+        if w.source.resource:
+            r = self.cache.resource(w.source.resource)
+            uids, items, total = [w.source.resource], ([r] if r else []), 1
+        else:
+            items, total = self._select(w.source)
+            uids = [r.uid for r in items]
+        if self.db is None:
+            return _tile(w, State.UNKNOWN, error="uptime needs the metrics store", data={})
+        to = int(now.timestamp())
+        bars_from = to - RANGES[d.range]
+        sla_from = to - RANGES[d.sla_range or d.range]
+        spans = await asyncio.to_thread(read_spans, self.db, uids, min(bars_from, sla_from), to, to)
+        by_uid = {r.uid: r for r in items}
+        rows = []
+        for uid in uids:
+            s = spans.get(uid, [])
+            r = by_uid.get(uid)
+            sla_tally = tally(s, sla_from, to)
+            rows.append(
+                {
+                    "uid": uid,
+                    "title": self._row_title(r, d.title) if r else uid.rsplit(":", 1)[-1],
+                    "state": effective_state(r)[0] if r else State.UNKNOWN.value,
+                    "links": r.links if r else {},
+                    "cells": cells(s, bars_from, to, d.buckets),
+                    "sla": ratio(sla_tally, exclude_unknown=d.exclude_unknown),
+                    "down_seconds": sla_tally["down"],
+                    "unobserved_seconds": sla_tally["unknown"] + sla_tally["not_observed"],
+                    "approximate": any(x.approximate for x in s),
+                }
+            )
+        return _tile(
+            w,
+            _worst(items) if items else State.UNKNOWN,
+            stale=any(r.stale for r in items),
+            data={
+                "range": d.range,
+                "sla_range": d.sla_range or d.range,
+                "show_sla": d.show_sla,
+                "bucket_seconds": RANGES[d.range] // d.buckets,
+                "rows": rows,
+                "total": total,
+                "empty_text": d.empty_text,
+            },
+        )
+
     async def _embed(self, w: EmbedWidget, page_origin: str | None = None) -> ResolvedWidget:
         framing: Framing = await self.prober.probe(w.source.url, page_origin)
         data = {
@@ -498,6 +558,15 @@ def _threshold_state(value: float, thresholds: list[Threshold]) -> State:
         if above or below:
             state = State.DOWN if t.state == "error" else State.DEGRADED
     return state
+
+
+def _single_resource(w: Widget) -> str | None:
+    """The one resource a tile is about, when it is about exactly one."""
+    if isinstance(w, ResourceWidget | MetricWidget):
+        return w.source.resource
+    if isinstance(w, UptimeWidget):
+        return w.source.resource
+    return None
 
 
 def _as_list[T](v: T | list[T] | None) -> list[T] | None:

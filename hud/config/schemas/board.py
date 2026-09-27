@@ -28,12 +28,11 @@ from hud.config.schemas.settings import parse_duration
 from hud.models.enums import State
 
 PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(
-    {"static", "resource", "list", "metric", "embed", "bars"}
+    {"static", "resource", "list", "metric", "embed", "bars", "uptime"}
 )
 # Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
 LATER_WIDGET_TYPES: dict[str, str] = {
     "chart": "Phase 2",
-    "uptime": "Phase 2",
     "report": "Phase 2",
     "action": "Phase 3",
     "composite": "Phase 3",
@@ -231,6 +230,27 @@ class BarsDisplay(_Spec):
     empty_text: str = "Nothing to show"
 
 
+class UptimeSource(ListSource):
+    """One resource (``resource:``, as PLAN §8 shows it) or a selection of them."""
+
+    resource: str | None = None
+
+
+UptimeRange = Literal["24h", "7d", "30d", "90d"]
+
+
+class UptimeDisplay(_Spec):
+    range: UptimeRange = "24h"
+    buckets: int = Field(default=48, ge=6, le=120)
+    show_sla: bool = True
+    # The SLA % over a different window than the bars: 24 h of cells beside a 30-day %.
+    sla_range: UptimeRange | None = None
+    # §6.3: unknown and not-observed time is left out of the ratio. Off: it counts as down.
+    exclude_unknown: bool = True
+    title: str | None = None  # row title field, as ListDisplay.title
+    empty_text: str = "Nothing to show"
+
+
 class EmbedSource(_Spec):
     url: str
     sandbox: Literal["strict", "relaxed"] = "strict"
@@ -302,6 +322,15 @@ class BarsWidget(_Widget):
     display: BarsDisplay = BarsDisplay()
 
 
+class UptimeWidget(_Widget):
+    """Availability history as a strip of cells per resource, and its SLA % (PLAN §8,
+    §6.3). Implemented 2026-09-27 (Phase 2 slice 1); the type was reserved from v1."""
+
+    type: Literal["uptime"]
+    source: UptimeSource
+    display: UptimeDisplay = UptimeDisplay()
+
+
 class EmbedWidget(_Widget):
     type: Literal["embed"]
     source: EmbedSource
@@ -335,6 +364,7 @@ Widget = Annotated[
     | Annotated[MetricWidget, Tag("metric")]
     | Annotated[EmbedWidget, Tag("embed")]
     | Annotated[BarsWidget, Tag("bars")]
+    | Annotated[UptimeWidget, Tag("uptime")]
     | Annotated[UnsupportedWidget, Tag("unsupported")],
     Discriminator(_widget_tag),
 ]

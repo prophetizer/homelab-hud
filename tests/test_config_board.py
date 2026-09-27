@@ -11,6 +11,7 @@ from hud.config.schemas import (
     MetricWidget,
     UnsupportedWidget,
 )
+from hud.config.schemas.board import UptimeWidget
 from tests.conftest import FIXTURES
 
 SETTINGS = "apiVersion: hud/v1\nkind: Settings\n"
@@ -68,12 +69,13 @@ def test_plan_example_loads(manager: ConfigManager, config_dir: Path) -> None:
     assert by_id["queue-depth"].display.thresholds[1].gte == 200
     assert isinstance(by_id["tautulli"], EmbedWidget)
     assert by_id["tautulli"].display.open_in == "workspace"
-    # chart and uptime are Phase 2: they validate, are kept, and say why they cannot render.
+    # The plan's uptime widget (§8) validates as the real type since Phase 2 slice 1.
+    assert isinstance(by_id["plex-uptime"], UptimeWidget)
+    assert by_id["plex-uptime"].source.resource == "plex:service:main"
+    assert (by_id["plex-uptime"].display.range, by_id["plex-uptime"].display.buckets) == ("90d", 90)
+    # chart is still Phase 2: it validates, is kept, and says why it cannot render.
     later = {w.id: w.reason for w in doc.unsupported_widgets}
-    assert later == {
-        "plex-uptime": "widget type 'uptime' arrives in Phase 2",
-        "net-throughput": "widget type 'chart' arrives in Phase 2",
-    }
+    assert later == {"net-throughput": "widget type 'chart' arrives in Phase 2"}
     assert manager.snapshot.warnings == ()
 
 

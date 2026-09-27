@@ -21,6 +21,7 @@ from hud.api.images import ImageCache
 from hud.api.spa import mount_spa
 from hud.auth import AuthError, Authorizer, AuthService
 from hud.collector import LiveCache, StoreWriter
+from hud.collector.availability import AvailabilityRecorder
 from hud.collector.scheduler import Collector
 from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolver, redact
 from hud.providers import ProviderContext, ProviderRegistry
@@ -114,11 +115,15 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
 
         async with asyncio.TaskGroup() as tg:
             watcher = tg.create_task(config.watch(), name="config-watcher")
+            recorder = tg.create_task(
+                AvailabilityRecorder(cache, app.state.engine).run(), name="availability"
+            )
             log.info("HUD %s ready on port %d", __version__, env.port)
             try:
                 yield
             finally:
                 watcher.cancel()
+                recorder.cancel()
                 await collector.stop()
                 await registry.shutdown()
         app.state.engine.dispose()

@@ -27,7 +27,7 @@ def engine(paths: StorePaths) -> Engine:
 
 def test_upgrade_creates_both_files_at_head(paths: StorePaths) -> None:
     result = upgrade_all(paths)
-    assert result == {"dashboard": "0002_sessions", "metrics": "0001_baseline"}
+    assert result == {"dashboard": "0002_sessions", "metrics": "0002_availability_confirmation"}
     assert paths.dashboard_db.exists()
     assert paths.metrics_db.exists()
     assert not paths.backups_dir.exists(), "fresh files must not trigger a pre-migration backup"
@@ -138,3 +138,36 @@ def test_idempotent_upgrade_and_size(paths: StorePaths) -> None:
     upgrade_all(paths)
     upgrade_all(paths)
     assert paths.size_bytes() > 0
+
+
+def test_existing_metrics_db_upgrades_keeping_its_spans(paths: StorePaths) -> None:
+    """The live path: a metrics.db at 0001 with spans in it gains confirmed_at and
+    approximate without losing a row, and is backed up first."""
+    from alembic import command  # noqa: PLC0415
+
+    from hud.store.migrate import alembic_config, create_file_engine  # noqa: PLC0415
+
+    paths.data_dir.mkdir(parents=True, exist_ok=True)
+    upgrade_all(paths)  # dashboard.db to head, metrics.db to head …
+    paths.metrics_db.unlink()  # … then rebuild metrics.db at the old head only
+    eng = create_file_engine(paths.metrics_db)
+    with eng.connect() as raw:
+        conn = raw.execution_options(schema_translate_map={"metrics": None})
+        cfg = alembic_config("metrics")
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, "0001_baseline")
+        conn.exec_driver_sql(
+            "INSERT INTO availability (resource_uid, state, started_at) VALUES ('p:x:1', 'up', 100)"
+        )
+        conn.commit()
+    eng.dispose()
+
+    assert upgrade_all(paths)["metrics"] == "0002_availability_confirmation"
+    assert any(paths.backups_dir.iterdir()), "an upgrade of a real file backs it up first"
+    eng = create_file_engine(paths.metrics_db)
+    with eng.connect() as conn:
+        rows = conn.exec_driver_sql(
+            "SELECT resource_uid, state, confirmed_at, approximate FROM availability"
+        ).all()
+    eng.dispose()
+    assert [tuple(r) for r in rows] == [("p:x:1", "up", None, 0)]

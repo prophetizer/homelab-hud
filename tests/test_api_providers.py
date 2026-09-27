@@ -151,7 +151,7 @@ spec:
       grid: { col: 2, row: 1 }
       source: { select: { provider: demo } }
     - id: later
-      type: uptime
+      type: chart
       grid: { col: 3, row: 1 }
 """
 
@@ -177,7 +177,7 @@ def test_boards_endpoints(client: TestClient) -> None:
     w = {x["id"]: x for x in body["widgets"]}
     assert w["alpha"]["state"] == "up" and w["alpha"]["data"]["resource"]["name"] == "alpha"
     assert w["all"]["state"] == "down" and w["all"]["data"]["total"] == 2
-    assert w["later"]["error"] == "widget type 'uptime' arrives in Phase 2"
+    assert w["later"]["error"] == "widget type 'chart' arrives in Phase 2"
     assert client.get("/api/v1/boards/nope").status_code == 404
 
 

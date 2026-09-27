@@ -555,6 +555,9 @@
                 "$ref": "#/$defs/BarsWidget"
               },
               {
+                "$ref": "#/$defs/UptimeWidget"
+              },
+              {
                 "$ref": "#/$defs/UnsupportedWidget"
               }
             ]
@@ -2630,6 +2633,192 @@
         "type"
       ],
       "title": "UnsupportedWidget",
+      "type": "object"
+    },
+    "UptimeDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "buckets": {
+          "default": 48,
+          "maximum": 120,
+          "minimum": 6,
+          "title": "Buckets",
+          "type": "integer"
+        },
+        "empty_text": {
+          "default": "Nothing to show",
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "exclude_unknown": {
+          "default": true,
+          "title": "Exclude Unknown",
+          "type": "boolean"
+        },
+        "range": {
+          "default": "24h",
+          "enum": [
+            "24h",
+            "7d",
+            "30d",
+            "90d"
+          ],
+          "title": "Range",
+          "type": "string"
+        },
+        "show_sla": {
+          "default": true,
+          "title": "Show Sla",
+          "type": "boolean"
+        },
+        "sla_range": {
+          "anyOf": [
+            {
+              "enum": [
+                "24h",
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sla Range"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "title": "UptimeDisplay",
+      "type": "object"
+    },
+    "UptimeSource": {
+      "additionalProperties": true,
+      "description": "One resource (``resource:``, as PLAN \u00a78 shows it) or a selection of them.",
+      "properties": {
+        "limit": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Limit"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "attrs": null,
+            "kind": null,
+            "label": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "sort": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sort",
+          "type": "array"
+        }
+      },
+      "title": "UptimeSource",
+      "type": "object"
+    },
+    "UptimeWidget": {
+      "additionalProperties": true,
+      "description": "Availability history as a strip of cells per resource, and its SLA % (PLAN \u00a78,\n\u00a76.3). Implemented 2026-09-27 (Phase 2 slice 1); the type was reserved from v1.",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/UptimeDisplay",
+          "default": {
+            "buckets": 48,
+            "empty_text": "Nothing to show",
+            "exclude_unknown": true,
+            "range": "24h",
+            "show_sla": true,
+            "sla_range": null,
+            "title": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/UptimeSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "uptime",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "UptimeWidget",
       "type": "object"
     }
   },

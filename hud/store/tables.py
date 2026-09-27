@@ -77,6 +77,10 @@ availability = Table(
     Column("started_at", Integer, nullable=False),
     Column("ended_at", Integer),  # NULL = current span
     Column("reason", Text),
+    # Last time the recorder saw this span's state still holding (Phase 2 slice 1).
+    Column("confirmed_at", Integer),
+    # 1 when rebuilt from logged events rather than observed.
+    Column("approximate", Integer, nullable=False, server_default="0"),
 )
 Index("ix_avail_res_time", availability.c.resource_uid, availability.c.started_at.desc())
 Index(
