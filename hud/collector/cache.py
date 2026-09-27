@@ -41,21 +41,20 @@ class ResourceFilter:
     state: Sequence[State] | None = None
     labels: Mapping[str, str] | None = None  # all must match the resource's provider labels
     attrs: Mapping[str, str] | None = None  # all must equal the resource's attrs (dotted)
+    missing: Sequence[str] | None = None  # all must be absent or empty (dotted)
 
     def matches(self, r: Resource, provider_labels: Mapping[str, str]) -> bool:
-        if self.provider is not None and r.provider not in self.provider:
-            return False
-        if self.kind is not None and r.kind not in self.kind:
-            return False
-        if self.state is not None and r.state not in self.state:
-            return False
-        if self.attrs is not None and not all(
-            _attr(r.attrs, k) == v for k, v in self.attrs.items()
-        ):
-            return False
-        if self.labels is not None:
-            return all(provider_labels.get(k) == v for k, v in self.labels.items())
-        return True
+        return (
+            (self.provider is None or r.provider in self.provider)
+            and (self.kind is None or r.kind in self.kind)
+            and (self.state is None or r.state in self.state)
+            and (self.attrs is None or all(_attr(r.attrs, k) == v for k, v in self.attrs.items()))
+            and (self.missing is None or all(_attr(r.attrs, k) in (None, "") for k in self.missing))
+            and (
+                self.labels is None
+                or all(provider_labels.get(k) == v for k, v in self.labels.items())
+            )
+        )
 
 
 def _attr(attrs: Mapping[str, object], path: str) -> str | None:

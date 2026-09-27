@@ -349,6 +349,7 @@
             "attrs": null,
             "kind": null,
             "label": null,
+            "missing": null,
             "provider": null,
             "state": null
           }
@@ -556,6 +557,12 @@
               },
               {
                 "$ref": "#/$defs/UptimeWidget"
+              },
+              {
+                "$ref": "#/$defs/StatusWidget"
+              },
+              {
+                "$ref": "#/$defs/IncidentsWidget"
               },
               {
                 "$ref": "#/$defs/UnsupportedWidget"
@@ -864,6 +871,130 @@
       "title": "HeroStat",
       "type": "object"
     },
+    "IncidentsDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "empty_text": {
+          "default": "No incidents",
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "include_degraded": {
+          "default": true,
+          "title": "Include Degraded",
+          "type": "boolean"
+        },
+        "limit": {
+          "default": 20,
+          "maximum": 200,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "range": {
+          "default": "7d",
+          "enum": [
+            "24h",
+            "7d",
+            "30d",
+            "90d"
+          ],
+          "title": "Range",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "title": "IncidentsDisplay",
+      "type": "object"
+    },
+    "IncidentsWidget": {
+      "additionalProperties": true,
+      "description": "What went down, when, and for how long, from availability history. Added\n2026-09-27; a new widget type is dashboard/v1-compatible (\u00a711.3a).",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/IncidentsDisplay",
+          "default": {
+            "empty_text": "No incidents",
+            "include_degraded": true,
+            "limit": 20,
+            "range": "7d",
+            "title": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ListSource",
+          "default": {
+            "limit": null,
+            "select": {
+              "attrs": null,
+              "kind": null,
+              "label": null,
+              "missing": null,
+              "provider": null,
+              "state": null
+            },
+            "sort": [
+              "-state_severity",
+              "name"
+            ]
+          }
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "incidents",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "IncidentsWidget",
+      "type": "object"
+    },
     "Layout": {
       "additionalProperties": true,
       "properties": {
@@ -972,6 +1103,18 @@
           "default": null,
           "title": "Title"
         },
+        "trend": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trend"
+        },
         "uptime": {
           "default": false,
           "title": "Uptime",
@@ -1004,6 +1147,7 @@
             "attrs": null,
             "kind": null,
             "label": null,
+            "missing": null,
             "provider": null,
             "state": null
           }
@@ -1035,6 +1179,7 @@
             "image": false,
             "layout": "rows",
             "title": null,
+            "trend": null,
             "uptime": false
           }
         },
@@ -1065,6 +1210,7 @@
               "attrs": null,
               "kind": null,
               "label": null,
+              "missing": null,
               "provider": null,
               "state": null
             },
@@ -2105,6 +2251,21 @@
           "default": null,
           "title": "Label"
         },
+        "missing": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Missing"
+        },
         "provider": {
           "anyOf": [
             {
@@ -2431,6 +2592,99 @@
       "title": "StaticWidget",
       "type": "object"
     },
+    "StatusDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "ok_text": {
+          "default": "All systems operational",
+          "title": "Ok Text",
+          "type": "string"
+        },
+        "show": {
+          "default": 5,
+          "maximum": 50,
+          "minimum": 0,
+          "title": "Show",
+          "type": "integer"
+        }
+      },
+      "title": "StatusDisplay",
+      "type": "object"
+    },
+    "StatusWidget": {
+      "additionalProperties": true,
+      "description": "A status page's headline over a selection: \"All systems operational\", or what is\nnot. Added 2026-09-27; a new widget type is dashboard/v1-compatible (\u00a711.3a).",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/StatusDisplay",
+          "default": {
+            "ok_text": "All systems operational",
+            "show": 5
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ListSource",
+          "default": {
+            "limit": null,
+            "select": {
+              "attrs": null,
+              "kind": null,
+              "label": null,
+              "missing": null,
+              "provider": null,
+              "state": null
+            },
+            "sort": [
+              "-state_severity",
+              "name"
+            ]
+          }
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "status",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "StatusWidget",
+      "type": "object"
+    },
     "TemplateInfo": {
       "additionalProperties": false,
       "description": "Display metadata a bundled template carries (PLAN.md \u00a78.5.1). Harmless on a\nhand-written provider; the wizard catalog reads it in Phase 3.",
@@ -2715,6 +2969,15 @@
           "default": null,
           "title": "Sla Range"
         },
+        "style": {
+          "default": "strip",
+          "enum": [
+            "strip",
+            "calendar"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
         "title": {
           "anyOf": [
             {
@@ -2767,6 +3030,7 @@
             "attrs": null,
             "kind": null,
             "label": null,
+            "missing": null,
             "provider": null,
             "state": null
           }
@@ -2795,6 +3059,7 @@
             "range": "24h",
             "show_sla": true,
             "sla_range": null,
+            "style": "strip",
             "title": null
           }
         },

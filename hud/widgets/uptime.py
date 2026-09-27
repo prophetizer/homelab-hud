@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import datetime, time, timedelta, tzinfo
 
 from sqlalchemy import Engine, func, select
 
@@ -27,6 +28,7 @@ class Span:
     start: int
     end: int
     approximate: bool
+    open: bool = False  # still running: its end is "now"
 
 
 def read_spans(
@@ -45,14 +47,15 @@ def read_spans(
                     avail_t.c.started_at,
                     end,
                     avail_t.c.approximate,
+                    avail_t.c.ended_at.is_(None),
                 )
                 .where(avail_t.c.resource_uid.in_(chunk))
                 .where(avail_t.c.started_at < to)
                 .where(end > frm)
                 .order_by(avail_t.c.resource_uid, avail_t.c.started_at)
             )
-            for uid, state, start, stop, approx in rows:
-                out[uid].append(Span(state, int(start), int(stop), bool(approx)))
+            for uid, state, start, stop, approx, is_open in rows:
+                out[uid].append(Span(state, int(start), int(stop), bool(approx), bool(is_open)))
     return out
 
 
@@ -85,4 +88,23 @@ def cells(spans: Sequence[Span], frm: int, to: int, n: int) -> list[dict[str, in
     return out
 
 
-__all__ = ["RANGES", "Span", "cells", "ratio", "read_spans", "tally"]
+def day_cells(
+    spans: Sequence[Span], days: int, tz: tzinfo, now: datetime
+) -> list[dict[str, object]]:
+    """One cell per calendar day in ``tz`` — midnight to midnight, DST-safe by building each
+    day from its date — ending today, clipped at now so today is not "not observed"."""
+    today = now.astimezone(tz).date()
+    to = int(now.timestamp())
+    out: list[dict[str, object]] = []
+    for i in range(days - 1, -1, -1):
+        d = today - timedelta(days=i)
+        start = int(datetime.combine(d, time.min, tz).timestamp())
+        end = min(int(datetime.combine(d + timedelta(days=1), time.min, tz).timestamp()), to)
+        t = tally(spans, start, end)
+        out.append(
+            {"t": start, "date": d.isoformat(), "weekday": d.weekday(), **t, "pct": ratio(t)}
+        )
+    return out
+
+
+__all__ = ["RANGES", "Span", "cells", "day_cells", "ratio", "read_spans", "tally"]

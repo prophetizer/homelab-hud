@@ -6,6 +6,8 @@ import { ListWidget } from "./widgets/ListWidget";
 import { MetricWidget } from "./widgets/MetricWidget";
 import { ResourceWidget } from "./widgets/ResourceWidget";
 import { StaticWidget } from "./widgets/StaticWidget";
+import { IncidentsWidget } from "./widgets/IncidentsWidget";
+import { StatusWidget } from "./widgets/StatusWidget";
 import { UptimeWidget } from "./widgets/UptimeWidget";
 import { UnsupportedWidget } from "./widgets/UnsupportedWidget";
 
@@ -23,6 +25,10 @@ export function Widget({ widget, board }: { widget: ResolvedWidget; board?: stri
       return <BarsWidget widget={widget} />;
     case "uptime":
       return <UptimeWidget widget={widget} />;
+    case "status":
+      return <StatusWidget widget={widget} />;
+    case "incidents":
+      return <IncidentsWidget widget={widget} />;
     case "embed":
       return <EmbedWidget widget={widget} board={board} />;
     default:

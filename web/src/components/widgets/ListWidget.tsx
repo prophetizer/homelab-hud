@@ -5,6 +5,7 @@ import { WidgetFrame } from "../WidgetFrame";
 import { Empty } from "./Empty";
 import { Icon } from "./Icon";
 import { Meter } from "./Meter";
+import { MiniSpark } from "./MiniSpark";
 import { Poster } from "./Poster";
 import { valueParts } from "./MetricWidget";
 import { cellState, formatSla } from "./UptimeWidget";
@@ -256,6 +257,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
                     {state}
                   </span>
                 ) : null}
+                {item.trend && item.trend.length > 1 ? <MiniSpark points={item.trend} title={`${item.title}: last 6 h`} /> : null}
                 {values.length > 0 ? (
                   <div className="list__values">
                     {values.map((f) => (

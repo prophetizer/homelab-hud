@@ -50,6 +50,25 @@ spec:
           value: "{{ item.state | float }}"
           unit_from: "{{ item.attributes.unit_of_measurement }}"
 
+    # Devices: switches, lights, binary sensors and the like. Their on/off is not their
+    # health; availability is — unavailable or unknown means HA cannot reach the device.
+    - name: devices
+      request: { method: GET, path: /api/states }
+      select: >-
+        $[?(@.entity_id =~ '^(binary_sensor|switch|light|lock|cover|fan|climate|media_player)\\.')]
+      interval: 60s
+      map:
+        uid:   "home-assistant:device:{{ item.entity_id }}"
+        kind:  device
+        name:  "{{ item.attributes.friendly_name | default(item.entity_id) }}"
+        state: "{{ 'down' if item.state in ['unavailable', 'unknown'] else 'up' }}"
+        attrs:
+          domain:       "{{ item.entity_id.split('.')[0] }}"
+          device_class: "{{ item.attributes.device_class }}"
+          raw_state:    "{{ item.state }}"
+        links:
+          ui: "${HA_BASE_URL}/history?entity_id={{ item.entity_id }}"
+
     # Automations: on → up, off → paused. Slow-changing, so polled less often.
     - name: automations
       request: { method: GET, path: /api/states }

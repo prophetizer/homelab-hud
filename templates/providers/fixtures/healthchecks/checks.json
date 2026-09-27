@@ -1,0 +1,70 @@
+{
+  "checks": [
+    {
+      "name": "Nightly backup",
+      "slug": "nightly-backup",
+      "tags": "backup",
+      "desc": "restic to the NAS",
+      "grace": 3600,
+      "n_pings": 42,
+      "status": "up",
+      "started": false,
+      "last_ping": "2026-09-27T03:02:11+00:00",
+      "next_ping": "2026-09-28T03:00:00+00:00",
+      "manual_resume": false,
+      "methods": "",
+      "unique_key": "a3f1c9d2e4b5a6c7d8e9f0a1b2c3d4e5f6a7b8c9",
+      "schedule": "0 3 * * *",
+      "tz": "UTC"
+    },
+    {
+      "name": "Photo sync",
+      "slug": "photo-sync",
+      "tags": "backup photos",
+      "desc": "",
+      "grace": 900,
+      "n_pings": 310,
+      "status": "grace",
+      "started": false,
+      "last_ping": "2026-09-27T10:00:04+00:00",
+      "next_ping": "2026-09-27T11:00:04+00:00",
+      "manual_resume": false,
+      "methods": "",
+      "unique_key": "b4e2d0c8a6f4e2d0c8a6f4e2d0c8a6f4e2d0c8a6",
+      "timeout": 3600
+    },
+    {
+      "name": "Certificate renewal",
+      "slug": "cert-renewal",
+      "tags": "",
+      "desc": "",
+      "grace": 86400,
+      "n_pings": 3,
+      "status": "down",
+      "started": false,
+      "last_ping": "2026-09-10T04:00:00+00:00",
+      "next_ping": null,
+      "manual_resume": false,
+      "methods": "",
+      "unique_key": "c5f3e1d9b7a5f3e1d9b7a5f3e1d9b7a5f3e1d9b7",
+      "schedule": "0 4 */7 * *",
+      "tz": "UTC"
+    },
+    {
+      "name": "Old job",
+      "slug": "old-job",
+      "tags": "",
+      "desc": "",
+      "grace": 3600,
+      "n_pings": 0,
+      "status": "paused",
+      "started": false,
+      "last_ping": null,
+      "next_ping": null,
+      "manual_resume": true,
+      "methods": "",
+      "unique_key": "d6a4f2e0c8b6a4f2e0c8b6a4f2e0c8b6a4f2e0c8",
+      "timeout": 86400
+    }
+  ]
+}

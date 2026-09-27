@@ -19,6 +19,7 @@ interface UptimeRow {
 }
 interface UptimeData {
   range: string;
+  style?: "strip" | "calendar";
   sla_range: string;
   show_sla: boolean;
   bucket_seconds: number;
@@ -35,6 +36,35 @@ export function cellState(c: UptimeCell): State | "none" {
   if (c.paused > 0) return "paused";
   if (c.unknown > 0) return "unknown";
   return "none";
+}
+
+/** A calendar day's colour by its uptime, not its worst minute: one five-minute blip
+ *  should not paint a whole day red. No data stays blank. */
+export function dayState(c: UptimeCell): State | "none" {
+  if (c.pct === null || c.pct === undefined) return "none";
+  if (c.pct >= 99.95) return "up";
+  if (c.pct >= 99) return "degraded";
+  return "down";
+}
+
+/** Weeks as columns, Monday at the top; the first column is padded to its weekday. */
+function Calendar({ cells, title }: { cells: UptimeCell[]; title: string }) {
+  const pad = cells[0]?.weekday ?? 0;
+  return (
+    <span className="calendar" role="img" aria-label={`${title}: daily uptime`}>
+      {Array.from({ length: pad }, (_, i) => (
+        <span key={`pad-${i}`} className="calendar__pad" />
+      ))}
+      {cells.map((c) => (
+        <span
+          key={c.t}
+          className="uptime__cell calendar__day"
+          data-state={dayState(c)}
+          title={`${c.date ?? ""}: ${c.pct === null || c.pct === undefined ? "no data" : formatSla(c.pct)}${c.down > 0 ? ` · down ${formatDuration(c.down)}` : ""}`}
+        />
+      ))}
+    </span>
+  );
 }
 
 /** "99.95 %", with the precision a status page uses: more nines, more digits. */
@@ -68,7 +98,7 @@ export function UptimeWidget({ widget }: { widget: ResolvedWidget }) {
       ) : (
         <ul className="uptime">
           {data.rows.map((row) => (
-            <li key={row.uid} className="uptime__row">
+            <li key={row.uid} className={data.style === "calendar" ? "uptime__row uptime__row--calendar" : "uptime__row"}>
               <span className="uptime__title">
                 <span className="status-dot" data-state={row.state} aria-label={row.state} />
                 {row.links["ui"] ? (
@@ -79,6 +109,9 @@ export function UptimeWidget({ widget }: { widget: ResolvedWidget }) {
                   row.title
                 )}
               </span>
+              {data.style === "calendar" ? (
+                <Calendar cells={row.cells} title={row.title} />
+              ) : (
               <span
                 className="uptime__strip"
                 style={{ "--cells": row.cells.length } as CSSProperties}
@@ -89,6 +122,7 @@ export function UptimeWidget({ widget }: { widget: ResolvedWidget }) {
                   <span key={c.t} className="uptime__cell" data-state={cellState(c)} title={cellTitle(c, data.bucket_seconds)} />
                 ))}
               </span>
+              )}
               {data.show_sla ? (
                 <span
                   className="uptime__sla"

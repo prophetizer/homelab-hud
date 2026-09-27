@@ -13,9 +13,10 @@ from __future__ import annotations
 import asyncio
 import re
 import statistics
-from collections.abc import Sequence
-from datetime import datetime
+from collections.abc import Callable, Coroutine, Sequence
+from datetime import UTC, datetime, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 from sqlalchemy import Engine
@@ -28,6 +29,7 @@ from hud.config.schemas.board import (
     EmbedWidget,
     Grid,
     HeroStat,
+    IncidentsWidget,
     Layout,
     ListSource,
     ListWidget,
@@ -35,6 +37,7 @@ from hud.config.schemas.board import (
     ResourceWidget,
     Sparkline,
     StaticWidget,
+    StatusWidget,
     Threshold,
     UnsupportedWidget,
     UptimeWidget,
@@ -45,7 +48,7 @@ from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
-from hud.widgets.uptime import RANGES, cells, ratio, read_spans, tally
+from hud.widgets.uptime import RANGES, cells, day_cells, ratio, read_spans, tally
 
 # ----------------------------------------------------------------------------- payloads
 
@@ -103,11 +106,23 @@ class BoardSummary(BaseModel):
 
 class WidgetEngine:
     def __init__(
-        self, cache: LiveCache, engine: Engine | None, prober: FramingProber | None = None
+        self,
+        cache: LiveCache,
+        engine: Engine | None,
+        prober: FramingProber | None = None,
+        timezone: Callable[[], str] | None = None,
     ) -> None:
         self.cache = cache
         self.db = engine
         self.prober = prober or FramingProber()
+        # Where "a day" begins, for calendar views: settings.timezone, read live so a
+        # config reload takes effect without wiring.
+        self._timezone = timezone
+
+    @property
+    def tz(self) -> tzinfo:
+        name = self._timezone() if self._timezone else "UTC"
+        return UTC if name == "UTC" else ZoneInfo(name)
 
     # ------------------------------------------------------------------ boards
 
@@ -139,7 +154,7 @@ class WidgetEngine:
                     uids.add(w.display.total.resource or w.source.resource)
                 if isinstance(w, ResourceWidget):
                     uids.update(stat.resource for stat in w.display.stats)
-            elif isinstance(w, ListWidget | BarsWidget):
+            elif isinstance(w, ListWidget | BarsWidget | StatusWidget | IncidentsWidget):
                 uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
             elif isinstance(w, UptimeWidget):
                 if w.source.resource:
@@ -196,27 +211,37 @@ class WidgetEngine:
         single = _single_resource(w)
         if single is not None:
             providers = {single.split(":", 1)[0]}
-        elif isinstance(w, ListWidget | BarsWidget | UptimeWidget):
+        elif isinstance(w, ListWidget | BarsWidget | UptimeWidget | StatusWidget | IncidentsWidget):
             sel = _as_list(w.source.select.provider)
             data = resolved.data
-            rows = data.get("items") or data.get("bars") or data.get("rows") or []
+            rows = (
+                data.get("items")
+                or data.get("bars")
+                or data.get("rows")
+                or data.get("problems")
+                or []
+            )
             providers = set(sel) if sel else {str(i["uid"]).split(":", 1)[0] for i in rows}
         return canonical_icon(providers.pop()) if len(providers) == 1 else None
 
     async def _dispatch(
         self, w: Widget, now: datetime, page_origin: str | None = None
     ) -> ResolvedWidget:
+        pending: Coroutine[Any, Any, ResolvedWidget]
         match w:
             case MetricWidget():
-                return await self._metric(w, now)
+                pending = self._metric(w, now)
             case EmbedWidget():
-                return await self._embed(w, page_origin)
+                pending = self._embed(w, page_origin)
             case UptimeWidget():
-                return await self._uptime(w, now)
+                pending = self._uptime(w, now)
             case ListWidget():
-                return await self._list_with_uptime(w, now)
+                pending = self._list_with_uptime(w, now)
+            case IncidentsWidget():
+                pending = self._incidents(w, now)
             case _:
                 return self._resolve_sync(w)
+        return await pending
 
     def _resolve_sync(self, w: Widget) -> ResolvedWidget:
         match w:
@@ -224,10 +249,10 @@ class WidgetEngine:
                 return self._static(w)
             case ResourceWidget():
                 return self._resource(w)
-            case ListWidget():
-                return self._list(w)
             case BarsWidget():
                 return self._bars(w)
+            case StatusWidget():
+                return self._status(w)
             case _:
                 reason = (
                     w.reason if isinstance(w, UnsupportedWidget) else f"no resolver for {w.type}"
@@ -312,16 +337,104 @@ class WidgetEngine:
 
     async def _list_with_uptime(self, w: ListWidget, now: datetime) -> ResolvedWidget:
         resolved = self._list(w)
-        if not w.display.uptime or self.db is None:
+        if self.db is None or not (w.display.uptime or w.display.trend):
             return resolved
         to = int(now.timestamp())
-        frm = to - RANGES["24h"]
         rows = resolved.data["items"]
-        spans = await asyncio.to_thread(read_spans, self.db, [r["uid"] for r in rows], frm, to, to)
-        for row in rows:
-            s = spans.get(row["uid"], [])
-            row["uptime"] = {"cells": cells(s, frm, to, 24), "sla": ratio(tally(s, frm, to))}
+        if w.display.uptime:
+            frm = to - RANGES["24h"]
+            uids = [r["uid"] for r in rows]
+            spans = await asyncio.to_thread(read_spans, self.db, uids, frm, to, to)
+            for row in rows:
+                s = spans.get(row["uid"], [])
+                row["uptime"] = {"cells": cells(s, frm, to, 24), "sla": ratio(tally(s, frm, to))}
+        if w.display.trend:
+            for row in rows:
+                points = await asyncio.to_thread(
+                    read_samples, self.db, row["uid"], w.display.trend, to - 6 * 3600, to
+                )
+                step = max(1, len(points) // 40)
+                row["trend"] = points[::step]
         return resolved
+
+    def _status(self, w: StatusWidget) -> ResolvedWidget:
+        """The headline over a selection, worst news first."""
+        items, total = self._select(w.source.model_copy(update={"limit": None}))
+        counts: dict[str, int] = {}
+        for r in items:
+            state = effective_state(r)[0]
+            counts[state] = counts.get(state, 0) + 1
+        down, degraded = counts.get("down", 0), counts.get("degraded", 0)
+        if not items:
+            headline = "Nothing to report"
+        elif down:
+            headline = "Major outage" if down * 2 >= len(items) else "Partial outage"
+        elif degraded:
+            headline = "Degraded performance"
+        elif counts.get("unknown"):
+            headline = "Some systems not reporting"
+        else:
+            headline = w.display.ok_text
+        problems = sorted(
+            (r for r in items if effective_state(r)[0] in ("down", "degraded", "unknown")),
+            key=lambda r: (-STATE_SEVERITY[State(effective_state(r)[0])], r.name.lower()),
+        )[: w.display.show]
+        return _tile(
+            w,
+            _worst(items) if items else State.UNKNOWN,
+            stale=any(r.stale for r in items),
+            data={
+                "headline": headline,
+                "counts": counts,
+                "total": total,
+                "problems": [
+                    {
+                        "uid": r.uid,
+                        "title": r.name,
+                        "state": effective_state(r)[0],
+                        "links": r.links,
+                    }
+                    for r in problems
+                ],
+            },
+        )
+
+    async def _incidents(self, w: IncidentsWidget, now: datetime) -> ResolvedWidget:
+        """Down (and degraded) spans, newest first, from availability history."""
+        if self.db is None:
+            return _tile(w, State.UNKNOWN, error="incidents need the metrics store", data={})
+        items, _ = self._select(w.source.model_copy(update={"limit": None}))
+        by_uid = {r.uid: r for r in items}
+        to = int(now.timestamp())
+        frm = to - RANGES[w.display.range]
+        spans = await asyncio.to_thread(read_spans, self.db, list(by_uid), frm, to, to)
+        wanted = {"down", "degraded"} if w.display.include_degraded else {"down"}
+        found = [(uid, s) for uid, ss in spans.items() for s in ss if s.state in wanted]
+        found.sort(key=lambda us: us[1].start, reverse=True)
+        incidents = [
+            {
+                "uid": uid,
+                "title": self._row_title(by_uid[uid], w.display.title),
+                "state": s.state,
+                "start": s.start,
+                "end": None if s.open else s.end,
+                "seconds": s.end - s.start,
+                "approximate": s.approximate,
+                "links": by_uid[uid].links,
+            }
+            for uid, s in found[: w.display.limit]
+        ]
+        ongoing = any(i["end"] is None and i["state"] == "down" for i in incidents)
+        return _tile(
+            w,
+            State.DOWN if ongoing else State.UP,
+            data={
+                "range": w.display.range,
+                "incidents": incidents,
+                "total": len(found),
+                "empty_text": w.display.empty_text,
+            },
+        )
 
     def _list(self, w: ListWidget) -> ResolvedWidget:
         items, total = self._select(w.source)
@@ -482,6 +595,9 @@ class WidgetEngine:
             return _tile(w, State.UNKNOWN, error="uptime needs the metrics store", data={})
         to = int(now.timestamp())
         bars_from = to - RANGES[d.range]
+        if d.style == "calendar":  # whole local days: start at the first day's midnight
+            first = day_cells([], RANGES[d.range] // 86_400, self.tz, now)[0]["t"]
+            bars_from = min(bars_from, int(str(first)))
         sla_from = to - RANGES[d.sla_range or d.range]
         spans = await asyncio.to_thread(read_spans, self.db, uids, min(bars_from, sla_from), to, to)
         by_uid = {r.uid: r for r in items}
@@ -496,7 +612,11 @@ class WidgetEngine:
                     "title": self._row_title(r, d.title) if r else uid.rsplit(":", 1)[-1],
                     "state": effective_state(r)[0] if r else State.UNKNOWN.value,
                     "links": r.links if r else {},
-                    "cells": cells(s, bars_from, to, d.buckets),
+                    "cells": (
+                        day_cells(s, RANGES[d.range] // 86_400, self.tz, now)
+                        if d.style == "calendar"
+                        else cells(s, bars_from, to, d.buckets)
+                    ),
                     "sla": ratio(sla_tally, exclude_unknown=d.exclude_unknown),
                     "down_seconds": sla_tally["down"],
                     "unobserved_seconds": sla_tally["unknown"] + sla_tally["not_observed"],
@@ -509,6 +629,7 @@ class WidgetEngine:
             stale=any(r.stale for r in items),
             data={
                 "range": d.range,
+                "style": d.style,
                 "sla_range": d.sla_range or d.range,
                 "show_sla": d.show_sla,
                 "bucket_seconds": RANGES[d.range] // d.buckets,
@@ -594,6 +715,7 @@ def _filter(source: ListSource) -> ResourceFilter:
         state=_as_list(sel.state),
         labels=sel.label,
         attrs=sel.attrs,
+        missing=sel.missing,
     )
 
 

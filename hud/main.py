@@ -99,7 +99,9 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.cache = cache
         app.state.collector = collector
         app.state.writer = writer
-        app.state.widgets = WidgetEngine(cache, app.state.engine)
+        app.state.widgets = WidgetEngine(
+            cache, app.state.engine, timezone=lambda: config.snapshot.settings.spec.timezone
+        )
         app.state.icons = IconStore(env.data_dir / "icons")
         app.state.images = ImageCache()
         auth = await _start_auth(app.state.engine, secrets, snap)

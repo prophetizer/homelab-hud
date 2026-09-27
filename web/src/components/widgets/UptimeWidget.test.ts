@@ -22,3 +22,13 @@ describe("uptime cells", () => {
     expect(formatSla(87.6)).toBe("88 %");
   });
 });
+
+describe("calendar days", () => {
+  it("colour a day by its uptime, not its worst minute", async () => {
+    const { dayState } = await import("./UptimeWidget");
+    expect(dayState(cell({ pct: 100 }))).toBe("up");
+    expect(dayState(cell({ pct: 99.5 }))).toBe("degraded");
+    expect(dayState(cell({ pct: 97 }))).toBe("down");
+    expect(dayState(cell({ pct: null }))).toBe("none");
+  });
+});

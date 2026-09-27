@@ -270,3 +270,166 @@ async def test_list_rows_carry_a_24h_strip_when_asked(config_dir: Path, db: Engi
     assert len(rows["web"]["cells"]) == 24 and rows["web"]["cells"][-1]["down"] == 1800
     assert rows["web"]["sla"] == 0.0  # observed only while down
     assert rows["db"]["sla"] is None  # never observed: no number
+
+
+# ---------------------------------------------------------------- status, incidents, calendar
+
+
+def _cache_with(*resources: Resource) -> LiveCache:
+    cache = LiveCache()
+    by_provider: dict[str, list[Resource]] = {}
+    for r in resources:
+        by_provider.setdefault(r.provider, []).append(r)
+    for p, rs in by_provider.items():
+        cache.apply(p, "g", rs, [])
+    return cache
+
+
+def _one(widget_yaml: str, config_dir: Path) -> object:
+    return board(config_dir, _board(widget_yaml))
+
+
+async def test_status_headline_names_the_worst_news(config_dir: Path) -> None:
+    doc = _one(
+        """
+- id: s
+  type: status
+  grid: { col: 1, row: 1 }
+  source: { select: { kind: service } }
+""",
+        config_dir,
+    )
+    ok = _cache_with(res("plex:service:main"), res("sonarr:service:main"))
+    (w,) = (await WidgetEngine(ok, None).resolve_board(doc, datetime.fromtimestamp(T, UTC))).widgets  # type: ignore[arg-type]
+    assert w.data["headline"] == "All systems operational" and w.data["problems"] == []
+    partial = _cache_with(
+        res("plex:service:main"), res("sonarr:service:main"), res("radarr:service:main", State.DOWN)
+    )
+    (w,) = (
+        await WidgetEngine(partial, None).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    assert w.data["headline"] == "Partial outage"
+    assert [p["title"] for p in w.data["problems"]] == ["main"]
+    assert w.data["counts"] == {"up": 2, "down": 1}
+
+
+async def test_incidents_list_what_went_down_and_for_how_long(config_dir: Path, db: Engine) -> None:
+    cache = _cache_with(res("plex:service:main"), res("sonarr:service:main", State.DEGRADED))
+    with db.begin() as conn:
+        conn.execute(
+            insert(availability),
+            [
+                {
+                    "resource_uid": "plex:service:main",
+                    "state": "down",
+                    "started_at": T - 7200,
+                    "ended_at": T - 6600,
+                    "confirmed_at": T - 6600,
+                    "approximate": 0,
+                },
+                {
+                    "resource_uid": "plex:service:main",
+                    "state": "up",
+                    "started_at": T - 6600,
+                    "ended_at": None,
+                    "confirmed_at": T,
+                    "approximate": 0,
+                },
+                {
+                    "resource_uid": "sonarr:service:main",
+                    "state": "degraded",
+                    "started_at": T - 600,
+                    "ended_at": None,
+                    "confirmed_at": T,
+                    "approximate": 0,
+                },
+            ],
+        )
+    doc = _one(
+        """
+- id: i
+  type: incidents
+  grid: { col: 1, row: 1 }
+  source: { select: { kind: service } }
+  display: { range: 24h }
+""",
+        config_dir,
+    )
+    (w,) = (
+        await WidgetEngine(cache, db).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    got = [(i["uid"], i["state"], i["end"], i["seconds"]) for i in w.data["incidents"]]
+    assert got == [
+        ("sonarr:service:main", "degraded", None, 600),  # newest first, still going
+        ("plex:service:main", "down", T - 6600, 600),
+    ]
+    assert w.state is State.UP  # nothing is down right now
+
+
+def test_calendar_days_start_at_local_midnight() -> None:
+    from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+    from hud.widgets.uptime import day_cells  # noqa: PLC0415
+
+    tz = ZoneInfo("America/Chicago")
+    now = datetime(2026, 9, 27, 15, 0, tzinfo=tz)
+    days = day_cells([Span("up", 0, 2_000_000_000, False)], 3, tz, now)
+    assert [d["date"] for d in days] == ["2026-09-25", "2026-09-26", "2026-09-27"]
+    assert datetime.fromtimestamp(int(str(days[0]["t"])), tz).hour == 0
+    assert days[-1]["up"] == 15 * 3600  # today stops at now, not midnight
+    assert days[0]["pct"] == 100.0
+
+
+async def test_select_missing_finds_everything_not_in_a_group(config_dir: Path) -> None:
+    grouped = res("docker:container:a")
+    grouped = grouped.model_copy(update={"attrs": {"homepage": {"group": "Media"}}})
+    cache = _cache_with(grouped, res("docker:container:b"), res("docker:container:c"))
+    doc = _one(
+        """
+- id: rest
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: docker, missing: [homepage.group] }, sort: [name] }
+""",
+        config_dir,
+    )
+    (w,) = (
+        await WidgetEngine(cache, None).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    assert [i["name"] for i in w.data["items"]] == ["b", "c"]
+
+
+async def test_list_rows_carry_a_trend_of_their_metric(config_dir: Path, db: Engine) -> None:
+    from hud.store.tables import samples  # noqa: PLC0415
+
+    cache = _cache_with(res("web:endpoint:sonarr"))
+    with db.begin() as conn:
+        sid = conn.execute(
+            insert(series).values(
+                provider="web",
+                resource_uid="web:endpoint:sonarr",
+                metric="response_seconds",
+                unit="seconds",
+                first_seen=T - 3600,
+                last_seen=T,
+            )
+        ).inserted_primary_key[0]
+        conn.execute(
+            insert(samples),
+            [{"series_id": sid, "ts": T - 600 + 60 * i, "value": 0.1 * i} for i in range(10)],
+        )
+    doc = _one(
+        """
+- id: web
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: web } }
+  display: { trend: response_seconds }
+""",
+        config_dir,
+    )
+    (w,) = (
+        await WidgetEngine(cache, db).resolve_board(doc, datetime.fromtimestamp(T, UTC))
+    ).widgets  # type: ignore[arg-type]
+    (row,) = w.data["items"]
+    assert len(row["trend"]) == 10 and row["trend"][-1][1] == pytest.approx(0.9)

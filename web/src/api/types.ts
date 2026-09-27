@@ -128,6 +128,7 @@ export interface ListItem {
   icon?: string | null; // display.icon: a name /api/v1/icons serves
   image?: boolean; // display.image: /api/v1/images/<uid> has a poster for this row
   uptime?: { cells: UptimeCell[]; sla: number | null } | null; // display.uptime: the last 24 h
+  trend?: [number, number][]; // display.trend: the last 6 h of one metric
 }
 export interface ListData {
   items: ListItem[];
@@ -190,10 +191,37 @@ export interface App {
 /** One bucket of availability history: seconds per state, and what HUD did not see. */
 export interface UptimeCell {
   t: number;
+  date?: string; // calendar cells: the local day
+  weekday?: number; // 0 = Monday
+  pct?: number | null;
   up: number;
   degraded: number;
   paused: number;
   down: number;
   unknown: number;
   not_observed: number;
+}
+
+export interface StatusData {
+  headline: string;
+  counts: Partial<Record<State, number>>;
+  total: number;
+  problems: { uid: string; title: string; state: State; links: Record<string, string> }[];
+}
+
+export interface Incident {
+  uid: string;
+  title: string;
+  state: State;
+  start: number;
+  end: number | null; // null: still going
+  seconds: number;
+  approximate: boolean;
+  links: Record<string, string>;
+}
+export interface IncidentsData {
+  range: string;
+  incidents: Incident[];
+  total: number;
+  empty_text: string;
 }

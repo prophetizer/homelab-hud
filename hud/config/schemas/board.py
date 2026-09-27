@@ -28,7 +28,7 @@ from hud.config.schemas.settings import parse_duration
 from hud.models.enums import State
 
 PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(
-    {"static", "resource", "list", "metric", "embed", "bars", "uptime"}
+    {"static", "resource", "list", "metric", "embed", "bars", "uptime", "status", "incidents"}
 )
 # Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
 LATER_WIDGET_TYPES: dict[str, str] = {
@@ -100,6 +100,9 @@ class Select(_Spec):
     # Matches the resource's own attributes, dotted paths, all must be equal — e.g.
     # {"homepage.group": "Media Links"}. Added 2026-09-25, optional: dashboard/v1-compatible.
     attrs: dict[str, str] | None = None
+    # Attributes that must be absent or empty — "everything not in a group":
+    # missing: [homepage.group]. Added 2026-09-27, optional: dashboard/v1-compatible.
+    missing: list[str] | None = None
 
 
 class ListSource(_Spec):
@@ -141,6 +144,9 @@ class ListDisplay(_Spec):
     # A 24 h availability strip on each row (hourly cells) and the day's uptime %, from
     # the availability history. Added 2026-09-27, optional: dashboard/v1-compatible.
     uptime: bool = False
+    # A metric drawn as a small trend on each row (the last 6 h), e.g. response_seconds.
+    # Added 2026-09-27, optional.
+    trend: str | None = None
 
 
 class MetricSource(_Spec):
@@ -255,6 +261,22 @@ class UptimeDisplay(_Spec):
     exclude_unknown: bool = True
     title: str | None = None  # row title field, as ListDisplay.title
     empty_text: str = "Nothing to show"
+    # strip: a row of cells per resource. calendar: one cell per local day (settings
+    # timezone), laid out as weeks — the long view. Added 2026-09-27, optional.
+    style: Literal["strip", "calendar"] = "strip"
+
+
+class StatusDisplay(_Spec):
+    ok_text: str = "All systems operational"
+    show: int = Field(default=5, ge=0, le=50)  # how many problems to name
+
+
+class IncidentsDisplay(_Spec):
+    range: UptimeRange = "7d"
+    limit: int = Field(default=20, ge=1, le=200)
+    include_degraded: bool = True
+    title: str | None = None
+    empty_text: str = "No incidents"
 
 
 class EmbedSource(_Spec):
@@ -337,6 +359,24 @@ class UptimeWidget(_Widget):
     display: UptimeDisplay = UptimeDisplay()
 
 
+class StatusWidget(_Widget):
+    """A status page's headline over a selection: "All systems operational", or what is
+    not. Added 2026-09-27; a new widget type is dashboard/v1-compatible (§11.3a)."""
+
+    type: Literal["status"]
+    source: ListSource = ListSource()
+    display: StatusDisplay = StatusDisplay()
+
+
+class IncidentsWidget(_Widget):
+    """What went down, when, and for how long, from availability history. Added
+    2026-09-27; a new widget type is dashboard/v1-compatible (§11.3a)."""
+
+    type: Literal["incidents"]
+    source: ListSource = ListSource()
+    display: IncidentsDisplay = IncidentsDisplay()
+
+
 class EmbedWidget(_Widget):
     type: Literal["embed"]
     source: EmbedSource
@@ -371,6 +411,8 @@ Widget = Annotated[
     | Annotated[EmbedWidget, Tag("embed")]
     | Annotated[BarsWidget, Tag("bars")]
     | Annotated[UptimeWidget, Tag("uptime")]
+    | Annotated[StatusWidget, Tag("status")]
+    | Annotated[IncidentsWidget, Tag("incidents")]
     | Annotated[UnsupportedWidget, Tag("unsupported")],
     Discriminator(_widget_tag),
 ]

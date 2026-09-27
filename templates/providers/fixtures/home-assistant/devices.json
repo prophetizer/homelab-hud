@@ -1,0 +1,31 @@
+[
+  {
+    "entity_id": "switch.rack_fan",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Rack Fan"
+    }
+  },
+  {
+    "entity_id": "light.office",
+    "state": "unavailable",
+    "attributes": {
+      "friendly_name": "Office Light"
+    }
+  },
+  {
+    "entity_id": "binary_sensor.front_door",
+    "state": "off",
+    "attributes": {
+      "friendly_name": "Front Door",
+      "device_class": "door"
+    }
+  },
+  {
+    "entity_id": "sensor.not_a_device",
+    "state": "21.5",
+    "attributes": {
+      "friendly_name": "Not a device"
+    }
+  }
+]

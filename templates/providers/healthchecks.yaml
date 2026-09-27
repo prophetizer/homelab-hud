@@ -1,0 +1,62 @@
+# Healthchecks (healthchecks.io, or self-hosted) — scheduled jobs: did last night's backup
+# run? Each check becomes a resource: up, late (grace), down or paused, with history.
+#
+# Copy to /config/providers/healthchecks.yaml, then supply:
+#   HEALTHCHECKS_BASE_URL            e.g. http://healthchecks:8000 (environment)
+#   secret healthchecks_api_key      a READ-ONLY API key (Project → Settings → API Access)
+#
+# Use a read-only key. It returns a stable `unique_key` per check and never the ping URLs,
+# which are credentials in their own right (anyone holding one can report a job run). This
+# template maps neither the ping nor the update URLs, whichever key is used.
+#
+# Mapped from the published v3 API reference (https://healthchecks.io/docs/api/), not from
+# a live instance: field drift against a particular version is unverified until deployed.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: healthchecks
+  labels: { category: monitoring }
+  template:
+    service: Healthchecks
+    icon: mdi:calendar-check
+    docs: https://healthchecks.io/docs/api/
+    requires:
+      - { name: HEALTHCHECKS_BASE_URL, kind: env, hint: "Base URL of your Healthchecks instance" }
+      - { name: healthchecks_api_key, kind: secret, hint: "A read-only API key (Project → Settings → API Access)" }
+spec:
+  transport:
+    base_url: ${HEALTHCHECKS_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:healthchecks_api_key}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 5s
+
+  resources:
+    # One resource per check. up → up, grace (late, inside its grace period) → degraded,
+    # down → down, paused → paused, new (never pinged) → unknown. The uid uses the read-only
+    # key's unique_key, else the slug, else the name: stable across renames only with a
+    # read-only key, which is one more reason to use one.
+    - name: checks
+      request: { path: /api/v3/checks/ }
+      select: "$.checks[*]"
+      map:
+        uid:   "healthchecks:check:{{ item.unique_key or item.slug or item.name }}"
+        kind:  check
+        name:  "{{ item.name or item.slug }}"
+        state: >-
+          {{ {'up': 'up', 'grace': 'degraded', 'down': 'down', 'paused': 'paused'}
+             .get(item.status, 'unknown') }}
+        attrs:
+          status:    "{{ item.status }}"
+          running:   "{{ item.started }}"
+          tags:      "{{ item.tags }}"
+          schedule:  "{{ item.schedule or item.timeout }}"
+          last_ping: "{{ item.last_ping }}"
+          next_ping: "{{ item.next_ping }}"
+          desc:      "{{ item.desc }}"
+      metrics:
+        - { name: pings, value: "{{ item.n_pings | float }}", unit: count }
