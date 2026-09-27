@@ -18,7 +18,7 @@
           "thumb": ""
         },
         "Player": {
-          "address": "172.31.10.21",
+          "address": "198.51.100.21",
           "device": "Living Room TV",
           "machineIdentifier": "pl1",
           "platform": "Chrome",
@@ -70,7 +70,7 @@
           "thumb": ""
         },
         "Player": {
-          "address": "172.31.10.22",
+          "address": "198.51.100.22",
           "device": "iPad",
           "machineIdentifier": "pl2",
           "platform": "Chrome",
@@ -136,7 +136,7 @@
           "thumb": ""
         },
         "Player": {
-          "address": "172.31.10.23",
+          "address": "198.51.100.23",
           "device": "Firefox",
           "machineIdentifier": "pl3",
           "platform": "Chrome",

@@ -1,6 +1,6 @@
 {
   "dns_addresses": [
-    "172.31.1.2"
+    "192.0.2.2"
   ],
   "dns_port": 53,
   "http_port": 80,

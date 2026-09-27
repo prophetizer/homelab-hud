@@ -98,9 +98,9 @@ def test_frame_ancestors_listing_the_hud_origin_allows_it() -> None:
 
 def test_http_app_on_an_https_page_is_mixed_content() -> None:
     """Found live: Node-RED on http:// framed from https://hud.… is a blank frame."""
-    v = _v(url="http://172.31.1.10:1880/")
+    v = _v(url="http://192.0.2.10:1880/")
     assert v.allowed is False and "mixed content" in v.reason
-    assert _v(url="http://172.31.1.10:1880/", page="http://hud.lan").allowed is True
+    assert _v(url="http://192.0.2.10:1880/", page="http://hud.lan").allowed is True
 
 
 @pytest.mark.parametrize(
