@@ -14,7 +14,7 @@ import asyncio
 import re
 import statistics
 from collections.abc import Callable, Coroutine, Sequence
-from datetime import UTC, datetime, tzinfo
+from datetime import UTC, date, datetime, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -483,6 +483,9 @@ class WidgetEngine:
                 "icon": self._icon(r, w.display.icon),
                 "image": w.display.image and bool(r.attrs.get("image")),
                 "backdrop": w.display.image and bool(r.attrs.get("backdrop")),
+                "when": (
+                    when(self.field(r, w.display.date).value, self.tz) if w.display.date else None
+                ),
             }
             for r in items
         ]
@@ -495,6 +498,7 @@ class WidgetEngine:
                 "total": total,
                 "empty_text": w.display.empty_text,
                 "layout": w.display.layout,
+                "today": datetime.now(self.tz).date().isoformat(),
             },
         )
 
@@ -718,6 +722,33 @@ class WidgetEngine:
 
 
 # ----------------------------------------------------------------------------- helpers
+
+
+def when(value: Any, tz: tzinfo) -> dict[str, Any] | None:  # noqa: ANN401
+    """A row's place on the calendar: its day (and time) in ``tz``. A date alone, or midnight
+    UTC — how *arr APIs write a release day — is that day with no time, never shifted."""
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        at = datetime.fromtimestamp(value, UTC)
+    elif isinstance(value, str) and value:
+        text = value.strip()
+        if len(text) == 10:
+            try:
+                return {"day": date.fromisoformat(text).isoformat(), "time": None}
+            except ValueError:
+                return None
+        try:
+            at = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=UTC)
+    else:
+        return None
+    utc = at.astimezone(UTC)
+    if (utc.hour, utc.minute, utc.second) == (0, 0, 0):
+        return {"day": utc.date().isoformat(), "time": None}
+    local = at.astimezone(tz)
+    return {"day": local.date().isoformat(), "time": local.strftime("%H:%M")}
 
 
 def _tile(

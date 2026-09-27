@@ -134,7 +134,9 @@ class ListDisplay(_Spec):
     # "is anything wrong among these 117" at a glance. cards: a card per resource — an app
     # (icon, name, description) or, when it has a value, a reading (21.5 °C). Added
     # 2026-09-26, optional.
-    layout: Literal["rows", "grid", "cards", "media", "shelf"] = "rows"
+    # agenda (added 2026-09-27): rows under day headings (Today, Tomorrow, Tue 29 Sep) by
+    # the `date` field, in settings.timezone — a release calendar.
+    layout: Literal["rows", "grid", "cards", "media", "shelf", "agenda"] = "rows"
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None
@@ -151,6 +153,10 @@ class ListDisplay(_Spec):
     # the group, titled by the value, with a count — "Foundation · 3 new". Rows without a
     # value stay single. The limit counts groups. Added 2026-09-27, optional.
     group: str | None = None
+    # A timestamp field (ISO 8601 or epoch seconds) placing each row on a day and a time,
+    # for `layout: agenda`. A midnight-UTC value is a date without a time (a release day)
+    # and is never shifted into the previous evening. Added 2026-09-27, optional.
+    date: str | None = None
 
 
 class MetricSource(_Spec):

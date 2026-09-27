@@ -239,8 +239,65 @@ function Shelf({ items }: { items: ListData["items"] }) {
   );
 }
 
+/** An agenda heading: Today / Tomorrow / Yesterday, else "Tue 29 Sep". Days are plain
+ *  dates (YYYY-MM-DD) already in settings.timezone, so no zone is applied here. */
+export function dayLabel(day: string, today: string | undefined): string {
+  const at = (d: string) => Date.parse(`${d}T12:00:00Z`);
+  const t = today ? at(today) : Number.NaN;
+  const d = at(day);
+  if (Number.isNaN(d)) return day;
+  const diff = Number.isNaN(t) ? Number.NaN : Math.round((d - t) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff === -1) return "Yesterday";
+  return new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(d);
+}
+
+/** Rows under day headings, in the order the source sorted them: a release calendar. */
+function Agenda({ items, today }: { items: ListData["items"]; today: string | undefined }) {
+  const days: { day: string; items: ListData["items"] }[] = [];
+  for (const item of items) {
+    const day = item.when?.day ?? "";
+    const last = days[days.length - 1];
+    if (last && last.day === day) last.items.push(item);
+    else days.push({ day, items: [item] });
+  }
+  return (
+    <div className="agenda">
+      {days.map((d) => (
+        <section key={d.day || "undated"} className="agenda__day" data-today={d.day === today || undefined}>
+          <h3 className="agenda__heading">{d.day ? dayLabel(d.day, today) : "Undated"}</h3>
+          <ul className="agenda__items">
+            {d.items.map((item) => {
+              const { sub } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+              return (
+                <li key={item.uid} className="agenda__item" data-stale={item.stale || undefined}>
+                  <span className="status-dot" data-state={item.state} aria-label={item.state} />
+                  {item.image ? <Poster uid={item.uid} className="agenda__poster" /> : null}
+                  <span className="agenda__main">
+                    <span className="agenda__title">{item.title}</span>
+                    {sub.length > 0 ? <span className="agenda__sub">{sub.map(fieldText).join(" · ")}</span> : null}
+                  </span>
+                  {item.when?.time ? <time className="agenda__time">{item.when.time}</time> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  if (data.layout === "agenda" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        <Agenda items={data.items} today={data.today} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "shelf" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>

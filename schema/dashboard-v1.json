@@ -1138,6 +1138,18 @@
           "default": null,
           "title": "Bar"
         },
+        "date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
         "empty_text": {
           "default": "Nothing to show",
           "title": "Empty Text",
@@ -1186,7 +1198,8 @@
             "grid",
             "cards",
             "media",
-            "shelf"
+            "shelf",
+            "agenda"
           ],
           "title": "Layout",
           "type": "string"
@@ -1270,6 +1283,7 @@
           "$ref": "#/$defs/ListDisplay",
           "default": {
             "bar": null,
+            "date": null,
             "empty_text": "Nothing to show",
             "fields": [
               "name",

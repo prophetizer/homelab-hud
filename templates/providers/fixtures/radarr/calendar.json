@@ -1,0 +1,25 @@
+[
+  {
+    "tmdbId": 550001,
+    "title": "Paper Moons",
+    "year": 2099,
+    "hasFile": false,
+    "inCinemas": "2099-09-01T00:00:00Z",
+    "digitalRelease": "2099-10-03T00:00:00Z",
+    "physicalRelease": "2099-11-10T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/41/poster.jpg?lastWrite=2"
+      }
+    ]
+  },
+  {
+    "tmdbId": 550002,
+    "title": "Glass Harbor",
+    "year": 2019,
+    "hasFile": true,
+    "inCinemas": "2019-05-01T00:00:00Z",
+    "images": []
+  }
+]

@@ -36,6 +36,8 @@ dev = [
 [project.entry-points."hud.providers"]
 docker = "hud.providers.builtin.docker:DockerProvider"
 http = "hud.providers.builtin.http:HttpChecks"
+overseerr = "hud.providers.builtin.overseerr:Overseerr"
+qbittorrent = "hud.providers.builtin.qbittorrent:Qbittorrent"
 sonarr = "hud.providers.builtin.sonarr:SonarrProvider"
 weather = "hud.providers.builtin.weather:Weather"
 

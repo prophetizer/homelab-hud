@@ -153,5 +153,13 @@
         "count"
       ]
     }
+  },
+  "calendar": {
+    "resources": {
+      "sonarr:upcoming:12-s2e5": "unknown",
+      "sonarr:upcoming:7-s1e3": "up",
+      "sonarr:upcoming:7-s1e4": "degraded"
+    },
+    "metrics": {}
   }
 }

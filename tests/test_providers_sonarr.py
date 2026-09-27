@@ -17,6 +17,7 @@ from hud.providers.builtin.sonarr import SonarrProvider
 from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
 from tests.conftest import FIXTURES
+from tests.test_templates import TEMPLATES
 
 URL = "http://sonarr.lab:8989"
 F = FIXTURES / "sonarr"
@@ -62,6 +63,7 @@ def api() -> Iterator[respx.MockRouter]:
         )
         router.get(f"{URL}/api/v3/health").mock(return_value=httpx.Response(200, json=HEALTH))
         router.get(f"{URL}/api/v3/queue").mock(return_value=httpx.Response(200, json=QUEUE))
+        router.get(f"{URL}/api/v3/calendar").mock(return_value=httpx.Response(200, json=[]))
         yield router
 
 
@@ -211,3 +213,32 @@ async def test_queue_items_carry_cover_paths_and_the_stuck_reason(
         assert await p.fetch_image("//evil.example/x.jpg") is None  # never another host
     finally:
         await p.shutdown()
+
+
+async def test_calendar_episodes_are_upcoming_resources_fetched_every_15_minutes(
+    config_dir: Path, api: respx.MockRouter
+) -> None:
+    """The same shape as the template's calendar: one resource per episode, keyed by series,
+    season and episode — and the calendar is not refetched on every 30 s queue poll."""
+    calendar = json.loads((TEMPLATES / "fixtures" / "sonarr" / "calendar.json").read_text())
+    route = api.get(f"{URL}/api/v3/calendar").mock(return_value=httpx.Response(200, json=calendar))
+    p = build(config_dir)
+    await p.startup()
+    try:
+        result = await p.poll("collect")
+        await p.poll("collect")
+    finally:
+        await p.shutdown()
+    assert route.call_count == 1
+    params = route.calls.last.request.url.params
+    assert params["includeSeries"] == "true" and params["start"].endswith("Z")
+    upcoming = {r.uid: r for r in result.resources if r.kind == "upcoming"}
+    assert {uid: r.state.value for uid, r in upcoming.items()} == {
+        "sonarr:upcoming:12-s2e5": "unknown",
+        "sonarr:upcoming:7-s1e3": "up",
+        "sonarr:upcoming:7-s1e4": "degraded",
+    }
+    ep = upcoming["sonarr:upcoming:12-s2e5"]
+    assert ep.attrs["episode"] == "S02E05 · The Quiet Shift"
+    assert ep.attrs["image"] == "/MediaCover/12/poster-500.jpg?lastWrite=1"
+    assert ep.parent_uid == "sonarr:service:main"

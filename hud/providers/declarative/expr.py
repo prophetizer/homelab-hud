@@ -15,6 +15,7 @@ the breaker rather than hanging the process.
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jinja2 import ChainableUndefined, TemplateError, Undefined
@@ -50,8 +51,16 @@ def _regex_search(value: Any, pattern: str) -> bool:  # noqa: ANN401
     return re.search(pattern, str(value)) is not None
 
 
+def _utcnow(days: float = 0, hours: float = 0) -> str:
+    """Now, shifted, as ISO 8601 UTC to the second — for a request's date window
+    (``start: "{{ utcnow(days=-1) }}"``) and for comparing against ISO timestamps."""
+    at = datetime.now(UTC) + timedelta(days=days, hours=hours)
+    return at.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def new_environment() -> _SandboxedNativeEnvironment:
     env = _SandboxedNativeEnvironment(undefined=ChainableUndefined, autoescape=False)
+    env.globals["utcnow"] = _utcnow
     env.filters["is_number"] = _is_number
     env.tests["number"] = _is_number
     env.filters["regex_search"] = _regex_search

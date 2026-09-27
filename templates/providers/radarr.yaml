@@ -164,3 +164,42 @@ spec:
           value: >-
             {{ (item.totalSpace | float - item.freeSpace | float) / (item.totalSpace | float) }}
           unit: ratio
+
+    # Films with a release (cinema, digital or physical) from yesterday to a month out — a
+    # release calendar (`layout: agenda`). A film can have several dates; `air_at` is the
+    # next one inside the window and `release` says which kind. Downloaded is up; released
+    # and not downloaded is degraded; not yet released is unknown.
+    - name: calendar
+      request:
+        method: GET
+        path: /api/v3/calendar
+        params:
+          start: "{{ utcnow(days=-1) }}"
+          end: "{{ utcnow(days=30) }}"
+          unmonitored: "false"
+      interval: 15m
+      map:
+        uid:   "radarr:upcoming:{{ item.tmdbId }}"
+        kind:  upcoming
+        name:  "{{ item.title }}"
+        state: >-
+          {% set d = [item.digitalRelease, item.physicalRelease, item.inCinemas] | select
+             | select('ge', utcnow(days=-1)) | sort | first %}{{ 'up' if item.hasFile
+             else 'degraded' if d and d < utcnow() else 'unknown' }}
+        parent_uid: "radarr:service:main"
+        attrs:
+          year: "{{ item.year }}"
+          air_at: >-
+            {{ [item.digitalRelease, item.physicalRelease, item.inCinemas] | select
+               | select('ge', utcnow(days=-1)) | sort | first }}
+          release: >-
+            {% set d = [item.digitalRelease, item.physicalRelease, item.inCinemas] | select
+               | select('ge', utcnow(days=-1)) | sort | first %}{{ 'Digital release'
+               if d and d == item.digitalRelease else 'Physical release'
+               if d and d == item.physicalRelease else 'In cinemas'
+               if d and d == item.inCinemas else none }}
+          has_file: "{{ item.hasFile }}"
+          image: >-
+            {{ (item.images | selectattr('coverType', 'equalto', 'poster')
+                | map(attribute='url') | first | replace('/poster.jpg', '/poster-500.jpg'))
+                if item.images else none }}

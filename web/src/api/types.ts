@@ -131,12 +131,14 @@ export interface ListItem {
   uptime?: { cells: UptimeCell[]; sla: number | null } | null; // display.uptime: the last 24 h
   trend?: [number, number][]; // display.trend: the last 6 h of one metric
   group_count?: number; // display.group: how many rows this one stands for
+  when?: { day: string; time: string | null } | null; // display.date: its day (and time) in settings.timezone
 }
 export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
-  layout?: "rows" | "grid" | "cards" | "media" | "shelf";
+  layout?: "rows" | "grid" | "cards" | "media" | "shelf" | "agenda";
+  today?: string; // YYYY-MM-DD in settings.timezone, for agenda headings
 }
 export interface MetricData {
   value: number | null;

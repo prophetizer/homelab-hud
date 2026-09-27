@@ -10,7 +10,8 @@ so the events feed shows changes rather than repeating every poll. Read-only: on
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -38,7 +39,10 @@ from hud.providers.sdk import (
 
 SERVICE_KIND = "service"
 DOWNLOAD_KIND = "download"
+UPCOMING_KIND = "upcoming"
 SERVICE_ID = "main"
+CALENDAR_EVERY = 900.0  # seconds between calendar fetches; episodes do not move often
+CALENDAR_DAYS = 14
 
 
 class SonarrConfig(PluginConfig):
@@ -94,6 +98,8 @@ class SonarrProvider(PluginProvider):
         self._client: httpx.AsyncClient | None = None
         self._status: dict[str, Any] = {}
         self._health_seen: dict[tuple[str, str], Severity] = {}
+        self._calendar: list[dict[str, Any]] = []
+        self._calendar_at = float("-inf")
 
     @property
     def service_uid(self) -> str:
@@ -133,6 +139,10 @@ class SonarrProvider(PluginProvider):
             raise ProviderPollError(self.name, "/api/v3/queue: no records list in response")
         service = self._service(health, now)
         result = PollResult(resources=[service], events=self._health_events(health, now))
+        for ep in await self._calendar_items(now):
+            upcoming = self._upcoming(ep, now)
+            if upcoming is not None:
+                result.resources.append(upcoming)
         bytes_left = 0.0
         for rec in records:
             if not isinstance(rec, dict):
@@ -258,6 +268,57 @@ class SonarrProvider(PluginProvider):
         )
         return resource, progress
 
+    async def _calendar_items(self, now: datetime) -> list[dict[str, Any]]:
+        """Episodes airing from yesterday to CALENDAR_DAYS out, refetched every
+        CALENDAR_EVERY seconds; between fetches the last answer is reused."""
+        if time.monotonic() - self._calendar_at >= CALENDAR_EVERY:
+            raw = await self._get(
+                "/api/v3/calendar",
+                start=_iso(now - timedelta(days=1)),
+                end=_iso(now + timedelta(days=CALENDAR_DAYS)),
+                includeSeries="true",
+                unmonitored="false",
+            )
+            self._calendar = (
+                [e for e in raw if isinstance(e, dict)] if isinstance(raw, list) else []
+            )
+            self._calendar_at = time.monotonic()
+        return self._calendar
+
+    def _upcoming(self, ep: dict[str, Any], now: datetime) -> Resource | None:
+        """One calendar episode, as the template maps it: downloaded is up, aired but not
+        downloaded is degraded, not yet aired is unknown."""
+        season, number = ep.get("seasonNumber"), ep.get("episodeNumber")
+        if not isinstance(season, int) or not isinstance(number, int) or "seriesId" not in ep:
+            return None
+        raw_series = ep.get("series")
+        series: dict[str, Any] = raw_series if isinstance(raw_series, dict) else {}
+        air = ep.get("airDateUtc")
+        if ep.get("hasFile"):
+            state = State.UP
+        elif isinstance(air, str) and air < _iso(now):
+            state = State.DEGRADED
+        else:
+            state = State.UNKNOWN
+        label = f"S{season:02d}E{number:02d}" + (f" · {ep['title']}" if ep.get("title") else "")
+        return Resource(
+            uid=make_uid(self.name, UPCOMING_KIND, f"{ep['seriesId']}-s{season}e{number}"),
+            provider=self.name,
+            kind=UPCOMING_KIND,
+            name=str(series.get("title") or ep.get("title") or label),
+            state=state,
+            parent_uid=self.service_uid,
+            attrs={
+                "show": series.get("title"),
+                "episode": label,
+                "air_at": air,
+                "network": series.get("network"),
+                "has_file": bool(ep.get("hasFile")),
+                "image": _cover(series, "poster"),
+            },
+            fetched_at=now,
+        )
+
     async def fetch_image(self, path: str) -> tuple[bytes, str] | None:
         if self._client is None:
             return None
@@ -333,6 +394,10 @@ def _cover(series: dict[str, Any], cover_type: str) -> str | None:
             original, sized = _SIZED.get(cover_type, ("", ""))
             return str(image["url"]).replace(original, sized) if original else str(image["url"])
     return None
+
+
+def _iso(at: datetime) -> str:
+    return at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _first_message(rec: dict[str, Any]) -> str | None:

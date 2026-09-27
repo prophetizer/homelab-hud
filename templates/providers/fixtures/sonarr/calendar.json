@@ -1,0 +1,58 @@
+[
+  {
+    "seriesId": 12,
+    "seasonNumber": 2,
+    "episodeNumber": 5,
+    "title": "The Quiet Shift",
+    "airDateUtc": "2099-10-01T01:00:00Z",
+    "hasFile": false,
+    "monitored": true,
+    "series": {
+      "title": "The Long Orbit",
+      "network": "Northwind",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/12/poster.jpg?lastWrite=1"
+        },
+        {
+          "coverType": "fanart",
+          "url": "/MediaCover/12/fanart.jpg"
+        }
+      ]
+    }
+  },
+  {
+    "seriesId": 7,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "title": "Low Tide",
+    "airDateUtc": "2020-01-02T02:00:00Z",
+    "hasFile": true,
+    "monitored": true,
+    "series": {
+      "title": "Harbor Lights",
+      "network": "Coastline",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/7/poster.jpg"
+        }
+      ]
+    }
+  },
+  {
+    "seriesId": 7,
+    "seasonNumber": 1,
+    "episodeNumber": 4,
+    "title": "",
+    "airDateUtc": "2020-01-09T02:00:00Z",
+    "hasFile": false,
+    "monitored": true,
+    "series": {
+      "title": "Harbor Lights",
+      "network": "Coastline",
+      "images": []
+    }
+  }
+]

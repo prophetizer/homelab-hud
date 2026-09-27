@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -27,8 +27,11 @@ from hud.config.schemas.provider import (
 )
 from hud.config.secrets import SecretNotFoundError, secret_name
 from hud.providers.base import HttpOptions, ProviderContext
+from hud.providers.declarative.expr import Expr, ExprError, new_environment
 from hud.providers.declarative.select import Selector
 from hud.providers.errors import ProviderBuildError, ProviderPollError
+
+_PARAM_ENV = new_environment()
 
 MAX_BODY_BYTES = 32 * 1024 * 1024  # a homelab API returning more than this is a bug
 
@@ -80,6 +83,22 @@ class CompiledRequest:
     body: dict[str, Any] | None
     paginate: Paginate | None
     cursor: Selector | None
+    # Param values holding ``{{ … }}``, rendered at each poll with no item in scope — for a
+    # moving window such as a calendar's ``start``/``end`` (``utcnow(days=14)``).
+    dynamic: dict[str, Expr] = field(default_factory=dict)
+
+    def render_params(self, provider: str) -> dict[str, str]:
+        if not self.dynamic:
+            return self.params
+        out = dict(self.params)
+        for k, expr in self.dynamic.items():
+            try:
+                out[k] = expr.render_str()
+            except ExprError as exc:
+                raise ProviderPollError(
+                    provider, f"{self.method} {self.path}: param {k}: {exc}"
+                ) from exc
+        return out
 
     @classmethod
     def build(
@@ -92,7 +111,17 @@ class CompiledRequest:
         except MissingEnvVarError as exc:
             raise ProviderBuildError(ctx.name, f"request {req.path!r}: {exc}") from exc
         cursor = Selector(paginate.cursor_path) if paginate and paginate.cursor_path else None
-        return cls(req.method, path, params, headers, req.body, paginate, cursor)
+        dynamic: dict[str, Expr] = {}
+        for k, v in list(params.items()):
+            if "{{" in v or "{%" in v:
+                try:
+                    dynamic[k] = Expr(_PARAM_ENV, v)
+                except ExprError as exc:
+                    raise ProviderBuildError(
+                        ctx.name, f"request {req.path!r}: param {k}: {exc}"
+                    ) from exc
+                del params[k]
+        return cls(req.method, path, params, headers, req.body, paginate, cursor, dynamic)
 
 
 async def fetch_pages(
@@ -104,11 +133,11 @@ async def fetch_pages(
     ``cursor`` style the generator also stops when the response carries no next cursor."""
     pg = req.paginate
     if pg is None:
-        yield await _fetch_json(client, provider, req, req.params)
+        yield await _fetch_json(client, provider, req, req.render_params(provider))
         return
     cursor: Any = None
     for page_no in range(pg.max_pages):
-        params = dict(req.params)
+        params = req.render_params(provider) | {}
         if pg.style == "page":
             params[pg.param] = str(page_no + 1)
         elif pg.style == "offset":

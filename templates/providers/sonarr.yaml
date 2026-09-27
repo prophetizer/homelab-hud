@@ -164,3 +164,36 @@ spec:
           value: >-
             {{ (item.totalSpace | float - item.freeSpace | float) / (item.totalSpace | float) }}
           unit: ratio
+
+    # Episodes airing from yesterday to two weeks out — a release calendar (`layout:
+    # agenda`). The window moves with every poll (utcnow). Downloaded is up; aired but not
+    # downloaded is degraded (worth a look); not yet aired is unknown (nothing to judge).
+    - name: calendar
+      request:
+        method: GET
+        path: /api/v3/calendar
+        params:
+          start: "{{ utcnow(days=-1) }}"
+          end: "{{ utcnow(days=14) }}"
+          includeSeries: "true"
+          unmonitored: "false"
+      interval: 15m
+      map:
+        uid: "sonarr:upcoming:{{ item.seriesId }}-s{{ item.seasonNumber }}e{{ item.episodeNumber }}"
+        kind:  upcoming
+        name:  "{{ item.series.title | default(item.title) }}"
+        state: >-
+          {{ 'up' if item.hasFile
+             else 'degraded' if item.airDateUtc and item.airDateUtc < utcnow()
+             else 'unknown' }}
+        parent_uid: "sonarr:service:main"
+        attrs:
+          show:     "{{ item.series.title }}"
+          episode:  "{{ 'S%02dE%02d' | format(item.seasonNumber, item.episodeNumber) }}{{ (' · ' ~ item.title) if item.title else '' }}"
+          air_at:   "{{ item.airDateUtc }}"
+          network:  "{{ item.series.network }}"
+          has_file: "{{ item.hasFile }}"
+          image: >-
+            {{ (item.series.images | selectattr('coverType', 'equalto', 'poster')
+                | map(attribute='url') | first | replace('/poster.jpg', '/poster-500.jpg'))
+                if item.series and item.series.images else none }}

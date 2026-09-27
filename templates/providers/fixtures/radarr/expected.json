@@ -114,5 +114,12 @@
         "pct"
       ]
     }
+  },
+  "calendar": {
+    "resources": {
+      "radarr:upcoming:550001": "unknown",
+      "radarr:upcoming:550002": "up"
+    },
+    "metrics": {}
   }
 }

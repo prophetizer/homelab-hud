@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { stateCounts } from "./ListWidget";
+import { dayLabel, stateCounts } from "./ListWidget";
 
 describe("stateCounts", () => {
   it("leads with the worst state", () => {
@@ -9,5 +9,15 @@ describe("stateCounts", () => {
   });
   it("is empty for no items", () => {
     expect(stateCounts([])).toBe("");
+  });
+});
+
+describe("dayLabel", () => {
+  it("names the days around today and dates the rest", () => {
+    expect(dayLabel("2026-09-27", "2026-09-27")).toBe("Today");
+    expect(dayLabel("2026-09-28", "2026-09-27")).toBe("Tomorrow");
+    expect(dayLabel("2026-09-26", "2026-09-27")).toBe("Yesterday");
+    expect(dayLabel("2026-10-03", "2026-09-27")).toMatch(/3/);
+    expect(dayLabel("not-a-day", "2026-09-27")).toBe("not-a-day");
   });
 });
