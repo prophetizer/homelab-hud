@@ -866,11 +866,24 @@
           "title": "Fields",
           "type": "array"
         },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
         "layout": {
           "default": "rows",
           "enum": [
             "rows",
-            "grid"
+            "grid",
+            "cards"
           ],
           "title": "Layout",
           "type": "string"
@@ -941,6 +954,7 @@
               "name",
               "state"
             ],
+            "icon": null,
             "layout": "rows",
             "title": null
           }

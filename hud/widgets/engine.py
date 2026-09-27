@@ -37,6 +37,7 @@ from hud.config.schemas.board import (
 )
 from hud.config.schemas.settings import parse_duration
 from hud.models import Metric, Resource, State, Unit
+from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
 
@@ -248,6 +249,7 @@ class WidgetEngine:
                 "links": r.links,
                 "fields": [self.field(r, key).model_dump() for key in w.display.fields],
                 "bar": self._bar(r, w.display.bar),
+                "icon": self._icon(r, w.display.icon),
             }
             for r in items
         ]
@@ -381,6 +383,11 @@ class WidgetEngine:
             return None
         v = self.field(r, key).value
         return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
+
+    def _icon(self, r: Resource, key: str | None) -> str | None:
+        """The icon name when it is one /icons will serve; else None (a letter badge)."""
+        v = self.field(r, key).value if key else None
+        return v.strip().lower() if isinstance(v, str) and resolve_icon(v) else None
 
     def _row_title(self, r: Resource, key: str | None) -> str:
         value = self.field(r, key).value if key else None

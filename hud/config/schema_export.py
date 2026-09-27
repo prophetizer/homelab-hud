@@ -150,6 +150,11 @@ def _union_widening(old: dict[str, Any], new: dict[str, Any]) -> list[str] | Non
             if not all(member in b for member in a):
                 return None
             added += [str(m.get("$ref", m)).rsplit("/", 1)[-1] for m in b if m not in a]
+        elif key == "enum" and isinstance(a, list) and isinstance(b, list):
+            # A Literal gaining a value (layout: rows | grid → rows | grid | cards).
+            if not all(v in b for v in a):
+                return None
+            added += [repr(v) for v in b if v not in a]
         elif key == "items" and isinstance(a, dict) and isinstance(b, dict):
             # A list of a union (BoardSpec.widgets): widening the members is widening the list.
             inner = _union_widening(a, b)

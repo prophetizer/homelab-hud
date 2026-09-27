@@ -133,8 +133,13 @@ class ListDisplay(_Spec):
     # state — e.g. metric.used_pct on filesystems. Added 2026-09-26, optional.
     bar: str | None = None
     # rows: one line per resource. grid: a wall of status squares, one per resource, for
-    # "is anything wrong among these 117" at a glance. Added 2026-09-26, optional.
-    layout: Literal["rows", "grid"] = "rows"
+    # "is anything wrong among these 117" at a glance. cards: a card per resource — an app
+    # (icon, name, description) or, when it has a value, a reading (21.5 °C). Added
+    # 2026-09-26, optional.
+    layout: Literal["rows", "grid", "cards"] = "rows"
+    # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
+    # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
+    icon: str | None = None
 
 
 class MetricSource(_Spec):

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
+import { Icon } from "./Icon";
 import { Meter } from "./Meter";
+import { valueParts } from "./MetricWidget";
 import { fieldText } from "./Fields";
 
 /**
@@ -58,8 +60,70 @@ function Wall({ items }: { items: ListData["items"] }) {
   );
 }
 
+/** A card per resource. With a value it is a reading (Living room · 21.5 °C); without,
+ *  an app (icon, name, description) that opens the app when it has a UI link. */
+function Cards({ items }: { items: ListData["items"] }) {
+  return (
+    <ul className="cards">
+      {items.map((item) => {
+        const { sub, values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        const reading = values[0];
+        const url = item.links["ui"];
+        if (reading) {
+          const [number, unit] = valueParts(fieldText(reading), reading.unit);
+          return (
+            <li key={item.uid} className="card card--reading" data-state={item.state} data-stale={item.stale || undefined}>
+              <span className="card__label">
+                <span className="status-dot" data-state={item.state} aria-label={item.state} />
+                <span className="card__title">{item.title}</span>
+              </span>
+              <span className="card__value">
+                <span className="card__number">{number}</span>
+                {unit ? <span className="metric__unit">{unit}</span> : null}
+              </span>
+              {state ? (
+                <span className="list__state" data-state={state}>
+                  {state}
+                </span>
+              ) : null}
+            </li>
+          );
+        }
+        const body = (
+          <>
+            <Icon name={item.icon} title={item.title} />
+            <span className="card__text">
+              <span className="card__title">{item.title}</span>
+              {sub.length > 0 ? <span className="card__sub">{sub.map(fieldText).join(" · ")}</span> : null}
+            </span>
+            <span className="status-dot" data-state={item.state} aria-label={item.state} />
+          </>
+        );
+        return (
+          <li key={item.uid} className="card" data-state={item.state} data-stale={item.stale || undefined}>
+            {url ? (
+              <a className="card__link" href={url} target="_blank" rel="noreferrer noopener">
+                {body}
+              </a>
+            ) : (
+              <span className="card__link">{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  if (data.layout === "cards" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        <Cards items={data.items} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "grid" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>

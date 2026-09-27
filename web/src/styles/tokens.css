@@ -52,6 +52,10 @@
   --status-paused: #4493f8;
 
   --sidebar-w: 232px;
+
+  /* Monochrome (Material Design) icons are black glyphs; this lifts them to the text
+     colour on a dark surface. Brand icons are left in their own colours. */
+  --icon-mono-filter: invert(0.82);
 }
 
 :root[data-theme="light"] {
@@ -65,4 +69,5 @@
   --fg: #1c2127;
   --fg-muted: #4e5966;
   --fg-faint: #6a7582;
+  --icon-mono-filter: none;
 }

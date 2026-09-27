@@ -494,3 +494,38 @@ def test_metric_sort_keys_validate(config_dir: Path) -> None:
                 },
             }
         )
+
+
+async def test_card_rows_carry_an_icon_only_when_it_is_servable(config_dir: Path) -> None:
+    """Homepage labels hold dashboard-icons names, mdi names, or paths into Homepage's own
+    folder. Only the first two can be fetched; the rest get a letter badge (icon None)."""
+    cache = LiveCache()
+    cache.apply(
+        "docker",
+        "g",
+        [
+            res("docker:container:sonarr", homepage={"icon": "Sonarr.png"}),
+            res("docker:container:glance", homepage={"icon": "mdi-view-dashboard"}),
+            res("docker:container:picker", homepage={"icon": "/icons/theme-picker.svg"}),
+            res("docker:container:plain"),
+        ],
+        [],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: apps
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: docker }, sort: [name] }
+  display: { layout: cards, icon: attrs.homepage.icon }
+"""),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    assert w.data["layout"] == "cards"
+    assert {i["name"]: i["icon"] for i in w.data["items"]} == {
+        "glance": "mdi-view-dashboard",
+        "picker": None,
+        "plain": None,
+        "sonarr": "sonarr.png",
+    }

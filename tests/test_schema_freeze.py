@@ -224,3 +224,16 @@ def test_compare_accepts_an_embedded_default_gaining_the_fields_own_default() ->
     assert "BREAKING: ListWidget.display changed" in compare(
         before, doc({"fields": ["name"], "layout": "grid"})
     )
+
+
+def test_compare_treats_a_widened_enum_as_additive() -> None:
+    """Found adding layout: cards. A Literal that accepts one more value refuses nothing."""
+
+    def doc(values: list[str]) -> dict[str, Any]:
+        layout = {"default": "rows", "enum": values, "type": "string"}
+        return {"$defs": {"ListDisplay": {"properties": {"layout": layout}}}}
+
+    assert compare(doc(["rows", "grid"]), doc(["rows", "grid", "cards"])) == [
+        "additive: ListDisplay.layout accepts 'cards' as well"
+    ]
+    assert compare(doc(["rows", "grid"]), doc(["rows"])) == ["BREAKING: ListDisplay.layout changed"]

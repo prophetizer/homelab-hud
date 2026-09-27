@@ -28,6 +28,7 @@ from hud.providers.sdk.loader import PluginLoader
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.widgets import WidgetEngine
+from hud.widgets.icons import IconStore
 
 log = logging.getLogger("hud")
 
@@ -97,6 +98,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.collector = collector
         app.state.writer = writer
         app.state.widgets = WidgetEngine(cache, app.state.engine)
+        app.state.icons = IconStore(env.data_dir / "icons")
         auth = await _start_auth(app.state.engine, secrets, snap)
         app.state.auth = auth
         await registry.apply(snap)

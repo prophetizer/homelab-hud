@@ -112,12 +112,13 @@ export interface ListItem {
   links: Record<string, string>;
   fields: FieldValue[];
   bar?: number | null; // display.bar: a percentage drawn as a usage bar
+  icon?: string | null; // display.icon: a name /api/v1/icons serves
 }
 export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
-  layout?: "rows" | "grid";
+  layout?: "rows" | "grid" | "cards";
 }
 export interface MetricData {
   value: number | null;
