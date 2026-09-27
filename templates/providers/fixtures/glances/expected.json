@@ -5,6 +5,17 @@
     },
     "metrics": {}
   },
+  "uptime": {
+    "resources": {
+      "glances:uptime:main": "up"
+    },
+    "metrics": {
+      "glances:uptime:main/uptime_seconds": [
+        183845.0,
+        "seconds"
+      ]
+    }
+  },
   "cpu": {
     "resources": {
       "glances:cpu:main": "up"

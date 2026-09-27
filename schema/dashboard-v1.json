@@ -822,6 +822,45 @@
       "title": "Grid",
       "type": "object"
     },
+    "HeroStat": {
+      "additionalProperties": true,
+      "description": "One reading in a hero strip: a metric of any resource, labelled, judged by its own\nthresholds. A percentage draws as a small gauge; anything else as a number.",
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        },
+        "thresholds": {
+          "items": {
+            "$ref": "#/$defs/Threshold"
+          },
+          "title": "Thresholds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "resource",
+        "metric"
+      ],
+      "title": "HeroStat",
+      "type": "object"
+    },
     "Layout": {
       "additionalProperties": true,
       "properties": {
@@ -1736,6 +1775,22 @@
           },
           "title": "Fields",
           "type": "array"
+        },
+        "stats": {
+          "items": {
+            "$ref": "#/$defs/HeroStat"
+          },
+          "title": "Stats",
+          "type": "array"
+        },
+        "style": {
+          "default": "fields",
+          "enum": [
+            "fields",
+            "hero"
+          ],
+          "title": "Style",
+          "type": "string"
         }
       },
       "title": "ResourceDisplay",
@@ -1888,7 +1943,9 @@
             "fields": [
               "state",
               "name"
-            ]
+            ],
+            "stats": [],
+            "style": "fields"
           }
         },
         "grid": {

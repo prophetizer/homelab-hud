@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+import { useState } from "react";
 import { formatAge, formatShare, formatValue } from "../../api/format";
 import type { MetricData, ResolvedWidget } from "../../api/types";
 import { useTweened } from "../../hooks/useTweened";
@@ -11,7 +12,8 @@ const H = 40;
 
 // Plain SVG polyline: enough for a tile-sized trend. uPlot arrives with the chart widget
 // in Phase 2; pulling it in for a sparkline would be weight without benefit.
-export function Sparkline({ points }: { points: [number, number][] }) {
+export function Sparkline({ points, format }: { points: [number, number][]; format?: (v: number) => string }) {
+  const [hover, setHover] = useState<number | null>(null);
   if (points.length < 2) return null;
   const xs = points.map((p) => p[0]);
   const ys = points.map((p) => p[1]);
@@ -21,15 +23,52 @@ export function Sparkline({ points }: { points: [number, number][] }) {
   const y1 = Math.max(...ys);
   const sx = x1 === x0 ? 0 : W / (x1 - x0);
   const sy = y1 === y0 ? 0 : (H - 4) / (y1 - y0);
-  const coords = points.map(([x, y]) => `${((x - x0) * sx).toFixed(1)},${(H - 2 - (y - y0) * sy).toFixed(1)}`);
-  // A faint area under the line makes the trend readable at a glance; still neutral, since
-  // colour is reserved for status (invariant 9).
+  const px = (x: number) => (x - x0) * sx;
+  const py = (y: number) => H - 2 - (y - y0) * sy;
+  const coords = points.map(([x, y]) => `${px(x).toFixed(1)},${py(y).toFixed(1)}`);
+  // A faint area under the line makes the trend readable at a glance; its colour is the
+  // tile's status (invariant 9).
   const area = `0,${H} ${coords.join(" ")} ${W},${H}`;
+  const fmt = format ?? ((v: number) => v.toFixed(1));
+  const mean = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const at = hover === null ? null : points[hover];
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = x0 + ((e.clientX - box.left) / box.width) * (x1 - x0);
+    let best = 0;
+    for (let i = 1; i < points.length; i += 1) {
+      if (Math.abs((points[i]?.[0] ?? 0) - x) < Math.abs((points[best]?.[0] ?? 0) - x)) best = i;
+    }
+    setHover(best);
+  };
   return (
-    <svg className="sparkline" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-      <polygon points={area} className="sparkline__area" />
-      <polyline points={coords.join(" ")} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-    </svg>
+    <div className="sparkline__wrap">
+      <svg
+        className="sparkline"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`trend: min ${fmt(y0)}, average ${fmt(mean)}, max ${fmt(y1)}`}
+        onPointerMove={onMove}
+        onPointerLeave={() => setHover(null)}
+      >
+        <polygon points={area} className="sparkline__area" />
+        <polyline points={coords.join(" ")} fill="none" stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+        {at ? (
+          <line className="sparkline__cursor" x1={px(at[0])} x2={px(at[0])} y1={0} y2={H} vectorEffect="non-scaling-stroke" />
+        ) : null}
+      </svg>
+      {at ? (
+        <span className="sparkline__tip" style={{ left: `${(px(at[0]) / W) * 100}%` }}>
+          <strong>{fmt(at[1])}</strong> {new Date(at[0] < 1e12 ? at[0] * 1000 : at[0]).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      ) : null}
+      <span className="sparkline__stats">
+        <span>min {fmt(y0)}</span>
+        <span>avg {fmt(mean)}</span>
+        <span>max {fmt(y1)}</span>
+      </span>
+    </div>
   );
 }
 
@@ -86,7 +125,7 @@ export function MetricWidget({ widget }: { widget: ResolvedWidget }) {
       ) : null}
       {range ? (
         <div className="metric__trend" data-state={widget.stale ? undefined : (widget.state ?? undefined)} title={`last ${range.range}`}>
-          <Sparkline points={range.points} />
+          <Sparkline points={range.points} format={(v) => formatValue(v, data.unit, precision)} />
         </div>
       ) : null}
     </WidgetFrame>

@@ -168,3 +168,15 @@ def test_container_healthcheck_reports_what_anonymous_health_returns(
     assert healthcheck.main() == 0
     out = capsys.readouterr().out
     assert out.strip() == f"ok v{__version__}" and "None" not in out
+
+
+def test_index_carries_the_instance_theme(tmp_path: Path) -> None:
+    """settings.theme reaches the first paint: no flash of the wrong theme."""
+    env = _env(tmp_path)
+    (env.static_dir / "index.html").write_text('<!doctype html><html lang="en"><div id=root>')
+    env.config_dir.mkdir(parents=True, exist_ok=True)
+    (env.config_dir / "settings.yaml").write_text(
+        "apiVersion: hud/v1\nkind: Settings\nspec:\n  theme: light\n"
+    )
+    with TestClient(create_app(env)) as client:
+        assert '<html data-theme="light" lang="en">' in client.get("/boards/home").text

@@ -26,6 +26,7 @@ from hud.config.schemas.board import (
     BarsWidget,
     EmbedWidget,
     Grid,
+    HeroStat,
     Layout,
     ListSource,
     ListWidget,
@@ -125,6 +126,8 @@ class WidgetEngine:
                 uids.add(w.source.resource)
                 if isinstance(w, MetricWidget) and w.display.total is not None:
                     uids.add(w.display.total.resource or w.source.resource)
+                if isinstance(w, ResourceWidget):
+                    uids.update(stat.resource for stat in w.display.stats)
             elif isinstance(w, ListWidget | BarsWidget):
                 uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
         return uids
@@ -235,8 +238,22 @@ class WidgetEngine:
             data={
                 "resource": r.model_dump(mode="json"),
                 "fields": [f.model_dump() for f in fields],
+                "style": w.display.style,
+                "stats": [self._stat(s) for s in w.display.stats],
             },
         )
+
+    def _stat(self, s: HeroStat) -> dict[str, Any]:
+        """One hero reading; a missing metric is a reading with no value, not an error."""
+        m = self.cache.metric(s.resource, s.metric)
+        return {
+            "label": s.label or s.metric.replace("_", " "),
+            "value": None if m is None else m.value,
+            "unit": None if m is None else m.unit.value,
+            "state": (
+                State.UNKNOWN if m is None else _threshold_state(m.value, s.thresholds)
+            ).value,
+        }
 
     def _select(self, source: ListSource) -> tuple[list[Resource], int]:
         """Filter, sort and limit; also returns the count before the limit."""

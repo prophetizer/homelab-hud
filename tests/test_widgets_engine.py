@@ -580,3 +580,46 @@ async def test_tiles_carry_their_single_providers_icon(config_dir: Path) -> None
     }
     # The summary bar: distinct resources on the board, by state.
     assert resolved.summary == {"up": 3}
+
+
+async def test_hero_strip_reads_stats_from_other_resources(config_dir: Path) -> None:
+    """The Home header: the host's name and fields, plus readings from its CPU, memory and
+    uptime resources, each judged by its own thresholds; a missing one reads unknown."""
+    cache = LiveCache()
+    cache.apply(
+        "glances",
+        "g",
+        [res("glances:host:main", os="Linux"), res("glances:cpu:main"), res("glances:uptime:main")],
+        [
+            metric("glances:cpu:main", "cpu_pct", 93.0, Unit.PCT),
+            metric("glances:uptime:main", "uptime_seconds", 380871.0, Unit.SECONDS),
+        ],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: host
+  type: resource
+  grid: { col: 1, row: 1, w: 4 }
+  source: { resource: "glances:host:main" }
+  display:
+    style: hero
+    fields: [attrs.os]
+    stats:
+      - { resource: "glances:uptime:main", metric: uptime_seconds, label: Uptime }
+      - resource: "glances:cpu:main"
+        metric: cpu_pct
+        label: CPU
+        thresholds: [{ gte: 90, state: error }]
+      - { resource: "glances:memory:main", metric: used_pct, label: Memory }
+"""),
+    )
+    engine = WidgetEngine(cache, None)
+    (w,) = (await engine.resolve_board(doc, T0)).widgets
+    assert w.data["style"] == "hero"
+    assert [(s["label"], s["value"], s["state"]) for s in w.data["stats"]] == [
+        ("Uptime", 380871.0, "up"),
+        ("CPU", 93.0, "down"),
+        ("Memory", None, "unknown"),
+    ]
+    assert {"glances:cpu:main", "glances:uptime:main"} <= engine.referenced_uids(doc)

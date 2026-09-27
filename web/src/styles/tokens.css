@@ -78,3 +78,22 @@
   --shadow-tile: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 20px -14px rgb(15 23 42 / 0.25);
   --tile-highlight: none;
 }
+
+/* auto: follow the system. The same values as light, when the system asks for light. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] {
+    color-scheme: light;
+    --bg-sunken: #eef1f4;
+    --bg: #f6f8fa;
+    --bg-raised: #ffffff;
+    --bg-hover: #eef1f4;
+    --border: #d5dbe1;
+    --border-soft: #e6eaee;
+    --fg: #1c2127;
+    --fg-muted: #4e5966;
+    --fg-faint: #6a7582;
+    --icon-mono-filter: none;
+    --shadow-tile: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 20px -14px rgb(15 23 42 / 0.25);
+    --tile-highlight: none;
+  }
+}

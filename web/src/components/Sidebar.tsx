@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
 import { BrandMark } from "./BrandMark";
+import { ThemeToggle } from "./ThemeToggle";
 import type { Me } from "../api/auth";
 import { buildNavigation } from "../api/nav";
 import type { App, BoardSummary } from "../api/types";
@@ -137,6 +138,7 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
         <span className="sidebar__user" title={`${me.subject} via ${me.source}`}>
           {me.display_name}
         </span>
+        <ThemeToggle />
         {me.source === "forward" ? null : (
           <button className="sidebar__signout" type="button" onClick={onSignOut}>
             Sign out

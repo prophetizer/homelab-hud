@@ -114,7 +114,7 @@ def _compare_definition(
         rest_same = {k: v for k, v in a.items() if k != "default"} == {
             k: v for k, v in b.items() if k != "default"
         }
-        child = _ref_defaults(b, defs or {})
+        child = _ref_properties(b, defs or {})
         if rest_same and _only_default_keys_added(a.get("default"), b.get("default"), child):
             out.append(f"additive: {name}.{p} default gains a new optional field at its default")
         elif (added := _union_widening(a, b)) is not None:
@@ -173,13 +173,23 @@ def _union_widening(old: dict[str, Any], new: dict[str, Any]) -> list[str] | Non
     return added or None
 
 
-def _ref_defaults(prop: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
-    """The property defaults of the definition ``prop`` references, if it references one."""
+def _ref_properties(prop: dict[str, Any], defs: dict[str, Any]) -> dict[str, Any]:
+    """The property schemas of the definition ``prop`` references, if it references one."""
     ref = prop.get("$ref") or next(
         (m.get("$ref") for m in prop.get("allOf", []) if isinstance(m, dict)), None
     )
     target = defs.get(str(ref).rsplit("/", 1)[-1], {}) if ref else {}
-    return {k: v["default"] for k, v in target.get("properties", {}).items() if "default" in v}
+    return dict(target.get("properties", {}))
+
+
+def _is_own_default(value: Any, prop: dict[str, Any] | None) -> bool:  # noqa: ANN401
+    """``value`` is what the field defaults to: its published default, or — for a list
+    built by ``default_factory=list``, which publishes none — the empty list."""
+    if prop is None:
+        return False
+    if "default" in prop:
+        return bool(value == prop["default"])
+    return value == [] and prop.get("type") == "array"
 
 
 def _only_default_keys_added(old: Any, new: Any, child: dict[str, Any]) -> bool:  # noqa: ANN401
@@ -187,7 +197,7 @@ def _only_default_keys_added(old: Any, new: Any, child: dict[str, Any]) -> bool:
     if isinstance(old, dict) and isinstance(new, dict):
         keep = all(k in new and _only_null_keys_added(v, new[k]) for k, v in old.items())
         return keep and all(
-            new[k] is None or (k in child and new[k] == child[k]) for k in set(new) - set(old)
+            new[k] is None or _is_own_default(new[k], child.get(k)) for k in set(new) - set(old)
         )
     return bool(old == new)
 

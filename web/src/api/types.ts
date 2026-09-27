@@ -101,9 +101,17 @@ export interface StaticData {
   text: string | null;
   links: { title: string; url: string }[];
 }
+export interface HeroStat {
+  label: string;
+  value: number | null;
+  unit: Unit | null;
+  state: State;
+}
 export interface ResourceData {
   resource: Resource | null;
   fields: FieldValue[];
+  style?: "fields" | "hero";
+  stats?: HeroStat[];
 }
 export interface ListItem {
   uid: string;

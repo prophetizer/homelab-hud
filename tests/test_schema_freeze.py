@@ -237,3 +237,26 @@ def test_compare_treats_a_widened_enum_as_additive() -> None:
         "additive: ListDisplay.layout accepts 'cards' as well"
     ]
     assert compare(doc(["rows", "grid"]), doc(["rows"])) == ["BREAKING: ListDisplay.layout changed"]
+
+
+def test_compare_accepts_an_empty_list_for_a_default_factory_field() -> None:
+    """Found adding ResourceDisplay.stats (default_factory=list): pydantic publishes no
+    default for it, but the parent's embedded default carries "stats": []."""
+
+    def doc(embedded: dict[str, Any]) -> dict[str, Any]:
+        display = {"$ref": "#/$defs/ResourceDisplay", "default": embedded}
+        child = {"properties": {"stats": {"type": "array", "items": {"type": "string"}}}}
+        return {
+            "$defs": {
+                "ResourceWidget": {"properties": {"display": display}},
+                "ResourceDisplay": child,
+            }
+        }
+
+    before = doc({"fields": ["state"]})
+    before["$defs"]["ResourceDisplay"] = {"properties": {}}
+    changes = compare(before, doc({"fields": ["state"], "stats": []}))
+    assert "BREAKING: ResourceWidget.display changed" not in changes
+    assert "BREAKING: ResourceWidget.display changed" in compare(
+        before, doc({"fields": ["state"], "stats": ["x"]})
+    )

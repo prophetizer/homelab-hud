@@ -45,6 +45,26 @@ spec:
           kernel:  "{{ item.os_version }}"
           distro:  "{{ item.linux_distro }}"
 
+    # Uptime, as Glances reports it: a string, "4 days, 9:47:51" or "9:47:51". Parsed to
+    # seconds here so it is a number every widget can format. Its own uid: a second
+    # request cannot add to the host resource.
+    - name: uptime
+      request: { path: /api/4/uptime }
+      interval: 5m
+      map:
+        uid:   "glances:uptime:main"
+        kind:  uptime
+        name:  Uptime
+        state: up
+      metrics:
+        - name: uptime_seconds
+          unit: seconds
+          value: >-
+            {{ ((item.split(', ')[0].split(' ')[0] | int) * 86400 if ', ' in item else 0)
+               + (item.split(', ')[-1].split(':')[0] | int) * 3600
+               + (item.split(', ')[-1].split(':')[1] | int) * 60
+               + (item.split(', ')[-1].split(':')[2] | float) }}
+
     - name: cpu
       request: { path: /api/4/cpu }
       map:

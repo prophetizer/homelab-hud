@@ -93,10 +93,6 @@ class ResourceSource(_Spec):
     resource: str  # canonical uid
 
 
-class ResourceDisplay(_Spec):
-    fields: list[str] = Field(default_factory=lambda: ["state", "name"])
-
-
 class Select(_Spec):
     provider: str | list[str] | None = None
     kind: str | list[str] | None = None
@@ -177,6 +173,24 @@ class Threshold(_Spec):
             msg = "exactly one of gte or lte is required"
             raise ValueError(msg)
         return self
+
+
+class HeroStat(_Spec):
+    """One reading in a hero strip: a metric of any resource, labelled, judged by its own
+    thresholds. A percentage draws as a small gauge; anything else as a number."""
+
+    resource: str
+    metric: str
+    label: str | None = None
+    thresholds: list[Threshold] = Field(default_factory=list)
+
+
+class ResourceDisplay(_Spec):
+    fields: list[str] = Field(default_factory=lambda: ["state", "name"])
+    # fields: a label/value list. hero: a wide strip — the resource's name large, its
+    # fields as a subtitle, and `stats` as a row of readings. Added 2026-09-26, optional.
+    style: Literal["fields", "hero"] = "fields"
+    stats: list[HeroStat] = Field(default_factory=list)
 
 
 class MetricRef(_Spec):

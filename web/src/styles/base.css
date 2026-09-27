@@ -1705,3 +1705,150 @@ a.card__link:focus-visible {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------- theme toggle */
+
+.sidebar__theme {
+  margin-left: auto;
+  padding: 1px var(--space-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--text-2xs);
+  cursor: pointer;
+}
+
+.sidebar__theme:hover {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+
+/* ---------------------------------------------------------------- sparkline hover */
+
+.sparkline__wrap {
+  position: relative;
+}
+
+.sparkline {
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.sparkline__cursor {
+  stroke: var(--fg-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+
+.sparkline__tip {
+  position: absolute;
+  top: -1.4rem;
+  transform: translateX(-50%);
+  padding: 1px var(--space-2);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--fg-muted);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sparkline__tip strong {
+  color: var(--fg);
+}
+
+.sparkline__stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: var(--fg-faint);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- hero strip */
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-6);
+}
+
+.hero__id {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.hero__name {
+  font-size: var(--text-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.hero__sub {
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+}
+
+.hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.hero__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 4.5rem;
+}
+
+.hero__stat .gauge {
+  width: 4.5rem;
+}
+
+.hero__stat .gauge__track,
+.hero__stat .gauge__fill {
+  stroke-width: 12;
+}
+
+.hero__value {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  min-height: 3.2rem;
+}
+
+.hero__number {
+  font-size: var(--text-md);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero__stat:not(.hero__stat--gauge) .hero__number {
+  font-size: var(--text-2xl);
+}
+
+.hero__stat[data-state="down"] .hero__number {
+  color: var(--status-down);
+}
+.hero__stat[data-state="degraded"] .hero__number {
+  color: var(--status-degraded);
+}
+
+.hero__label {
+  color: var(--fg-faint);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}

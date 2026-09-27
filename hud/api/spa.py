@@ -43,6 +43,19 @@ def index_headers(config: ConfigManager | None) -> dict[str, str]:
     return {**INDEX_HEADERS, "Content-Security-Policy": f"frame-src {frame_src(config)}"}
 
 
+def with_theme(html: str, config: ConfigManager | None) -> str:
+    """The instance's theme (settings.theme) on ``<html>``, so the first paint is already
+    right; a viewer's own choice, kept in their browser, overrides it in the SPA. The
+    value is a validated literal (dark | light | auto), never user text."""
+    theme = "dark"
+    if config is not None:
+        try:
+            theme = config.snapshot.settings.spec.theme
+        except RuntimeError:  # no config loaded yet: the default is fine
+            theme = "dark"
+    return html.replace("<html ", f'<html data-theme="{theme}" ', 1)
+
+
 NOT_BUILT = (
     "HUD frontend is not built. Run `cd web && npm install && npm run build`, "
     "or set HUD_STATIC_DIR to a built copy.\n"
@@ -67,4 +80,8 @@ def mount_spa(app: FastAPI, static_dir: Path) -> None:
         if path and candidate.is_file() and candidate.is_relative_to(static_dir.resolve()):
             return FileResponse(candidate)
         config = getattr(request.app.state, "config", None)
-        return FileResponse(index, headers=index_headers(config))
+        return Response(
+            with_theme(index.read_text(), config),
+            media_type="text/html",
+            headers=index_headers(config),
+        )
