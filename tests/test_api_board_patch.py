@@ -11,10 +11,11 @@ from hud.store.tables import audit_log
 from tests.conftest import sign_in_admin
 from tests.test_api_health import _env
 
-# Deliberately messy: a header comment, mixed flow/block grids, a trailing comment, an
-# anchor nothing aliases, and a widget with explicit w/h. All of it must survive an edit
-# untouched. (Flow mappings are written compact, `{a: 1}`; ruamel does not keep interior
-# brace spacing, so the fixture is written the way write-back emits it.)
+# Deliberately messy: a header comment, a comment between widgets, mixed flow/block
+# grids, a trailing comment, an anchor nothing aliases, and a widget with explicit w/h.
+# All of it must survive an edit untouched. (Flow mappings are written compact, `{a: 1}`;
+# ruamel does not keep interior brace spacing, so the fixture is written the way
+# write-back emits it.)
 BOARD = """\
 # Media board — hand-written, keep my comments
 apiVersion: hud/v1
@@ -31,6 +32,8 @@ spec:
       type: static
       grid: {col: 1, row: 1}
       display: {text: "hi"}
+
+    # Columns 2-3: the wide one, kept across edits.
     - id: wide
       type: static
       grid:
@@ -97,6 +100,7 @@ def test_patch_moves_widgets_and_preserves_the_rest(tmp_path: Path) -> None:
     text = path.read_text()
     assert text.startswith("# Media board — hand-written, keep my comments\n")
     assert "  title: Media   # shown in the sidebar\n" in text
+    assert "\n    # Columns 2-3: the wide one, kept across edits.\n" in text
     assert "    columns: &cols {sm: 1, md: 2, lg: 4}\n" in text
     # Flow-style grid stays flow-style and minimal: w/h were default and absent, still absent.
     assert "      grid: {col: 3, row: 2}\n" in text
