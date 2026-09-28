@@ -3124,3 +3124,233 @@ a.card__link:focus-visible {
 .shell[data-translucent] .agenda__heading {
   background: color-mix(in srgb, var(--bg-raised) 92%, transparent);
 }
+
+/* ---------------------------------------------------------------- list stats strip (display.stats) */
+
+.list-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-2);
+  padding: 0 0 var(--space-2);
+  list-style: none;
+  border-bottom: var(--border-w) solid var(--border-soft);
+}
+
+.list-stats__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.list-stats__label {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.list-stats__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-stats__item[data-state="down"] .list-stats__value {
+  color: var(--status-down);
+}
+
+.list-stats__item[data-state="degraded"] .list-stats__value {
+  color: var(--status-degraded);
+}
+
+.list-stats__item svg {
+  align-self: center;
+}
+
+/* ---------------------------------------------------------------- shelf state (not up) */
+
+.shelf__art {
+  position: relative;
+}
+
+.shelf__state {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  box-shadow: 0 0 0 2px var(--bg-raised);
+}
+
+/* ---------------------------------------------------------------- week (list layout: week) */
+
+.week {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.week__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(4.5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week__day {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-top: var(--space-1);
+  border-top: 2px solid var(--border-soft);
+}
+
+.week__day[data-today] {
+  border-top-color: var(--fg-faint);
+}
+
+.week__heading {
+  margin: 0;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week__day[data-today] .week__heading {
+  color: var(--fg);
+}
+
+.week__items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.week__item[data-stale] {
+  opacity: 0.7;
+}
+
+.week__art {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.week__poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.week__state {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  box-shadow: 0 0 0 2px var(--bg-raised);
+}
+
+.week__title {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  font-weight: 550;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week__time {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.week__more {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+
+/* ---------------------------------------------------------------- dense rows (display.dense) */
+
+.dense-row {
+  display: grid;
+  grid-template-columns: auto 0 minmax(0, 1fr) minmax(4rem, 28%) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 1.75rem;
+}
+
+.dense-row[data-stale] {
+  opacity: 0.7;
+}
+
+.dense-row[data-posters] {
+  grid-template-columns: auto 1.125rem minmax(0, 1fr) minmax(4rem, 28%) auto;
+}
+
+.dense-row__poster--none {
+  display: block;
+}
+
+.dense-row__poster {
+  width: 1.125rem;
+  height: 1.6875rem;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.dense-row__name {
+  overflow: hidden;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dense-row__sub {
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.dense-row__values {
+  display: inline-flex;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dense-row__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.dense-row__bar .meter {
+  flex: 1;
+  min-width: 0;
+}
+
+.dense-row__pct {
+  font-size: var(--text-2xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}

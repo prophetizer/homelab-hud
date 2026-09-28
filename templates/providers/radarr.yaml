@@ -124,6 +124,11 @@ spec:
       metrics:
         - { name: size_bytes,      value: "{{ item.size | float }}",     unit: bytes }
         - { name: remaining_bytes, value: "{{ item.sizeleft | float }}", unit: bytes }
+        # timeleft is a .NET TimeSpan ("1.02:03:04"); absent once a download finishes.
+        - name: timeleft_seconds
+          when: "{{ (item.timeleft | seconds or 0) > 0 }}"
+          value: "{{ item.timeleft | seconds }}"
+          unit: seconds
         # Progress is what a tile actually shows; computing it here keeps the widget generic.
         - name: progress_pct
           when: "{{ item.size | float > 0 }}"

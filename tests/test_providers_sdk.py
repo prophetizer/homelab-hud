@@ -277,3 +277,41 @@ def test_entry_point_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_register_rejects_non_plugin_classes() -> None:
     with pytest.raises(TypeError, match="must subclass PluginProvider"):
         register("bad", config_model=PluginConfig)(object)  # type: ignore[arg-type]
+
+
+class _Probe(PluginProvider):
+    """discover names two things, bare; collect reports on the first only."""
+
+    async def discover(self) -> list[Resource]:
+        now = datetime.now(UTC)
+        return [
+            Resource(
+                uid=f"p:thing:{n}",
+                provider="p",
+                kind="thing",
+                name=n,
+                state=State.UNKNOWN,
+                fetched_at=now,
+            )
+            for n in ("a", "b")
+        ]
+
+    async def collect(self, resources: list[Resource]) -> PollResult:
+        now = datetime.now(UTC)
+        a = resources[0].model_copy(update={"state": State.UP, "attrs": {"reading": 21.4}})
+        return PollResult(resources=[a.model_copy(update={"fetched_at": now}), resources[1]])
+
+
+async def test_a_rediscover_keeps_what_collect_last_said(config_dir: Path) -> None:
+    """discover owns the set of resources; collect owns their state. A periodic discover
+    must not put a collected resource back to its bare, unknown self until the next collect
+    (it did: every web check flickered to unknown every five minutes)."""
+    p = _Probe(
+        ctx_for(config_dir, "p", {}), PluginConfig(), Schedule(interval=30, jitter=0, timeout=10)
+    )
+    await p.poll(COLLECT_GROUP)
+    again = await p.poll(DISCOVER_GROUP)
+    by_uid = {r.uid: r for r in again.resources}
+    assert by_uid["p:thing:a"].state is State.UP
+    assert by_uid["p:thing:a"].attrs == {"reading": 21.4}
+    assert by_uid["p:thing:b"].state is State.UNKNOWN  # never collected with a state

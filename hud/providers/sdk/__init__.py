@@ -103,10 +103,14 @@ class PluginProvider(Provider):
 
     async def poll(self, group: str) -> PollResult:
         if group == DISCOVER_GROUP or not self._discovered:
+            # discover owns the set; the last collect owns each member's state. Reporting a
+            # rediscovered resource as its bare discover() self would flip it to unknown
+            # until the next collect — so a known one is reported as collect last saw it.
+            known = {r.uid: r for r in self._resources} if self._discovered else {}
             self._resources = await self.discover()
             self._discovered = True
             if group == DISCOVER_GROUP:
-                return PollResult(resources=list(self._resources))
+                return PollResult(resources=[known.get(r.uid, r) for r in self._resources])
         result = await self.collect(list(self._resources))
         self._resources = list(result.resources)
         return result

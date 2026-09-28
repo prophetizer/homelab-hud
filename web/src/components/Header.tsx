@@ -124,7 +124,7 @@ function WeatherChip({ weather }: { weather: HeaderWeather }) {
       <div className="hud-header__weather hud-header__weather--failed" title={weather.error ?? undefined}>
         <span className="status-dot" data-state={failed ? "down" : "unknown"} aria-hidden="true" />
         <span>{failed ? "Weather unavailable" : "Weather…"}</span>
-        {weather.last_success ? (
+        {failed && weather.last_success ? (
           <span className="hud-header__faint">· last {formatAge(weather.last_success)}</span>
         ) : null}
       </div>

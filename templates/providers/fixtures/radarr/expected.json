@@ -30,6 +30,10 @@
         4294967296.0,
         "bytes"
       ],
+      "radarr:download:movie-42/timeleft_seconds": [
+        1394.0,
+        "seconds"
+      ],
       "radarr:download:movie-42/progress_pct": [
         66.66666666666666,
         "pct"
@@ -42,6 +46,10 @@
         0.0,
         "bytes"
       ],
+      "radarr:download:movie-77/timeleft_seconds": [
+        1394.0,
+        "seconds"
+      ],
       "radarr:download:movie-77/progress_pct": [
         100.0,
         "pct"
@@ -53,6 +61,10 @@
       "radarr:download:movie-13/remaining_bytes": [
         8589934592.0,
         "bytes"
+      ],
+      "radarr:download:movie-13/timeleft_seconds": [
+        1394.0,
+        "seconds"
       ],
       "radarr:download:movie-13/progress_pct": [
         0.0,

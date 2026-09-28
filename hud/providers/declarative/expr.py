@@ -58,9 +58,28 @@ def _utcnow(days: float = 0, hours: float = 0) -> str:
     return at.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_DURATION = re.compile(r"(?:(\d+)[.:])?(\d+):(\d{1,2}):(\d{1,2})(?:\.\d+)?|(\d+):(\d{1,2})")
+
+
+def _seconds(value: Any) -> int | None:  # noqa: ANN401
+    """A clock-style duration as seconds: ``0:12:34`` (SABnzbd), ``1:02:03:04`` (days first)
+    and ``1.02:03:04`` (.NET, as the *arr APIs write ``timeleft``), or ``12:34``. Anything
+    else is None, never a guess."""
+    if not isinstance(value, str):
+        return None
+    m = _DURATION.fullmatch(value.strip())
+    if m is None:
+        return None
+    if m.group(5) is not None:
+        return int(m.group(5)) * 60 + int(m.group(6))
+    days = int(m.group(1) or 0)
+    return days * 86_400 + int(m.group(2)) * 3600 + int(m.group(3)) * 60 + int(m.group(4))
+
+
 def new_environment() -> _SandboxedNativeEnvironment:
     env = _SandboxedNativeEnvironment(undefined=ChainableUndefined, autoescape=False)
     env.globals["utcnow"] = _utcnow
+    env.filters["seconds"] = _seconds
     env.filters["is_number"] = _is_number
     env.tests["number"] = _is_number
     env.filters["regex_search"] = _regex_search

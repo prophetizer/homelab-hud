@@ -55,6 +55,10 @@ spec:
         - { name: remaining_bytes, value: "{{ item.mbleft | float }}",          unit: mib }
         - { name: total_bytes,     value: "{{ item.mb | float }}",              unit: mib }
         - { name: jobs,            value: "{{ item.noofslots | float }}",       unit: count }
+        - name: timeleft_seconds
+          when: "{{ (item.timeleft | seconds or 0) > 0 }}"
+          value: "{{ item.timeleft | seconds }}"
+          unit: seconds
 
     # One resource per job. nzo_id is persisted with the queue, so it identifies the job
     # for its whole life, across SABnzbd restarts.
@@ -79,3 +83,7 @@ spec:
         - { name: progress_pct,    value: "{{ item.percentage | float }}", unit: pct }
         - { name: size_bytes,      value: "{{ item.mb | float }}",         unit: mib }
         - { name: remaining_bytes, value: "{{ item.mbleft | float }}",     unit: mib }
+        - name: timeleft_seconds
+          when: "{{ (item.timeleft | seconds or 0) > 0 }}"
+          value: "{{ item.timeleft | seconds }}"
+          unit: seconds

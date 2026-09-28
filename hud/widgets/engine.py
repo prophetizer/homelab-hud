@@ -355,10 +355,18 @@ class WidgetEngine:
 
     async def _list_with_uptime(self, w: ListWidget, now: datetime) -> ResolvedWidget:
         resolved = self._list(w)
-        if self.db is None or not (w.display.uptime or w.display.trend):
+        sparked = [s for s in w.display.stats if s.sparkline]
+        if self.db is None or not (w.display.uptime or w.display.trend or sparked):
             return resolved
         to = int(now.timestamp())
         rows = resolved.data["items"]
+        for stat, out in zip(w.display.stats, resolved.data["stats"], strict=True):
+            if stat.sparkline:
+                span = parse_duration(stat.sparkline)
+                points = await asyncio.to_thread(
+                    read_samples, self.db, stat.resource, stat.metric, to - span, to
+                )
+                out["sparkline"] = points[:: max(1, len(points) // 60)]
         if w.display.uptime:
             frm = to - RANGES["24h"]
             uids = [r["uid"] for r in rows]
@@ -499,6 +507,8 @@ class WidgetEngine:
                 "empty_text": w.display.empty_text,
                 "layout": w.display.layout,
                 "today": datetime.now(self.tz).date().isoformat(),
+                "stats": [self.stat(s) for s in w.display.stats],
+                "dense": w.display.dense,
             },
         )
 

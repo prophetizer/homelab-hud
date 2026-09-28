@@ -136,7 +136,8 @@ class ListDisplay(_Spec):
     # 2026-09-26, optional.
     # agenda (added 2026-09-27): rows under day headings (Today, Tomorrow, Tue 29 Sep) by
     # the `date` field, in settings.timezone — a release calendar.
-    layout: Literal["rows", "grid", "cards", "media", "shelf", "agenda"] = "rows"
+    # week (added 2026-09-27): seven columns, today first, each day's rows as posters.
+    layout: Literal["rows", "grid", "cards", "media", "shelf", "agenda", "week"] = "rows"
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None
@@ -157,6 +158,12 @@ class ListDisplay(_Spec):
     # for `layout: agenda`. A midnight-UTC value is a date without a time (a release day)
     # and is never shifted into the previous evening. Added 2026-09-27, optional.
     date: str | None = None
+    # A strip of readings above the rows — a queue's speed and time left, a request
+    # manager's pending count — each a metric of any resource. Added 2026-09-27, optional.
+    stats: list[HeroStat] = Field(default_factory=list, max_length=6)
+    # One line per row: the bar beside the name instead of under it, values right.
+    # Added 2026-09-27, optional.
+    dense: bool = False
 
 
 class MetricSource(_Spec):
@@ -201,6 +208,9 @@ class HeroStat(_Spec):
     metric: str
     label: str | None = None
     thresholds: list[Threshold] = Field(default_factory=list)
+    # A small trend of the metric over this window beside the value. Added 2026-09-27,
+    # optional: dashboard/v1-compatible.
+    sparkline: Literal["1h", "6h", "24h"] | None = None
 
 
 class ResourceDisplay(_Spec):

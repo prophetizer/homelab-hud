@@ -96,7 +96,7 @@ spec:
       request:
         method: GET
         path: /api/v3/queue
-        params: { pageSize: "50", includeUnknownItems: "true", includeSeries: "true" }
+        params: { pageSize: "50", includeUnknownItems: "true", includeSeries: "true", includeEpisode: "true" }
       select: "$.records[*]"
       interval: 30s
       map:
@@ -120,6 +120,10 @@ spec:
           download_client: "{{ item.downloadClient }}"
           indexer:         "{{ item.indexer }}"
           error:           "{{ item.errorMessage }}"
+          episode: >-
+            {{ ('S%02dE%02d' | format(item.episode.seasonNumber, item.episode.episodeNumber)
+                ~ ((' · ' ~ item.episode.title) if item.episode.title else ''))
+               if item.episode else none }}
           # Why an import is stuck, in Sonarr's words — the first status message, if any.
           reason: >-
             {{ (item.statusMessages[0].messages[0] if item.statusMessages
@@ -138,6 +142,11 @@ spec:
       metrics:
         - { name: size_bytes,      value: "{{ item.size | float }}",     unit: bytes }
         - { name: remaining_bytes, value: "{{ item.sizeleft | float }}", unit: bytes }
+        # timeleft is a .NET TimeSpan ("1.02:03:04"); absent once a download finishes.
+        - name: timeleft_seconds
+          when: "{{ (item.timeleft | seconds or 0) > 0 }}"
+          value: "{{ item.timeleft | seconds }}"
+          unit: seconds
         # Progress is what a tile actually shows; computing it here keeps the widget generic.
         - name: progress_pct
           when: "{{ item.size | float > 0 }}"

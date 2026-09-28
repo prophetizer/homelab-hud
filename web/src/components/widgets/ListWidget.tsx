@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
+import { formatValue } from "../../api/format";
 import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
 import { Empty } from "./Empty";
@@ -214,6 +215,10 @@ function Shelf({ items }: { items: ListData["items"] }) {
           <>
             <span className="shelf__art">
               {item.image ? <Poster uid={item.uid} className="shelf__poster" /> : <span className="shelf__blank">{item.title.charAt(0)}</span>}
+              {/* Quiet when fine: only a row that is not up carries a dot over its poster. */}
+              {item.state !== "up" ? (
+                <span className="status-dot shelf__state" data-state={item.state} aria-label={item.state} />
+              ) : null}
             </span>
             <span className="shelf__title" title={item.title}>
               {item.title}
@@ -289,11 +294,148 @@ function Agenda({ items, today }: { items: ListData["items"]; today: string | un
   );
 }
 
+/** display.stats: a line of readings above the rows — a queue's speed and time left. */
+function StatsStrip({ stats }: { stats: NonNullable<ListData["stats"]> }) {
+  return (
+    <ul className="list-stats" aria-label="Readings">
+      {stats.map((s) => (
+        <li key={s.label} className="list-stats__item" data-state={s.state}>
+          <span className="list-stats__label">{s.label}</span>
+          <span className="list-stats__value">{formatValue(s.value, s.unit, s.unit === "pct" ? 0 : 1)}</span>
+          {s.sparkline && s.sparkline.length > 1 ? <MiniSpark points={s.sparkline} title={s.label} /> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const WEEK_DAYS = 7;
+
+/** The seven days from ``today`` as YYYY-MM-DD, computed on plain dates (no zone). */
+export function weekDays(today: string): string[] {
+  const t0 = Date.parse(`${today}T12:00:00Z`);
+  if (Number.isNaN(t0)) return [];
+  return Array.from({ length: WEEK_DAYS }, (_, i) => new Date(t0 + i * 86_400_000).toISOString().slice(0, 10));
+}
+
+/** Seven columns, today first; each day's rows as posters with the title and time. */
+function Week({ items, today }: { items: ListData["items"]; today: string | undefined }) {
+  const days = weekDays(today ?? new Date().toISOString().slice(0, 10));
+  const byDay = new Map<string, ListData["items"]>(days.map((d) => [d, []]));
+  let later = 0;
+  for (const item of items) {
+    const day = item.when?.day;
+    const bucket = day ? byDay.get(day) : undefined;
+    if (bucket) bucket.push(item);
+    else if (day && day > (days[days.length - 1] ?? "")) later += 1;
+  }
+  return (
+    <div className="week">
+      <ol className="week__grid">
+        {days.map((d) => (
+          <li key={d} className="week__day" data-today={d === today || undefined}>
+            <h3 className="week__heading">{dayLabel(d, today)}</h3>
+            <ul className="week__items">
+              {(byDay.get(d) ?? []).map((item) => {
+                const { sub } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+                const label = [item.title, ...sub.map(fieldText), item.when?.time].filter(Boolean).join(" · ");
+                return (
+                  <li key={item.uid} className="week__item" title={label} data-stale={item.stale || undefined}>
+                    <span className="week__art">
+                      {item.image ? (
+                        <Poster uid={item.uid} className="week__poster" />
+                      ) : (
+                        <span className="shelf__blank">{item.title.charAt(0)}</span>
+                      )}
+                      {/* Not yet out is the default and stays quiet; downloaded or missing shows. */}
+                      {item.state === "unknown" ? null : (
+                        <span className="status-dot week__state" data-state={item.state} aria-label={item.state} />
+                      )}
+                    </span>
+                    <span className="week__title">{item.title}</span>
+                    {item.when?.time ? <time className="week__time">{item.when.time}</time> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </li>
+        ))}
+      </ol>
+      {later > 0 ? <p className="week__more">+{later} later</p> : null}
+    </div>
+  );
+}
+
+/** display.dense: one line per row — dot, poster, name and detail, bar, values. */
+function DenseRows({ items }: { items: ListData["items"] }) {
+  // Every row keeps the same cells, so names and bars line up whether or not it has art.
+  const posters = items.some((i) => i.image);
+  return (
+    <ul className="list list--dense">
+      {items.map((item) => {
+        const { sub, values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        return (
+          <li key={item.uid} className="dense-row" data-posters={posters || undefined} data-stale={item.stale || undefined}>
+            <span className="status-dot" data-state={item.state} aria-label={item.state} />
+            {item.image ? (
+              <Poster uid={item.uid} className="dense-row__poster" />
+            ) : (
+              <span className="dense-row__poster dense-row__poster--none" aria-hidden="true" />
+            )}
+            <span className="dense-row__name" title={[item.title, ...sub.map(fieldText)].join(" · ")}>
+              {item.title}
+              {sub.length > 0 ? <span className="dense-row__sub"> · {sub.map(fieldText).join(" · ")}</span> : null}
+            </span>
+            {item.bar !== undefined && item.bar !== null ? (
+              <span className="dense-row__bar">
+                <Meter pct={item.bar} state={item.state} label={`${item.bar.toFixed(0)} %`} />
+                <span className="dense-row__pct">{item.bar.toFixed(0)}%</span>
+              </span>
+            ) : (
+              <span />
+            )}
+            <span className="dense-row__values">
+              {state ? (
+                <span className="list__state" data-state={state}>
+                  {state}
+                </span>
+              ) : null}
+              {values.map((v) => (
+                <span key={v.key} className="dense-row__value">
+                  {fieldText(v)}
+                </span>
+              ))}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
+  const stats = data.stats && data.stats.length > 0 ? <StatsStrip stats={data.stats} /> : null;
+  if (data.layout === "week") {
+    return (
+      <WidgetFrame widget={widget}>
+        {stats}
+        <Week items={data.items} today={data.today} />
+      </WidgetFrame>
+    );
+  }
+  if (data.dense && data.items.length > 0 && (!data.layout || data.layout === "rows")) {
+    return (
+      <WidgetFrame widget={widget}>
+        {stats}
+        <DenseRows items={data.items} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "agenda" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
+        {stats}
         <Agenda items={data.items} today={data.today} />
       </WidgetFrame>
     );
@@ -301,6 +443,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   if (data.layout === "shelf" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
+        {stats}
         <Shelf items={data.items} />
       </WidgetFrame>
     );
@@ -308,6 +451,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   if (data.layout === "media" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
+        {stats}
         <MediaCards items={data.items} />
       </WidgetFrame>
     );
@@ -315,6 +459,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   if (data.layout === "cards" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
+        {stats}
         <Cards items={data.items} />
       </WidgetFrame>
     );
@@ -322,6 +467,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   if (data.layout === "grid" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>
+        {stats}
         <p className="wall__summary">{stateCounts(data.items)}</p>
         <Wall items={data.items} />
       </WidgetFrame>
@@ -329,6 +475,7 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   }
   return (
     <WidgetFrame widget={widget}>
+      {stats}
       {data.items.length === 0 ? (
         <Empty icon={widget.icon} text={data.empty_text} />
       ) : (

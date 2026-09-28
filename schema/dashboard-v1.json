@@ -943,6 +943,23 @@
           "title": "Resource",
           "type": "string"
         },
+        "sparkline": {
+          "anyOf": [
+            {
+              "enum": [
+                "1h",
+                "6h",
+                "24h"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sparkline"
+        },
         "thresholds": {
           "items": {
             "$ref": "#/$defs/Threshold"
@@ -1150,6 +1167,11 @@
           "default": null,
           "title": "Date"
         },
+        "dense": {
+          "default": false,
+          "title": "Dense",
+          "type": "boolean"
+        },
         "empty_text": {
           "default": "Nothing to show",
           "title": "Empty Text",
@@ -1199,10 +1221,19 @@
             "cards",
             "media",
             "shelf",
-            "agenda"
+            "agenda",
+            "week"
           ],
           "title": "Layout",
           "type": "string"
+        },
+        "stats": {
+          "items": {
+            "$ref": "#/$defs/HeroStat"
+          },
+          "maxItems": 6,
+          "title": "Stats",
+          "type": "array"
         },
         "title": {
           "anyOf": [
@@ -1284,6 +1315,7 @@
           "default": {
             "bar": null,
             "date": null,
+            "dense": false,
             "empty_text": "Nothing to show",
             "fields": [
               "name",
@@ -1293,6 +1325,7 @@
             "icon": null,
             "image": false,
             "layout": "rows",
+            "stats": [],
             "title": null,
             "trend": null,
             "uptime": false

@@ -2,6 +2,7 @@
 """Release calendar: a moving request window, the next release picked per film, and rows
 placed on the right day — a release *date* is never shifted into the evening before."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -9,15 +10,18 @@ from zoneinfo import ZoneInfo
 import httpx
 import pytest
 import respx
+from sqlalchemy import Engine
 
 from hud.collector import LiveCache
 from hud.config import SecretResolver
+from hud.models import Unit
 from hud.providers import ProviderBuildError, ProviderContext
 from hud.providers.declarative import build_declarative
+from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.widgets import WidgetEngine
 from hud.widgets.engine import when
 from tests.test_templates import BASE, TEMPLATES, _load
-from tests.test_widgets_engine import T0, _board, board, res
+from tests.test_widgets_engine import T0, _board, board, metric, res
 
 CHICAGO = ZoneInfo("America/Chicago")
 
@@ -133,3 +137,72 @@ def test_a_broken_param_expression_fails_the_build(config_dir: Path) -> None:
     secrets = SecretResolver(config_dir, config_dir / "none", env=env)
     with pytest.raises(ProviderBuildError, match="param start"):
         build_declarative(doc, ProviderContext.create("sonarr", secrets, env))
+
+
+QUEUE = """
+- id: downloads
+  type: list
+  title: Downloads
+  grid: { col: 1, row: 1, w: 2, h: 2 }
+  source:
+    select: { kind: download }
+  display:
+    dense: true
+    bar: metric.progress_pct
+    stats:
+      - { resource: "sabnzbd:service:main", metric: speed_bps, label: Speed, sparkline: 1h }
+      - { resource: "sabnzbd:service:main", metric: timeleft_seconds, label: Left }
+"""
+
+
+@pytest.fixture
+def db(tmp_path: Path) -> Iterator[Engine]:
+    paths = StorePaths(tmp_path / "data")
+    upgrade_all(paths)
+    eng = create_store_engine(paths)
+    yield eng
+    eng.dispose()
+
+
+async def test_list_stats_strip_reads_metrics_with_a_sparkline(
+    config_dir: Path, db: Engine
+) -> None:
+    from sqlalchemy import insert  # noqa: PLC0415
+
+    from hud.store.tables import samples, series  # noqa: PLC0415
+
+    uid = "sabnzbd:service:main"
+    now = int(T0.timestamp())
+    with db.begin() as conn:
+        sid = conn.execute(
+            insert(series).values(
+                provider="sabnzbd",
+                resource_uid=uid,
+                metric="speed_bps",
+                unit="bps",
+                first_seen=now - 3600,
+                last_seen=now,
+            )
+        ).inserted_primary_key[0]
+        conn.execute(
+            insert(samples),
+            [{"series_id": sid, "ts": now - 3000 + 60 * i, "value": 1e6 * i} for i in range(40)],
+        )
+    cache = LiveCache()
+    cache.apply(
+        "sabnzbd",
+        "queue",
+        [res(uid), res("sabnzbd:download:nzo_1")],
+        [
+            metric(uid, "speed_bps", 8e7, Unit.BPS),
+            metric("sabnzbd:download:nzo_1", "progress_pct", 40, Unit.PCT),
+        ],
+    )
+    doc = board(config_dir, _board(QUEUE))
+    (w,) = (await WidgetEngine(cache, db).resolve_board(doc, T0)).widgets
+    speed, left = w.data["stats"]
+    assert (speed["label"], speed["value"], speed["unit"]) == ("Speed", 8e7, "bps")
+    assert len(speed["sparkline"]) == 40
+    assert left["value"] is None and "sparkline" not in left  # no reading yet: shown as —
+    assert w.data["dense"] is True
+    assert w.data["items"][0]["bar"] == 40

@@ -19,6 +19,10 @@
       "sabnzbd:service:main/jobs": [
         4.0,
         "count"
+      ],
+      "sabnzbd:service:main/timeleft_seconds": [
+        2530.0,
+        "seconds"
       ]
     }
   },
@@ -41,6 +45,10 @@
       "sabnzbd:download:SABnzbd_nzo_000abcdef/remaining_bytes": [
         1073741824.0,
         "bytes"
+      ],
+      "sabnzbd:download:SABnzbd_nzo_000abcdef/timeleft_seconds": [
+        754.0,
+        "seconds"
       ],
       "sabnzbd:download:SABnzbd_nzo_001abcdef/progress_pct": [
         0.0,
