@@ -1,0 +1,101 @@
+# Sportarr — a Sonarr fork for sport: service health and upcoming events over Sonarr's v3 API.
+#
+# Copy to /config/providers/sportarr.yaml, then supply:
+#   SPORTARR_BASE_URL                e.g. http://sportarr.lab:1867 (environment)
+#   ${secret:sportarr_api_key}       Settings → General → API Key
+#     → /run/secrets/sportarr_api_key, HUD_SECRET_SPORTARR_API_KEY, or secrets.yaml
+#
+# Sportarr answers with Sonarr's shapes (its system/status even says appName "Sonarr"), but a
+# "series" is a league or competition and seasonNumber is the year. So an event is named by
+# its own title, the league is its own attribute, and there is no SxxEyy label.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: sportarr
+  labels: { category: media }
+  template:
+    service: Sportarr
+    icon: mdi:trophy-outline
+    docs: https://sonarr.tv/docs/api/
+    requires:
+      - { name: SPORTARR_BASE_URL, kind: env, hint: "Base URL of your Sportarr instance" }
+      - { name: sportarr_api_key, kind: secret, hint: "API key from Settings → General" }
+spec:
+  transport:
+    base_url: ${SPORTARR_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:sportarr_api_key}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    - name: service
+      request: { method: GET, path: /api/v3/system/status }
+      interval: 5m
+      map:
+        uid:   "sportarr:service:main"
+        kind:  service
+        name:  "{{ item.instanceName | default('Sportarr') }}"
+        state: up
+        attrs:
+          version: "{{ item.version }}"
+          branch:  "{{ item.branch }}"
+        links:
+          ui: "${SPORTARR_BASE_URL}/calendar"
+
+    # Health checks, as Sonarr's: notice stays up, warning degrades, error is down.
+    - name: health
+      request: { method: GET, path: /api/v3/health }
+      interval: 5m
+      map:
+        uid:   "sportarr:health_check:{{ item.source }}"
+        kind:  health_check
+        name:  "{{ item.source }}"
+        state: >-
+          {{ 'down' if item.type == 'error'
+               else 'degraded' if item.type == 'warning'
+               else 'up' }}
+        parent_uid: "sportarr:service:main"
+        attrs:
+          message:  "{{ item.message }}"
+          severity: "{{ item.type }}"
+
+    # Events from yesterday to two weeks out, for the release calendar (`kind: upcoming`,
+    # as Sonarr's and Radarr's). Downloaded is up; started but not downloaded is degraded;
+    # not yet started is unknown.
+    - name: calendar
+      request:
+        method: GET
+        path: /api/v3/calendar
+        params:
+          start: "{{ utcnow(days=-1) }}"
+          end: "{{ utcnow(days=14) }}"
+          includeSeries: "true"
+          unmonitored: "false"
+      interval: 15m
+      map:
+        uid: "sportarr:upcoming:{{ item.seriesId }}-s{{ item.seasonNumber }}e{{ item.episodeNumber }}"
+        kind:  upcoming
+        name:  "{{ item.title | default(item.series.title) }}"
+        state: >-
+          {{ 'up' if item.hasFile
+             else 'degraded' if item.airDateUtc and item.airDateUtc < utcnow()
+             else 'unknown' }}
+        parent_uid: "sportarr:service:main"
+        attrs:
+          league:   "{{ item.series.title }}"
+          air_at:   "{{ item.airDateUtc }}"
+          network:  "{{ item.series.network or none }}"
+          has_file: "{{ item.hasFile }}"
+          # Sportarr's art is linked on an outside host, never kept under /MediaCover like
+          # Sonarr's, and HUD fetches images only from the provider's own base URL. A local
+          # path is used if one ever appears; otherwise the calendar shows a letter.
+          image: >-
+            {% set p = (item.series.images | selectattr('coverType', 'equalto', 'poster')
+                        | map(attribute='url') | first) if item.series and item.series.images
+                        else none %}{{ p | replace('/poster.jpg', '/poster-500.jpg')
+                        if p and p.startswith('/') and not p.startswith('//') else none }}

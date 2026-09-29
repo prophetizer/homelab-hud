@@ -1,0 +1,22 @@
+{
+  "service": {
+    "resources": {
+      "sportarr:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "health": {
+    "resources": {
+      "sportarr:health_check:IndexerStatusCheck": "degraded"
+    },
+    "metrics": {}
+  },
+  "calendar": {
+    "resources": {
+      "sportarr:upcoming:6-s2099e14": "unknown",
+      "sportarr:upcoming:6-s2020e3": "up",
+      "sportarr:upcoming:8-s2020e9": "degraded"
+    },
+    "metrics": {}
+  }
+}

@@ -1,0 +1,85 @@
+[
+  {
+    "id": 501,
+    "seriesId": 6,
+    "tvdbId": 9001,
+    "episodeFileId": 0,
+    "seasonNumber": 2099,
+    "episodeNumber": 14,
+    "absoluteEpisodeNumber": 14,
+    "title": "Northgate vs Harbor City",
+    "airDate": "2099-10-04",
+    "airDateUtc": "2099-10-04T14:00:00Z",
+    "hasFile": false,
+    "monitored": true,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "https://images.example.test/league/poster.jpg",
+        "remoteUrl": "https://images.example.test/league/poster.jpg"
+      }
+    ],
+    "series": {
+      "id": 6,
+      "title": "Coastal League",
+      "network": "",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "https://images.example.test/league/poster.jpg",
+          "remoteUrl": "https://images.example.test/league/poster.jpg"
+        }
+      ]
+    },
+    "episodeFile": null
+  },
+  {
+    "id": 502,
+    "seriesId": 6,
+    "tvdbId": 9001,
+    "episodeFileId": 77,
+    "seasonNumber": 2020,
+    "episodeNumber": 3,
+    "absoluteEpisodeNumber": 3,
+    "title": "Riverside vs Old Town",
+    "airDate": "2020-01-04",
+    "airDateUtc": "2020-01-04T14:00:00Z",
+    "hasFile": true,
+    "monitored": true,
+    "images": [],
+    "series": {
+      "id": 6,
+      "title": "Coastal League",
+      "network": "Sportcast",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/6/poster.jpg"
+        }
+      ]
+    },
+    "episodeFile": null
+  },
+  {
+    "id": 503,
+    "seriesId": 8,
+    "tvdbId": 9002,
+    "episodeFileId": 0,
+    "seasonNumber": 2020,
+    "episodeNumber": 9,
+    "absoluteEpisodeNumber": 9,
+    "title": "Grand Prix Qualifying",
+    "airDate": "2020-01-05",
+    "airDateUtc": "2020-01-05T10:00:00Z",
+    "hasFile": false,
+    "monitored": true,
+    "images": [],
+    "series": {
+      "id": 8,
+      "title": "Open Wheel Series",
+      "network": "",
+      "images": []
+    },
+    "episodeFile": null
+  }
+]

@@ -206,3 +206,21 @@ async def test_list_stats_strip_reads_metrics_with_a_sparkline(
     assert left["value"] is None and "sparkline" not in left  # no reading yet: shown as —
     assert w.data["dense"] is True
     assert w.data["items"][0]["bar"] == 40
+
+
+async def test_sportarr_events_are_named_by_title_and_never_fetch_outside_art(
+    config_dir: Path,
+) -> None:
+    """Sportarr speaks Sonarr's API, but a "series" is a league and the season is the
+    year: an event is named by its own title, and its art — linked on an outside host —
+    is never handed to the image proxy, which fetches only from the provider itself."""
+    req, attrs = await _poll_calendar(config_dir, "sportarr")
+    assert req.url.params["includeSeries"] == "true"
+    match = attrs["sportarr:upcoming:6-s2099e14"]
+    assert match["league"] == "Coastal League"
+    assert match["image"] is None  # absolute https URL on an image host: not ours to fetch
+    assert match["network"] is None  # empty string is no network
+    assert "episode" not in match  # no S2099E14 label
+    local = attrs["sportarr:upcoming:6-s2020e3"]
+    assert local["image"] == "/MediaCover/6/poster-500.jpg"  # a local copy, if one appears
+    assert local["network"] == "Sportcast"

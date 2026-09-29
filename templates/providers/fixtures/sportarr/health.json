@@ -1,0 +1,8 @@
+[
+  {
+    "source": "IndexerStatusCheck",
+    "type": "warning",
+    "message": "Indexers unavailable due to failures",
+    "wikiUrl": "https://wiki.example/indexers"
+  }
+]
