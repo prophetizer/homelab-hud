@@ -36,9 +36,13 @@ from hud.store.tables import series as series_t
 log = logging.getLogger(__name__)
 
 RUN_SECONDS = 300.0
-# Series per transaction: small enough that a first run's backfill (days of 15 s samples
-# per series) never holds the write lock near the collector's 5 s busy timeout.
-BATCH = 25
+# Each write transaction stops taking series once it has run this long, then the worker
+# pauses so a collector write waiting on the lock gets in. A count of series was not enough:
+# a first run's backfill held 25 heavy series past the collector's 5 s busy timeout. The
+# pause outlasts SQLite's longest busy-handler sleep (100 ms), so a waiter always retries
+# inside it.
+TXN_SECONDS = 0.25
+PAUSE_SECONDS = 0.1
 GRACE = 60  # seconds a sample may arrive after its bucket closes and still be counted
 VACUUM_PAGES = 2000  # pages handed back per run, so no run holds the file long
 
@@ -152,10 +156,19 @@ class RollupWorker:
         with self.engine.connect() as conn:
             ids = [int(i) for i in conn.execute(select(series_t.c.id)).scalars()]
         stats.series = len(ids)
-        for i in range(0, len(ids), BATCH):
+        todo = iter(ids)
+        pending = True
+        while pending:
             with self.engine.begin() as conn:
-                for sid in ids[i : i + BATCH]:
+                began = time.monotonic()
+                for sid in todo:  # at least one series per transaction
                     self._series(conn, sid, now, horizon, stats)
+                    if time.monotonic() - began >= TXN_SECONDS:
+                        break
+                else:
+                    pending = False
+            if pending:
+                time.sleep(PAUSE_SECONDS)
         with self.engine.begin() as conn:
             conn.exec_driver_sql(_VACUUM)
         # Hand the write-ahead log back too: a backfill's large transactions would otherwise

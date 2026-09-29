@@ -7,11 +7,11 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from sqlalchemy import ColumnElement, Engine, Table, func, insert, select
+from sqlalchemy import ColumnElement, Engine, Table, event, func, insert, select
 
 from hud.config.schemas.settings import Retention
 from hud.reporting.query import pick_tier, read_range
-from hud.store import StorePaths, create_store_engine, upgrade_all
+from hud.store import StorePaths, create_store_engine, rollup, upgrade_all
 from hud.store.rollup import RollupWorker
 from hud.store.tables import rollups, samples, series
 
@@ -28,14 +28,14 @@ def db(tmp_path: Path) -> Iterator[Engine]:
     eng.dispose()
 
 
-def _seed(db: Engine, days: int = 3) -> int:
+def _seed(db: Engine, days: int = 3, uid: str = UID) -> int:
     """One sample a minute for ``days`` up to NOW; value = minute index."""
     first = NOW - days * 86_400
     with db.begin() as conn:
         sid = conn.execute(
             insert(series).values(
                 provider="glances",
-                resource_uid=UID,
+                resource_uid=uid,
                 metric=METRIC,
                 unit="pct",
                 first_seen=first,
@@ -102,6 +102,25 @@ def test_only_closed_buckets_are_rolled_and_a_rerun_changes_nothing(db: Engine) 
     w.run_once(NOW)
     assert {t: _count(db, rollups, rollups.c.tier == t) for t in counts} == counts
     assert _rollup(db, sid, "1h", NOW - 3 * 86_400) == before
+
+
+def test_a_long_run_commits_in_slices_and_pauses_between_them(
+    db: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A first run's backfill must not hold the write lock past the collector's busy
+    # timeout: once a transaction has used its budget it commits, and the worker pauses.
+    sids = [_seed(db, days=1, uid=f"glances:cpu:{i}") for i in range(4)]
+    monkeypatch.setattr(rollup, "TXN_SECONDS", 0.0)
+    pauses: list[float] = []
+    monkeypatch.setattr(rollup.time, "sleep", pauses.append)
+    commits: list[int] = []
+    event.listen(db, "commit", lambda _conn: commits.append(1))
+    worker(db).run_once(NOW)
+    # One transaction per series (a zero budget still does one), a pause between each.
+    assert len(pauses) == len(sids) and set(pauses) == {rollup.PAUSE_SECONDS}
+    assert len(commits) >= len(sids)
+    for sid in sids:
+        assert _rollup(db, sid, "1h", NOW - 86_400)[4] == 60  # an hour of minutes
 
 
 def test_a_late_sample_is_counted_on_the_next_run(db: Engine) -> None:
