@@ -610,6 +610,9 @@
                 "$ref": "#/$defs/HeatmapWidget"
               },
               {
+                "$ref": "#/$defs/CapacityWidget"
+              },
+              {
                 "$ref": "#/$defs/UnsupportedWidget"
               }
             ]
@@ -619,6 +622,124 @@
         }
       },
       "title": "BoardSpec",
+      "type": "object"
+    },
+    "CapacityDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "empty_text": {
+          "default": "No disks",
+          "title": "Empty Text",
+          "type": "string"
+        },
+        "error_days": {
+          "default": 7,
+          "maximum": 3650,
+          "minimum": 1,
+          "title": "Error Days",
+          "type": "integer"
+        },
+        "used": {
+          "default": "used_pct",
+          "title": "Used",
+          "type": "string"
+        },
+        "warn_days": {
+          "default": 30,
+          "maximum": 3650,
+          "minimum": 1,
+          "title": "Warn Days",
+          "type": "integer"
+        },
+        "window": {
+          "default": "7d",
+          "enum": [
+            "24h",
+            "7d",
+            "30d"
+          ],
+          "title": "Window",
+          "type": "string"
+        }
+      },
+      "title": "CapacityDisplay",
+      "type": "object"
+    },
+    "CapacityWidget": {
+      "additionalProperties": true,
+      "description": "Disks and how soon they fill: a straight line fitted to each one's used share over\n``window``, stated with its confidence, never a guess from too little history (PLAN\n\u00a79.2 `capacity`, as a widget). Added 2026-09-28, dashboard/v1-compatible.",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/CapacityDisplay",
+          "default": {
+            "empty_text": "No disks",
+            "error_days": 7,
+            "used": "used_pct",
+            "warn_days": 30,
+            "window": "7d"
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ListSource",
+          "default": {
+            "limit": null,
+            "select": {
+              "attrs": null,
+              "kind": null,
+              "label": null,
+              "missing": null,
+              "provider": null,
+              "state": null
+            },
+            "sort": [
+              "-state_severity",
+              "name"
+            ]
+          }
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "capacity",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type"
+      ],
+      "title": "CapacityWidget",
       "type": "object"
     },
     "ChartDisplay": {

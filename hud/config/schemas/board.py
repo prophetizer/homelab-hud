@@ -40,6 +40,7 @@ PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(
         "incidents",
         "chart",
         "heatmap",
+        "capacity",
     }
 )
 # Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
@@ -481,6 +482,35 @@ class ChartWidget(_Widget):
     display: ChartDisplay = ChartDisplay()
 
 
+class CapacityDisplay(_Spec):
+    # How much history the growth rate is fitted over.
+    window: Literal["24h", "7d", "30d"] = "7d"
+    # The metric holding each resource's share used, 0-100 (used_pct from the Glances and
+    # *arr templates); free_bytes and total_bytes are shown alongside when present.
+    used: str = "used_pct"
+    # Full within this many days: warn (degraded) or error (down).
+    warn_days: int = Field(default=30, ge=1, le=3650)
+    error_days: int = Field(default=7, ge=1, le=3650)
+    empty_text: str = "No disks"
+
+    @model_validator(mode="after")
+    def _order(self) -> Self:
+        if self.error_days > self.warn_days:
+            msg = "error_days must not be more than warn_days"
+            raise ValueError(msg)
+        return self
+
+
+class CapacityWidget(_Widget):
+    """Disks and how soon they fill: a straight line fitted to each one's used share over
+    ``window``, stated with its confidence, never a guess from too little history (PLAN
+    §9.2 `capacity`, as a widget). Added 2026-09-28, dashboard/v1-compatible."""
+
+    type: Literal["capacity"]
+    source: ListSource = ListSource()
+    display: CapacityDisplay = CapacityDisplay()
+
+
 class HeatmapDisplay(_Spec):
     range: Literal["7d", "30d"] = "7d"
     agg: Literal["mean", "max"] = "mean"
@@ -535,6 +565,7 @@ Widget = Annotated[
     | Annotated[IncidentsWidget, Tag("incidents")]
     | Annotated[ChartWidget, Tag("chart")]
     | Annotated[HeatmapWidget, Tag("heatmap")]
+    | Annotated[CapacityWidget, Tag("capacity")]
     | Annotated[UnsupportedWidget, Tag("unsupported")],
     Discriminator(_widget_tag),
 ]

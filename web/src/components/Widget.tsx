@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ResolvedWidget } from "../api/types";
 import { BarsWidget } from "./widgets/BarsWidget";
+import { CapacityWidget } from "./widgets/CapacityWidget";
 import { ChartWidget } from "./widgets/ChartWidget";
 import { EmbedWidget } from "./widgets/EmbedWidget";
 import { ListWidget } from "./widgets/ListWidget";
@@ -37,6 +38,8 @@ export function Widget({ widget, board }: { widget: ResolvedWidget; board?: stri
       return <ChartWidget widget={widget} board={board} />;
     case "heatmap":
       return <HeatmapWidget widget={widget} />;
+    case "capacity":
+      return <CapacityWidget widget={widget} />;
     default:
       return <UnsupportedWidget widget={widget} />;
   }

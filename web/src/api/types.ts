@@ -268,3 +268,33 @@ export interface HeatmapData {
   resource_name: string;
   format: { unit: string | null; precision: number };
 }
+export interface CapacityForecast {
+  verdict: "filling" | "steady" | "shrinking" | "unclear" | "too_little" | "no_reading";
+  days?: number;
+  full_on?: string;
+  confidence?: "good" | "rough";
+  pct_per_day?: number;
+  bytes_per_day?: number;
+  r2?: number;
+  span_days?: number;
+  points?: number;
+}
+export interface CapacityItem {
+  uid: string;
+  title: string;
+  stale: boolean;
+  links: Record<string, string>;
+  used_pct: number | null;
+  free_bytes: number | null;
+  total_bytes: number | null;
+  state: State;
+  forecast: CapacityForecast;
+}
+export interface CapacityData {
+  items: CapacityItem[];
+  total: number;
+  window: string;
+  warn_days: number;
+  error_days: number;
+  empty_text: string;
+}

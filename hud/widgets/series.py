@@ -78,4 +78,63 @@ def heat(
     ]
 
 
-__all__ = ["CHART_BUCKETS", "bucket_axis", "bucketed", "heat", "read_points"]
+MIN_POINTS = 12
+FLAT_PCT_PER_DAY = 0.01  # less growth than this is steady, not filling
+CLEAR_R2 = 0.3  # below this the line explains too little to date anything by it
+GOOD_R2 = 0.7
+
+
+def fit(points: Sequence[tuple[int, float]]) -> tuple[float, float, float]:
+    """Least squares: (slope per second, intercept, r²). Needs two distinct times."""
+    n = len(points)
+    mx = sum(t for t, _ in points) / n
+    my = sum(v for _, v in points) / n
+    sxx = sum((t - mx) ** 2 for t, _ in points)
+    sxy = sum((t - mx) * (v - my) for t, v in points)
+    syy = sum((v - my) ** 2 for _, v in points)
+    slope = sxy / sxx if sxx else 0.0
+    intercept = my - slope * mx
+    r2 = (sxy * sxy) / (sxx * syy) if sxx and syy else (1.0 if not syy else 0.0)
+    return slope, intercept, r2
+
+
+def forecast(
+    points: Sequence[tuple[int, float]], current: float, window_seconds: int
+) -> dict[str, object]:
+    """When a used share (0-100) reaches 100, from a straight line through ``points``.
+
+    Honest about what it cannot say: ``too_little`` history (fewer than 12 samples, or
+    spanning under a quarter of the window), ``unclear`` (the line explains under 30 % of
+    the movement), ``steady`` or ``shrinking``. Only ``filling`` carries a date, with its
+    confidence: ``good`` (r² ≥ 0.7) or ``rough``."""
+    span = points[-1][0] - points[0][0] if len(points) >= 2 else 0
+    base: dict[str, object] = {"points": len(points), "span_days": span / 86400}
+    if len(points) < MIN_POINTS or span < window_seconds / 4:
+        return {**base, "verdict": "too_little"}
+    slope, _, r2 = fit(points)
+    per_day = slope * 86400
+    base |= {"pct_per_day": per_day, "r2": r2}
+    if abs(per_day) < FLAT_PCT_PER_DAY:
+        return {**base, "verdict": "steady"}
+    if per_day < 0:
+        return {**base, "verdict": "shrinking"}
+    if r2 < CLEAR_R2:
+        return {**base, "verdict": "unclear"}
+    days = max(0.0, (100.0 - current) / per_day)
+    return {
+        **base,
+        "verdict": "filling",
+        "days": days,
+        "confidence": "good" if r2 >= GOOD_R2 else "rough",
+    }
+
+
+__all__ = [
+    "CHART_BUCKETS",
+    "bucket_axis",
+    "bucketed",
+    "fit",
+    "forecast",
+    "heat",
+    "read_points",
+]

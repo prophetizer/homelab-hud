@@ -14,7 +14,7 @@ import asyncio
 import re
 import statistics
 from collections.abc import Callable, Coroutine, Sequence
-from datetime import UTC, date, datetime, tzinfo
+from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -27,6 +27,7 @@ from hud.config.schemas import BoardDocument, Widget
 from hud.config.schemas.board import (
     CHART_RANGES,
     BarsWidget,
+    CapacityWidget,
     ChartWidget,
     EmbedWidget,
     Grid,
@@ -52,7 +53,7 @@ from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.icons import slug as icon_slug
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
-from hud.widgets.series import bucket_axis, bucketed, heat, read_points
+from hud.widgets.series import bucket_axis, bucketed, forecast, heat, read_points
 from hud.widgets.uptime import RANGES, cells, day_cells, ratio, read_spans, tally
 
 # ----------------------------------------------------------------------------- payloads
@@ -170,6 +171,8 @@ class WidgetEngine:
                 uids.update(uid for uid, _, _ in self._chart_series(w))
             elif isinstance(w, HeatmapWidget):
                 uids.add(w.source.resource)
+            elif isinstance(w, CapacityWidget):
+                uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
             if isinstance(w, ListWidget):
                 uids.update(stat.resource for stat in w.display.stats)
         return uids
@@ -233,7 +236,15 @@ class WidgetEngine:
             providers = {single.split(":", 1)[0]}
         elif isinstance(w, ChartWidget):
             providers = {str(s["uid"]).split(":", 1)[0] for s in resolved.data.get("series", [])}
-        elif isinstance(w, ListWidget | BarsWidget | UptimeWidget | StatusWidget | IncidentsWidget):
+        elif isinstance(
+            w,
+            ListWidget
+            | BarsWidget
+            | UptimeWidget
+            | StatusWidget
+            | IncidentsWidget
+            | CapacityWidget,
+        ):
             sel = _as_list(w.source.select.provider)
             data = resolved.data
             rows = (
@@ -265,6 +276,8 @@ class WidgetEngine:
                 pending = self._chart(w, now)
             case HeatmapWidget():
                 pending = self._heatmap(w, now)
+            case CapacityWidget():
+                pending = self._capacity(w, now)
             case _:
                 return self._resolve_sync(w)
         return await pending
@@ -486,6 +499,80 @@ class WidgetEngine:
                 "samples": len(points),
                 "resource_name": r.name if r is not None else uid,
                 "format": {"unit": w.display.unit, "precision": w.display.precision},
+            },
+        )
+
+    async def _capacity(self, w: CapacityWidget, now: datetime) -> ResolvedWidget:
+        """Each disk's use now and when it fills, from a line through its history. A disk
+        filling within error_days is down, within warn_days degraded; one 95 % full or more
+        is at least degraded whatever its trend."""
+        d = w.display
+        window = parse_duration(d.window)
+        to = int(now.timestamp())
+        found, total = self._select(w.source)
+        items: list[dict[str, Any]] = []
+        for r in found:
+            used = self.cache.metric(r.uid, d.used)
+            free = self.cache.metric(r.uid, "free_bytes")
+            size = self.cache.metric(r.uid, "total_bytes")
+            row: dict[str, Any] = {
+                "uid": r.uid,
+                "title": r.name,
+                "stale": r.stale,
+                "links": r.links,
+                "used_pct": used.value if used is not None else None,
+                "free_bytes": free.value if free is not None else None,
+                "total_bytes": size.value if size is not None else None,
+            }
+            if used is None:
+                row |= {"state": State.UNKNOWN.value, "forecast": {"verdict": "no_reading"}}
+                items.append(row)
+                continue
+            points = (
+                await asyncio.to_thread(read_points, self.db, r.uid, d.used, to - window, to)
+                if self.db is not None
+                else []
+            )
+            f = forecast(points, used.value, window)
+            state = State.UP
+            days = f.get("days")
+            if f["verdict"] == "filling" and isinstance(days, float):
+                if days < d.error_days:
+                    state = State.DOWN
+                elif days < d.warn_days:
+                    state = State.DEGRADED
+                f["full_on"] = (now.astimezone(self.tz) + timedelta(days=days)).date().isoformat()
+            if used.value >= 95 and state is State.UP:
+                state = State.DEGRADED
+            per_day = f.get("pct_per_day")
+            if isinstance(per_day, float) and size is not None:
+                f["bytes_per_day"] = per_day / 100 * size.value
+            row |= {"state": state.value, "forecast": f}
+            items.append(row)
+
+        def urgency(i: dict[str, Any]) -> tuple[int, float, float]:
+            days = i["forecast"].get("days")
+            return (
+                -STATE_SEVERITY[State(i["state"])],
+                days if isinstance(days, float) else float("inf"),
+                -(i["used_pct"] or 0.0),
+            )
+
+        items.sort(key=urgency)
+        worst = max(
+            (State(i["state"]) for i in items), key=lambda s: STATE_SEVERITY[s], default=State.UP
+        )
+        return _tile(
+            w,
+            worst,
+            stale=any(i["stale"] for i in items),
+            data={
+                "items": items,
+                "total": total,
+                "window": d.window,
+                "warn_days": d.warn_days,
+                "error_days": d.error_days,
+                "empty_text": d.empty_text,
             },
         )
 
