@@ -4,8 +4,9 @@
 Each ``Report`` document is scheduled on its cron ``schedule`` in its timezone (settings'
 when unset) and re-scheduled whenever config reloads. A run reads the window, builds every
 section (one failing section is that section's note, never a failed report), and writes
-each output it can: html and csv now. pdf and webhook outputs are listed in the report's
-footer and the run result as not produced yet — never silently dropped.
+each output it can: html, csv and pdf. A webhook output is listed in the report's footer and
+the run result as not produced yet, and a pdf that fails to render is listed in the run
+result with its error — never silently dropped.
 
 Files are named ``{name}-{date}.{ext}`` (the run's local date) unless an output's ``path``
 says otherwise; a path always resolves inside the reports directory. Only files named the
@@ -38,7 +39,7 @@ from hud.reporting.sections import SectionResult, Window, build
 log = logging.getLogger(__name__)
 
 EXTENSIONS = {"html": "html", "csv": "csv", "pdf": "pdf"}
-NOT_YET = {"pdf": "pdf (arrives with the next build)", "webhook": "webhook (not built yet)"}
+NOT_YET = {"webhook": "webhook (not built yet)"}
 
 
 @dataclass
@@ -170,16 +171,24 @@ class ReportRunner:
         )
         date = datetime.fromtimestamp(until, tz).date().isoformat()
         self.out_dir.mkdir(parents=True, exist_ok=True)
+        page = render.html(meta, sections)
         for out in doc.spec.outputs:
             if out.format == "html":
-                body = render.html(meta, sections)
+                body = page.encode()
             elif out.format == "csv":
-                body = render.csv_text(sections, tz)
+                body = render.csv_text(sections, tz).encode()
+            elif out.format == "pdf":
+                try:
+                    body = render.pdf(page)
+                except Exception as exc:  # the html and csv still count; say why pdf did not
+                    log.exception("report %s: pdf failed", doc.metadata.name)
+                    result.skipped.append(f"pdf (failed: {type(exc).__name__}: {exc})")
+                    continue
             else:
                 continue
             path = self._path(out, doc.metadata.name, date)
             tmp = path.with_suffix(path.suffix + ".tmp")
-            tmp.write_text(body, encoding="utf-8")
+            tmp.write_bytes(body)
             tmp.replace(path)
             result.files.append(path.name)
         return result
@@ -201,7 +210,7 @@ class ReportRunner:
         if not self.out_dir.is_dir():
             return []
         # Exactly name-YYYY-MM-DD.ext: "weekly" must not list "weekly-lab"'s files.
-        pattern = re.compile(rf"{re.escape(name)}-\d{{4}}-\d{{2}}-\d{{2}}\.(html|csv)")
+        pattern = re.compile(rf"{re.escape(name)}-\d{{4}}-\d{{2}}-\d{{2}}\.(html|csv|pdf)")
         found = [p for p in self.out_dir.iterdir() if p.is_file() and pattern.fullmatch(p.name)]
         return sorted(found, key=lambda p: p.stat().st_mtime, reverse=True)
 

@@ -14,4 +14,13 @@ describe("runsByDate", () => {
       ["2026-09-21", 1],
     ]);
   });
+
+  it("orders one run's files View, PDF, CSV", () => {
+    const f = (name: string) => ({ name, format: name.split(".").pop() ?? "", size: 1, modified: "" });
+    const runs = runsByDate(
+      [f("weekly-2026-09-28.csv"), f("weekly-2026-09-28.pdf"), f("weekly-2026-09-28.html")],
+      "weekly",
+    );
+    expect(runs.map((r) => r.files.map((x) => x.format))).toEqual([["html", "pdf", "csv"]]);
+  });
 });

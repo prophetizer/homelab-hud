@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Reports (PLAN §9): definitions validate as written, each section reads real history,
-the runner writes HTML and CSV (saying what it could not produce), a hostile name is
-escaped, one broken section does not sink the report, and the API is permission-gated."""
+the runner writes HTML, CSV and PDF (saying what it could not produce), a hostile name is
+escaped, the PDF fetches nothing, one broken section does not sink the report, and the API
+is permission-gated."""
 
+import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -254,6 +256,46 @@ def test_html_escapes_names_and_says_what_it_did_not_produce(db: Engine) -> None
     assert "uptime_table,Service availability,flaky,incident_count,2" in csv
 
 
+def test_the_pdf_is_the_page_and_fetches_nothing(
+    db: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _history(db)
+    spec = _spec([{"kind": "uptime_table", "select": {"kind": "endpoint"}}])
+    sections = [build(spec.sections[0], db, _cache(), WINDOW)]
+    meta = render.ReportMeta("Weekly", WINDOW.since, WINDOW.until, WINDOW.tz, "0.0.1")
+    fetched: list[object] = []
+
+    def refuse(_self: object, url: object, *_a: object, **_k: object) -> None:
+        fetched.append(url)
+        raise AssertionError(url)
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", refuse)
+    doc = render.pdf(render.html(meta, sections))
+    assert doc.startswith(b"%PDF-") and len(doc) > 1000
+    # Anything outside the page is refused before it is opened.
+    hostile = '<img src="http://example.invalid/x.png"><img src="file:///etc/hostname">'
+    render.pdf(render.html(meta, sections).replace("<body>", "<body>" + hostile))
+    assert fetched == []
+
+
+def test_a_failed_pdf_is_reported_and_the_rest_is_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = _env(tmp_path)
+    (env.config_dir / "reports").mkdir(parents=True)
+    (env.config_dir / "reports" / "weekly.yaml").write_text(REPORT)
+
+    def broken(_page: str) -> bytes:
+        raise OSError("cannot load library 'libpango-1.0-0'")
+
+    monkeypatch.setattr(render, "pdf", broken)
+    with TestClient(create_app(env)) as client:
+        sign_in_admin(client)
+        body = client.post("/api/v1/reports/weekly/run").json()
+    assert [f.rsplit(".", 1)[1] for f in body["files"]] == ["html", "csv"]
+    assert body["skipped"] == ["pdf (failed: OSError: cannot load library 'libpango-1.0-0')"]
+
+
 REPORT = """\
 apiVersion: hud/v1
 kind: Report
@@ -288,8 +330,8 @@ def test_reports_api_runs_lists_and_serves(client: TestClient) -> None:
     run = client.post("/api/v1/reports/weekly/run")
     assert run.status_code == 200, run.text
     body = run.json()
-    assert body["error"] is None and len(body["files"]) == 2
-    assert body["skipped"] == ["pdf (arrives with the next build)"]
+    assert body["error"] is None and len(body["files"]) == 3
+    assert body["skipped"] == []
     files = {
         f["format"]: f["name"] for f in client.get("/api/v1/reports").json()["reports"][0]["files"]
     }
@@ -298,6 +340,10 @@ def test_reports_api_runs_lists_and_serves(client: TestClient) -> None:
     assert "script-src" not in page.headers["content-security-policy"]
     sheet = client.get(f"/api/v1/reports/weekly/files/{files['csv']}")
     assert sheet.headers["content-disposition"].startswith("attachment")
+    doc = client.get(f"/api/v1/reports/weekly/files/{files['pdf']}")
+    assert doc.headers["content-type"] == "application/pdf"
+    assert doc.headers["content-disposition"].startswith("inline")
+    assert doc.content.startswith(b"%PDF-")
     # Only this report's own files: not another's, not a path.
     assert client.get("/api/v1/reports/weekly-lab/files/" + files["html"]).status_code == 404
     assert client.get("/api/v1/reports/weekly/files/..%2Fdashboard.db").status_code == 404

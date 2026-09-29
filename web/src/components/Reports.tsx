@@ -115,7 +115,7 @@ export function Reports({ me }: { me: Me }) {
                         <a
                           key={f.name}
                           href={reportFileUrl(r.name, f.name)}
-                          target={f.format === "html" ? "_blank" : undefined}
+                          target={f.format === "csv" ? undefined : "_blank"}
                           rel="noreferrer"
                           download={f.format === "csv" ? f.name : undefined}
                         >

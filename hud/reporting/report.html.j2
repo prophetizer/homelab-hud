@@ -30,8 +30,8 @@
   .legend { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; font-size: 11px;
             color: var(--muted); font-variant-numeric: tabular-nums; }
   .legend b { color: var(--ink); font-weight: 600; }
-  svg text { font: 10px system-ui, sans-serif; fill: var(--faint); }
   footer { margin-top: 28px; color: var(--faint); font-size: 11px; }
+  @media print { body { max-width: none; padding: 0; } }
 </style>
 </head>
 <body>
@@ -48,10 +48,13 @@
           y2="{{ s.chart.bottom }}" stroke="#d5dbe1"/>
     <line x1="{{ s.chart.left }}" y1="{{ s.chart.top }}" x2="{{ s.chart.right }}"
           y2="{{ s.chart.top }}" stroke="#eef1f4"/>
+    {# Attributes, not CSS: WeasyPrint (the PDF) ignores CSS fill and font on SVG text #}
+    <g fill="#7e8a97" font-size="10" font-family="system-ui, sans-serif">
     <text x="{{ s.chart.left - 6 }}" y="{{ s.chart.top + 8 }}" text-anchor="end">{{ s.chart.hi }}</text>
     <text x="{{ s.chart.left - 6 }}" y="{{ s.chart.bottom }}" text-anchor="end">{{ s.chart.lo }}</text>
     <text x="{{ s.chart.left }}" y="{{ s.chart.height - 4 }}">{{ s.start_label }}</text>
     <text x="{{ s.chart.right }}" y="{{ s.chart.height - 4 }}" text-anchor="end">{{ s.end_label }}</text>
+    </g>
     {% for l in s.chart.lines %}
     <polyline fill="none" stroke="{{ l.ink }}" stroke-width="1.4"
       {% if l.dash %}stroke-dasharray="{{ l.dash }}"{% endif %} points="{{ l.points }}"/>

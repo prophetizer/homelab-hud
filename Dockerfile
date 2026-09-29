@@ -42,6 +42,16 @@ ENV PYTHONUNBUFFERED=1 \
     HUD_DATA_DIR=/data \
     HUD_STATIC_DIR=/app/web/dist \
     HUD_PORT=8080
+# fontconfig's image cache never validates (layers keep whole-second times, the cache
+# nanoseconds), so it rebuilds on the /tmp tmpfs instead of printing an error per report.
+ENV XDG_CACHE_HOME=/tmp/.cache
+
+# PDF reports (WeasyPrint): pango and harfbuzz lay the page out, per WeasyPrint's own
+# install notes; slim ships no fonts, so DejaVu is the one font every report uses.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1000 hud \
  && useradd --uid 1000 --gid 1000 --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin hud \

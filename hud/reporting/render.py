@@ -2,8 +2,8 @@
 """Report renderers: a self-contained, printable HTML page and a long-format CSV.
 
 The HTML has no scripts and no outside resources — inline styles, charts drawn as SVG on
-the server — so it opens anywhere, prints cleanly (the PDF output will render this same
-page), and is served with a sandboxing CSP. Every string from a provider is escaped by
+the server — so it opens anywhere, prints cleanly (the PDF is this same page, laid out by
+WeasyPrint), and is served with a sandboxing CSP. Every string from a provider is escaped by
 Jinja's autoescape. Colour is for status only (invariant 9): series are shades of ink,
 only a highlighted cell is amber or red.
 
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 from importlib import resources
@@ -23,6 +24,9 @@ from typing import Any
 from jinja2 import Environment
 
 from hud.reporting.sections import SectionResult
+
+# WeasyPrint logs every layout step at INFO: eight lines a report, nothing to act on.
+logging.getLogger("weasyprint.progress").setLevel(logging.WARNING)
 
 _BIN = ("B", "KiB", "MiB", "GiB", "TiB", "PiB")
 _BITS = ("bit/s", "kbit/s", "Mbit/s", "Gbit/s", "Tbit/s")
@@ -222,6 +226,19 @@ def html(meta: ReportMeta, sections: list[SectionResult]) -> str:
     )
 
 
+def pdf(page: str) -> bytes:
+    """The HTML page as a PDF, laid out by WeasyPrint — no browser in the image.
+
+    The page is self-contained, so nothing is fetched: every URL but ``data:`` is refused,
+    never followed, whatever a provider's strings contain.
+    """
+    # On first use, so a host without pango loses the pdf output (loudly), not HUD's start.
+    from weasyprint import HTML, URLFetcher  # noqa: PLC0415 — loads pango via cffi
+
+    fetcher = URLFetcher(allowed_protocols={"data"})
+    return bytes(HTML(string=page, url_fetcher=fetcher).write_pdf())
+
+
 def csv_text(sections: list[SectionResult], tz: tzinfo) -> str:
     """section, title, row, key, value — one line per value, raw numbers (not formatted)."""
     buf = io.StringIO()
@@ -244,4 +261,4 @@ def csv_text(sections: list[SectionResult], tz: tzinfo) -> str:
     return buf.getvalue()
 
 
-__all__ = ["ReportMeta", "csv_text", "duration", "fmt", "html", "svg_chart"]
+__all__ = ["ReportMeta", "csv_text", "duration", "fmt", "html", "pdf", "svg_chart"]

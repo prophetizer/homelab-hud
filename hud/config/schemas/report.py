@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """``/config/reports/*.yaml`` — scheduled reports (PLAN.md §9.2, §9.3).
 
-A report reads HUD's own history over a window and writes files: HTML (printable) and CSV
-now; PDF and webhook outputs are accepted as written but produce nothing yet — the run
-says so rather than failing silently. Sections (v1 subset): uptime_table, trend_chart,
+A report reads HUD's own history over a window and writes files: HTML (printable), CSV and
+PDF; a webhook output is accepted as written but sends nothing yet — the run says so rather
+than failing silently. Sections (v1 subset): uptime_table, trend_chart,
 top_n, capacity, events. diff and raw_table come later.
 
 Added 2026-09-29. `Report` is not part of the frozen dashboard/v1 Provider/Board contract;

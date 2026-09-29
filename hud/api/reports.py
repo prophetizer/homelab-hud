@@ -134,6 +134,17 @@ async def get_report_file(request: Request, name: str, file_name: str) -> Respon
                 "Cache-Control": "private, no-cache",
             },
         )
+    if path.suffix == ".pdf":
+        # Inline, for the browser's own viewer; no sandbox CSP, which would block it.
+        return Response(
+            content=body,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="{path.name}"',
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "private, no-cache",
+            },
+        )
     return Response(
         content=body,
         media_type="text/csv; charset=utf-8",

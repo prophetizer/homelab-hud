@@ -19,6 +19,7 @@ dependencies = [
     "apscheduler==3.11.3",
     "argon2-cffi==25.1.0",
     "authlib==1.8.0",
+    "weasyprint==70.0",
 ]
 
 [dependency-groups]
@@ -73,8 +74,8 @@ files = ["hud"]
 [[tool.mypy.overrides]]
 # None ship stubs or py.typed. jsonpath-ng is used only behind
 # providers/declarative/select.py, apscheduler only behind collector/scheduler.py,
-# authlib only behind auth/backends/oidc.py.
-module = ["jsonpath_ng.*", "apscheduler.*", "authlib.*"]
+# authlib only behind auth/backends/oidc.py, weasyprint only behind reporting/render.py.
+module = ["jsonpath_ng.*", "apscheduler.*", "authlib.*", "weasyprint.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

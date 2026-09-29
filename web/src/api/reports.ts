@@ -3,7 +3,7 @@ import { getJson, sendJson } from "./client";
 
 export interface ReportFile {
   name: string;
-  format: "html" | "csv" | string;
+  format: "html" | "csv" | "pdf" | string;
   size: number;
   modified: string;
 }
@@ -47,5 +47,11 @@ export function runsByDate(files: ReportFile[], name: string): { date: string; f
     const date = f.name.slice(name.length + 1, name.length + 11);
     out.set(date, [...(out.get(date) ?? []), f]);
   }
-  return [...out.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([date, fs]) => ({ date, files: fs }));
+  const rank = (f: ReportFile) => FORMAT_ORDER.indexOf(f.format) >>> 0; // unknown formats last
+  return [...out.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, fs]) => ({ date, files: [...fs].sort((a, b) => rank(a) - rank(b)) }));
 }
+
+/** One run's links always read View, PDF, CSV — whichever file was written last. */
+const FORMAT_ORDER = ["html", "pdf", "csv"];
