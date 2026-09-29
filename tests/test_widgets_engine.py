@@ -725,7 +725,7 @@ async def test_a_display_name_icon_is_tried_as_its_dashboard_icons_guess(
     config_dir: Path,
 ) -> None:
     """`icon: name` on web checks: "Home Assistant" → home-assistant, as the apps list
-    guesses; a path or file name is never guessed at."""
+    guesses; a path or an image file name is never guessed at."""
     cache = LiveCache()
     cache.apply(
         "web",
@@ -733,6 +733,8 @@ async def test_a_display_name_icon_is_tried_as_its_dashboard_icons_guess(
         [
             res("web:endpoint:ha").model_copy(update={"name": "Home Assistant"}),
             res("web:endpoint:odd").model_copy(update={"name": "/weird/path.svg"}),
+            res("web:endpoint:file").model_copy(update={"name": "logo.png"}),
+            res("web:endpoint:tp").model_copy(update={"name": "theme.park"}),
         ],
         [],
     )
@@ -751,4 +753,6 @@ async def test_a_display_name_icon_is_tried_as_its_dashboard_icons_guess(
     assert {i["name"]: i["icon"] for i in w.data["items"]} == {
         "Home Assistant": "home-assistant",
         "/weird/path.svg": None,
+        "logo.png": "logo.png",  # a servable file name is used as it is, never slugged
+        "theme.park": "theme-park",  # a dot in a name is not a file extension
     }

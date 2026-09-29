@@ -855,7 +855,7 @@ class WidgetEngine:
         name = v.strip().lower()
         if resolve_icon(name):
             return name
-        if "/" in v or "." in v:  # a path or a file name is never guessed at
+        if "/" in v or _IMAGE_FILE.search(v):  # a path or an image file is never guessed at
             return None
         guess = icon_slug(v)
         return guess if guess and resolve_icon(guess) else None
@@ -905,6 +905,9 @@ def when(value: Any, tz: tzinfo) -> dict[str, Any] | None:  # noqa: ANN401
         return {"day": utc.date().isoformat(), "time": None}
     local = at.astimezone(tz)
     return {"day": local.date().isoformat(), "time": local.strftime("%H:%M")}
+
+
+_IMAGE_FILE = re.compile(r"\.(png|svg|webp|jpe?g|gif|ico)$", re.IGNORECASE)
 
 
 def _tile(
