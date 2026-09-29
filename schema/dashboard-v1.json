@@ -1539,7 +1539,8 @@
             "media",
             "shelf",
             "agenda",
-            "week"
+            "week",
+            "services"
           ],
           "title": "Layout",
           "type": "string"

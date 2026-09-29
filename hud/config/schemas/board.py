@@ -148,7 +148,12 @@ class ListDisplay(_Spec):
     # agenda (added 2026-09-27): rows under day headings (Today, Tomorrow, Tue 29 Sep) by
     # the `date` field, in settings.timezone — a release calendar.
     # week (added 2026-09-27): seven columns, today first, each day's rows as posters.
-    layout: Literal["rows", "grid", "cards", "media", "shelf", "agenda", "week"] = "rows"
+    # services (added 2026-09-28): an app tile per row — icon in a ring that is its state,
+    # closed as far as its 24 h uptime (with `uptime: true`), the first reading (a response
+    # time) and a 6 h trend (with `trend`).
+    layout: Literal["rows", "grid", "cards", "media", "shelf", "agenda", "week", "services"] = (
+        "rows"
+    )
     # A field holding an icon name (attrs.homepage.icon, or `provider` for a service
     # named after its provider). Served by /api/v1/icons. Added 2026-09-26, optional.
     icon: str | None = None

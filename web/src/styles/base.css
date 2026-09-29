@@ -3497,3 +3497,151 @@ a.card__link:focus-visible {
 .heatmap__note {
   margin-left: auto;
 }
+
+/* ---------------------------------------------------------------- service cards (list layout: services) */
+
+.svc {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.svc__item {
+  min-width: 0;
+  border: var(--border-w) solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--bg-hover);
+}
+
+.svc__item[data-stale] {
+  border-style: dashed;
+}
+
+.svc__item[data-state="down"] {
+  border-color: color-mix(in srgb, var(--status-down) 55%, var(--border-soft));
+}
+
+.svc__link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "badge name"
+    "badge meta"
+    "trend trend";
+  align-items: center;
+  gap: 2px var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.svc__link:hover .svc__name {
+  text-decoration: underline;
+}
+
+.svc__badge {
+  grid-area: badge;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.svc__badge .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.svc__ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.svc__track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 3;
+}
+
+/* The part of the ring not closed by uptime keeps a trace of the state, so a service down
+   all day (0 %) is still a red ring, not a grey one. */
+.svc__track[data-state="up"] {
+  stroke: color-mix(in srgb, var(--status-up) 25%, var(--border));
+}
+
+.svc__track[data-state="down"] {
+  stroke: color-mix(in srgb, var(--status-down) 40%, var(--border));
+}
+
+.svc__track[data-state="degraded"] {
+  stroke: color-mix(in srgb, var(--status-degraded) 30%, var(--border));
+}
+
+.svc__arc {
+  fill: none;
+  stroke: var(--status-unknown);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.4s ease;
+}
+
+.svc__arc[data-state="up"] {
+  stroke: var(--status-up);
+}
+
+.svc__arc[data-state="down"] {
+  stroke: var(--status-down);
+}
+
+.svc__arc[data-state="degraded"] {
+  stroke: var(--status-degraded);
+}
+
+.svc__arc[data-state="paused"] {
+  stroke: var(--status-paused);
+}
+
+.svc__name {
+  grid-area: name;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.svc__meta {
+  grid-area: meta;
+  overflow: hidden;
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.svc__sla {
+  color: var(--fg-faint);
+}
+
+.svc__trend {
+  grid-area: trend;
+  display: block;
+  min-width: 0;
+}
+
+.svc__trend svg {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svc__arc {
+    transition: none;
+  }
+}

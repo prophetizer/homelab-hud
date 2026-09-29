@@ -413,9 +413,102 @@ function DenseRows({ items }: { items: ListData["items"] }) {
   );
 }
 
+/** The ring's arc for a 24 h uptime: closed as far as the share of time up. With no
+ *  uptime data the ring is whole (it still carries the state's colour). */
+export function ringDash(sla: number | null | undefined, circumference: number): string {
+  if (sla === null || sla === undefined) return `${circumference} 0`;
+  const on = (Math.max(0, Math.min(100, sla)) / 100) * circumference;
+  return `${on} ${circumference - on}`;
+}
+
+/** A tile's uptime, short enough for a narrow tile: "100 %", "99.9 %", "97 %". */
+export function tileSla(pct: number): string {
+  if (pct >= 99.95) return pct >= 99.995 ? "100 %" : `${pct.toFixed(2)} %`;
+  if (pct >= 99) return `${pct.toFixed(1)} %`;
+  return `${Math.floor(pct)} %`;
+}
+
+const RING_R = 19;
+const RING_C = 2 * Math.PI * RING_R;
+
+/** layout: services — an app tile per row: its icon inside a ring that is its state, the
+ *  ring closed as far as its 24 h uptime; the first reading (a response time) and trend. */
+function ServiceCards({ items }: { items: ListData["items"] }) {
+  return (
+    <ul className="svc">
+      {items.map((item) => {
+        const { values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        const reading = values[0];
+        const sla = item.uptime?.sla ?? null;
+        const url = item.links["ui"];
+        const body = (
+          <>
+            <span className="svc__badge">
+              <svg className="svc__ring" viewBox="0 0 44 44" aria-hidden="true">
+                <circle className="svc__track" data-state={item.state} cx="22" cy="22" r={RING_R} />
+                <circle
+                  className="svc__arc"
+                  data-state={item.state}
+                  cx="22"
+                  cy="22"
+                  r={RING_R}
+                  strokeDasharray={ringDash(sla, RING_C)}
+                  transform="rotate(-90 22 22)"
+                />
+              </svg>
+              <Icon name={item.icon} title={item.title} />
+            </span>
+            <span className="svc__name" title={item.title}>
+              {item.title}
+            </span>
+            <span className="svc__meta">
+              {state ? (
+                <span className="list__state" data-state={state}>
+                  {state}
+                </span>
+              ) : reading ? (
+                <span className="svc__reading">{fieldText(reading)}</span>
+              ) : null}
+              {sla !== null ? (
+                <span className="svc__sla" title={`${formatSla(sla)} over 24 h`}>
+                  {tileSla(sla)}
+                </span>
+              ) : null}
+            </span>
+            {item.trend && item.trend.length > 1 ? (
+              <span className="svc__trend">
+                <MiniSpark points={item.trend} title={`${item.title}: last 6 h`} />
+              </span>
+            ) : null}
+          </>
+        );
+        return (
+          <li key={item.uid} className="svc__item" data-state={item.state} data-stale={item.stale || undefined}>
+            {url ? (
+              <a className="svc__link" href={url} target="_blank" rel="noreferrer noopener" aria-label={`${item.title}, ${item.state}`}>
+                {body}
+              </a>
+            ) : (
+              <span className="svc__link">{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
   const stats = data.stats && data.stats.length > 0 ? <StatsStrip stats={data.stats} /> : null;
+  if (data.layout === "services" && data.items.length > 0) {
+    return (
+      <WidgetFrame widget={widget}>
+        {stats}
+        <ServiceCards items={data.items} />
+      </WidgetFrame>
+    );
+  }
   if (data.layout === "week") {
     return (
       <WidgetFrame widget={widget}>

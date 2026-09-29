@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from "vitest";
-import { dayLabel, stateCounts, weekDays } from "./ListWidget";
+import { dayLabel, ringDash, stateCounts, tileSla, weekDays } from "./ListWidget";
 
 describe("stateCounts", () => {
   it("leads with the worst state", () => {
@@ -34,5 +34,23 @@ describe("weekDays", () => {
       "2026-10-03",
     ]);
     expect(weekDays("nope")).toEqual([]);
+  });
+});
+
+describe("ringDash", () => {
+  it("closes the ring as far as the uptime, whole without data", () => {
+    expect(ringDash(100, 100)).toBe("100 0");
+    expect(ringDash(75, 100)).toBe("75 25");
+    expect(ringDash(null, 100)).toBe("100 0");
+    expect(ringDash(120, 100)).toBe("100 0");
+  });
+});
+
+describe("tileSla", () => {
+  it("fits a narrow tile", () => {
+    expect(tileSla(100)).toBe("100 %");
+    expect(tileSla(99.97)).toBe("99.97 %");
+    expect(tileSla(99.4)).toBe("99.4 %");
+    expect(tileSla(97.8)).toBe("97 %");
   });
 });

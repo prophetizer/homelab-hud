@@ -137,7 +137,7 @@ export interface ListData {
   items: ListItem[];
   total: number;
   empty_text: string;
-  layout?: "rows" | "grid" | "cards" | "media" | "shelf" | "agenda" | "week";
+  layout?: "rows" | "grid" | "cards" | "media" | "shelf" | "agenda" | "week" | "services";
   today?: string; // YYYY-MM-DD in settings.timezone, for agenda headings
   stats?: (HeroStat & { sparkline?: [number, number][] })[]; // display.stats: readings above the rows
   dense?: boolean; // display.dense: one line per row

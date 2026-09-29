@@ -719,3 +719,36 @@ def test_expand_lifts_the_row_limit_and_lengthens_the_trend(config_dir: Path) ->
     assert big_bars.source.limit is None and bars.source.limit == 8  # type: ignore[union-attr]
     assert big_cpu.display.sparkline.range == "24h"  # type: ignore[union-attr]
     assert cpu.display.sparkline is None  # type: ignore[union-attr]  # the board is untouched
+
+
+async def test_a_display_name_icon_is_tried_as_its_dashboard_icons_guess(
+    config_dir: Path,
+) -> None:
+    """`icon: name` on web checks: "Home Assistant" → home-assistant, as the apps list
+    guesses; a path or file name is never guessed at."""
+    cache = LiveCache()
+    cache.apply(
+        "web",
+        "collect",
+        [
+            res("web:endpoint:ha").model_copy(update={"name": "Home Assistant"}),
+            res("web:endpoint:odd").model_copy(update={"name": "/weird/path.svg"}),
+        ],
+        [],
+    )
+    doc = board(
+        config_dir,
+        _board("""
+- id: svc
+  type: list
+  grid: { col: 1, row: 1 }
+  source: { select: { provider: web }, sort: [name] }
+  display: { layout: services, icon: name }
+"""),
+    )
+    (w,) = (await WidgetEngine(cache, None).resolve_board(doc, T0)).widgets
+    assert w.data["layout"] == "services"
+    assert {i["name"]: i["icon"] for i in w.data["items"]} == {
+        "Home Assistant": "home-assistant",
+        "/weird/path.svg": None,
+    }

@@ -49,6 +49,7 @@ from hud.config.schemas.duration import parse_duration
 from hud.models import Metric, Resource, State, Unit
 from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
+from hud.widgets.icons import slug as icon_slug
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
 from hud.widgets.series import bucket_axis, bucketed, heat, read_points
@@ -845,9 +846,19 @@ class WidgetEngine:
         return float(v) if isinstance(v, int | float) and not isinstance(v, bool) else None
 
     def _icon(self, r: Resource, key: str | None) -> str | None:
-        """The icon name when it is one /icons will serve; else None (a letter badge)."""
+        """The icon name when it is one /icons will serve; else None (a letter badge). A
+        display name is tried as its dashboard-icons guess ("Home Assistant" →
+        home-assistant), as the apps list does, so `icon: name` works for a web check."""
         v = self.field(r, key).value if key else None
-        return v.strip().lower() if isinstance(v, str) and resolve_icon(v) else None
+        if not isinstance(v, str) or not v.strip():
+            return None
+        name = v.strip().lower()
+        if resolve_icon(name):
+            return name
+        if "/" in v or "." in v:  # a path or a file name is never guessed at
+            return None
+        guess = icon_slug(v)
+        return guess if guess and resolve_icon(guess) else None
 
     def _row_title(self, r: Resource, key: str | None) -> str:
         value = self.field(r, key).value if key else None
