@@ -1,0 +1,46 @@
+# Weekly homelab summary (PLAN §9.2): copy to /config/reports/weekly-lab.yaml.
+# Runs every Monday at 07:00 in settings.timezone, over the past week, and writes
+# /data/reports/weekly-lab-<date>.html and .csv (Reports page in HUD). Uses the bundled
+# templates' names: web checks from the `http` plugin, Glances host and disks, Docker.
+apiVersion: hud/v1
+kind: Report
+metadata:
+  name: weekly-lab
+  title: Homelab weekly summary
+spec:
+  schedule: "0 7 * * MON"
+  window: { from: -7d, to: now }
+  sections:
+    - kind: uptime_table
+      title: Service availability
+      select: { kind: endpoint }
+      columns: [name, uptime_pct, downtime_total, incident_count, longest_outage]
+      sort: uptime_pct
+      highlight: { uptime_pct: { lt: 99.0, style: warn } }
+
+    - kind: trend_chart
+      title: Host CPU and memory
+      series:
+        - { resource: "glances:cpu:main", metric: cpu_pct, label: CPU }
+        - { resource: "glances:memory:main", metric: used_pct, label: Memory }
+
+    - kind: top_n
+      title: Busiest containers by CPU
+      metric: cpu_pct
+      select: { provider: docker, kind: container }
+      agg: avg
+      limit: 10
+
+    - kind: capacity
+      title: Storage growth and projection
+      select: { provider: glances, kind: filesystem }
+      projection: { method: linear, horizon: 180d, warn_at_pct: 85 }
+
+    - kind: events
+      title: Notable events
+      severity: [warn, error]
+      limit: 50
+
+  outputs:
+    - { format: html }
+    - { format: csv }

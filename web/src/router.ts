@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 export type Route =
   | { kind: "home" } // "/" — lands on the Home board (see api/nav.ts landingBoard)
   | { kind: "system" } // provider and process health
+  | { kind: "reports" } // scheduled reports and their files
   | { kind: "board"; name: string }
   | { kind: "app"; board: string; widget: string }
   | { kind: "kiosk"; boards: string[]; every: number } // full-screen rotation for a wall display
@@ -27,6 +28,7 @@ export function parseRoute(pathname: string, search = ""): Route {
   if (path === "/") return { kind: "home" };
   if (path === "/kiosk") return parseKiosk(search);
   if (path === "/system") return { kind: "system" };
+  if (path === "/reports") return { kind: "reports" };
   const m = /^\/boards\/([A-Za-z0-9_-]+)$/.exec(path);
   if (m && m[1] !== undefined) return { kind: "board", name: decodeURIComponent(m[1]) };
   const a = /^\/apps\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)$/.exec(path);

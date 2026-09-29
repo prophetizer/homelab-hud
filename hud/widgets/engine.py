@@ -662,7 +662,13 @@ class WidgetEngine:
         frm = to - RANGES[w.display.range]
         spans = await asyncio.to_thread(read_spans, self.db, list(by_uid), frm, to, to)
         wanted = {"down", "degraded"} if w.display.include_degraded else {"down"}
-        found = [(uid, s) for uid, ss in spans.items() for s in ss if s.state in wanted]
+        # A zero-length span (opened and closed at once, e.g. around a restart) is no incident.
+        found = [
+            (uid, s)
+            for uid, ss in spans.items()
+            for s in ss
+            if s.state in wanted and (s.open or s.end > s.start)
+        ]
         found.sort(key=lambda us: us[1].start, reverse=True)
         incidents = [
             {

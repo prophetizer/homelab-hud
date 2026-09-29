@@ -27,6 +27,7 @@ from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolve
 from hud.providers import ProviderContext, ProviderRegistry
 from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
+from hud.reporting.runner import ReportRunner
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.store.rollup import RollupWorker
@@ -83,6 +84,34 @@ def _start_background(
     ]
 
 
+def _wire(
+    app: FastAPI, env: HudEnv, config: ConfigManager, secrets: SecretResolver
+) -> tuple[ProviderRegistry, LiveCache, Collector, ReportRunner]:
+    """Everything the API reads from app.state: providers (the registry builds them from
+    config, the collector owns their time), the live cache, widgets, icons, images, and
+    reports (§9: scheduled on their cron, files under /data/reports)."""
+    environ = dict(os.environ)
+    registry = ProviderRegistry(
+        factory=ProviderFactory(PluginLoader(env.config_dir / "plugins")),
+        context_factory=lambda name: ProviderContext.create(name, secrets, environ),
+    )
+    cache = LiveCache()
+    writer = StoreWriter(app.state.engine)
+    collector = Collector(registry, cache, sinks=[writer])
+    runner = ReportRunner(app.state.engine, cache, config, env.data_dir / "reports")
+    app.state.registry = registry
+    app.state.cache = cache
+    app.state.collector = collector
+    app.state.writer = writer
+    app.state.widgets = WidgetEngine(
+        cache, app.state.engine, timezone=lambda: config.snapshot.settings.spec.timezone
+    )
+    app.state.icons = IconStore(env.data_dir / "icons")
+    app.state.images = ImageCache()
+    app.state.reports = runner
+    return registry, cache, collector, runner
+
+
 def create_app(env: HudEnv | None = None) -> FastAPI:
     env = env or HudEnv()
     configure_logging(env.log_level)
@@ -101,25 +130,8 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.store_paths = paths
         app.state.engine = create_store_engine(paths)
 
-        # Providers: registry builds instances from config, collector owns their time.
         secrets = SecretResolver(env.config_dir)
-        environ = dict(os.environ)
-        registry = ProviderRegistry(
-            factory=ProviderFactory(PluginLoader(env.config_dir / "plugins")),
-            context_factory=lambda name: ProviderContext.create(name, secrets, environ),
-        )
-        cache = LiveCache()
-        writer = StoreWriter(app.state.engine)
-        collector = Collector(registry, cache, sinks=[writer])
-        app.state.registry = registry
-        app.state.cache = cache
-        app.state.collector = collector
-        app.state.writer = writer
-        app.state.widgets = WidgetEngine(
-            cache, app.state.engine, timezone=lambda: config.snapshot.settings.spec.timezone
-        )
-        app.state.icons = IconStore(env.data_dir / "icons")
-        app.state.images = ImageCache()
+        registry, cache, collector, runner = _wire(app, env, config, secrets)
         auth = await _start_auth(app.state.engine, secrets, snap)
         app.state.auth = auth
         await registry.apply(snap)
@@ -127,9 +139,11 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         async def reconcile(new_snapshot: ConfigSnapshot) -> None:
             await auth.apply(new_snapshot)
             await registry.apply(new_snapshot)
+            await runner.reconcile(new_snapshot)
 
         config.on_reload(reconcile)
         collector.start()
+        runner.start()
 
         async with asyncio.TaskGroup() as tg:
             background = _start_background(tg, config, cache, app.state.engine)
@@ -139,6 +153,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
             finally:
                 for task in background:
                     task.cancel()
+                runner.stop()
                 await collector.stop()
                 await registry.shutdown()
         app.state.engine.dispose()

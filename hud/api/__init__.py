@@ -13,6 +13,7 @@ from hud.api.health import router as health_router
 from hud.api.icons import router as icons_router
 from hud.api.images import router as images_router
 from hud.api.providers import router as providers_router
+from hud.api.reports import router as reports_router
 from hud.api.resources import router as resources_router
 
 api_v1 = APIRouter(prefix="/api/v1", dependencies=[Depends(csrf_guard)])
@@ -26,5 +27,6 @@ api_v1.include_router(apps_router)
 api_v1.include_router(icons_router)
 api_v1.include_router(images_router)
 api_v1.include_router(header_router)
+api_v1.include_router(reports_router)
 
 __all__ = ["api_v1"]

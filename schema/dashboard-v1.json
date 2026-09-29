@@ -624,6 +624,50 @@
       "title": "BoardSpec",
       "type": "object"
     },
+    "Capacity": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "const": "capacity",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metric": {
+          "default": "used_pct",
+          "title": "Metric",
+          "type": "string"
+        },
+        "projection": {
+          "$ref": "#/$defs/Projection",
+          "default": {
+            "horizon": "180d",
+            "method": "linear",
+            "warn_at_pct": 85.0
+          }
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "attrs": null,
+            "kind": "filesystem",
+            "label": null,
+            "missing": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "title": {
+          "default": "Storage growth and projection",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Capacity",
+      "type": "object"
+    },
     "CapacityDisplay": {
       "additionalProperties": true,
       "properties": {
@@ -1099,6 +1143,45 @@
       "title": "EmbedWidget",
       "type": "object"
     },
+    "Events": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "const": "events",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit": {
+          "default": 50,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "severity": {
+          "items": {
+            "enum": [
+              "info",
+              "warn",
+              "error"
+            ],
+            "type": "string"
+          },
+          "title": "Severity",
+          "type": "array"
+        },
+        "title": {
+          "default": "Notable events",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Events",
+      "type": "object"
+    },
     "Format": {
       "additionalProperties": true,
       "properties": {
@@ -1411,6 +1494,46 @@
         "metric"
       ],
       "title": "HeroStat",
+      "type": "object"
+    },
+    "Highlight": {
+      "additionalProperties": true,
+      "properties": {
+        "gt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gt"
+        },
+        "lt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lt"
+        },
+        "style": {
+          "default": "warn",
+          "enum": [
+            "warn",
+            "error"
+          ],
+          "title": "Style",
+          "type": "string"
+        }
+      },
+      "title": "Highlight",
       "type": "object"
     },
     "IncidentsDisplay": {
@@ -2169,6 +2292,63 @@
       "title": "OidcSettings",
       "type": "object"
     },
+    "Output": {
+      "additionalProperties": true,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "const": "summary",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "format": {
+          "enum": [
+            "html",
+            "csv",
+            "pdf",
+            "webhook"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "format"
+      ],
+      "title": "Output",
+      "type": "object"
+    },
     "Paginate": {
       "additionalProperties": true,
       "properties": {
@@ -2229,6 +2409,31 @@
         "param"
       ],
       "title": "Paginate",
+      "type": "object"
+    },
+    "Projection": {
+      "additionalProperties": true,
+      "properties": {
+        "horizon": {
+          "default": "180d",
+          "title": "Horizon",
+          "type": "string"
+        },
+        "method": {
+          "const": "linear",
+          "default": "linear",
+          "title": "Method",
+          "type": "string"
+        },
+        "warn_at_pct": {
+          "default": 85.0,
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Warn At Pct",
+          "type": "number"
+        }
+      },
+      "title": "Projection",
       "type": "object"
     },
     "Provider": {
@@ -2447,6 +2652,138 @@
         }
       },
       "title": "RbacSpec",
+      "type": "object"
+    },
+    "Report": {
+      "additionalProperties": false,
+      "properties": {
+        "apiVersion": {
+          "const": "hud/v1",
+          "title": "Apiversion",
+          "type": "string"
+        },
+        "kind": {
+          "const": "Report",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ReportMetadata"
+        },
+        "spec": {
+          "$ref": "#/$defs/ReportSpec"
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind",
+        "metadata",
+        "spec"
+      ],
+      "title": "ReportDocument",
+      "type": "object"
+    },
+    "ReportMetadata": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ReportMetadata",
+      "type": "object"
+    },
+    "ReportSpec": {
+      "additionalProperties": true,
+      "properties": {
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/Output"
+          },
+          "minItems": 1,
+          "title": "Outputs",
+          "type": "array"
+        },
+        "schedule": {
+          "default": "0 7 * * MON",
+          "title": "Schedule",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "capacity": "#/$defs/Capacity",
+                "events": "#/$defs/Events",
+                "top_n": "#/$defs/TopN",
+                "trend_chart": "#/$defs/TrendChart",
+                "uptime_table": "#/$defs/UptimeTable"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/UptimeTable"
+              },
+              {
+                "$ref": "#/$defs/TrendChart"
+              },
+              {
+                "$ref": "#/$defs/TopN"
+              },
+              {
+                "$ref": "#/$defs/Capacity"
+              },
+              {
+                "$ref": "#/$defs/Events"
+              }
+            ]
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Sections",
+          "type": "array"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone"
+        },
+        "window": {
+          "$ref": "#/$defs/Window",
+          "default": {
+            "from": "-7d",
+            "to": "now"
+          }
+        }
+      },
+      "required": [
+        "sections"
+      ],
+      "title": "ReportSpec",
       "type": "object"
     },
     "Request": {
@@ -3394,6 +3731,58 @@
       "title": "Threshold",
       "type": "object"
     },
+    "TopN": {
+      "additionalProperties": true,
+      "properties": {
+        "agg": {
+          "default": "avg",
+          "enum": [
+            "avg",
+            "max"
+          ],
+          "title": "Agg",
+          "type": "string"
+        },
+        "kind": {
+          "const": "top_n",
+          "title": "Kind",
+          "type": "string"
+        },
+        "limit": {
+          "default": 10,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "attrs": null,
+            "kind": null,
+            "label": null,
+            "missing": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "title": {
+          "default": "Top",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "metric"
+      ],
+      "title": "TopN",
+      "type": "object"
+    },
     "Transport": {
       "additionalProperties": true,
       "properties": {
@@ -3460,6 +3849,89 @@
         "base_url"
       ],
       "title": "Transport",
+      "type": "object"
+    },
+    "TrendChart": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "const": "trend_chart",
+          "title": "Kind",
+          "type": "string"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/TrendSeries"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Series",
+          "type": "array"
+        },
+        "tier": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "5m",
+            "1h",
+            "1d"
+          ],
+          "title": "Tier",
+          "type": "string"
+        },
+        "title": {
+          "default": "Trend",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "series"
+      ],
+      "title": "TrendChart",
+      "type": "object"
+    },
+    "TrendSeries": {
+      "additionalProperties": true,
+      "properties": {
+        "agg": {
+          "default": "avg",
+          "enum": [
+            "avg",
+            "min",
+            "max",
+            "last"
+          ],
+          "title": "Agg",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "resource"
+      ],
+      "title": "TrendSeries",
       "type": "object"
     },
     "UnsupportedWidget": {
@@ -3667,6 +4139,63 @@
       "title": "UptimeSource",
       "type": "object"
     },
+    "UptimeTable": {
+      "additionalProperties": true,
+      "properties": {
+        "columns": {
+          "items": {
+            "enum": [
+              "name",
+              "uptime_pct",
+              "downtime_total",
+              "incident_count",
+              "longest_outage"
+            ],
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "highlight": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Highlight"
+          },
+          "title": "Highlight",
+          "type": "object"
+        },
+        "kind": {
+          "const": "uptime_table",
+          "title": "Kind",
+          "type": "string"
+        },
+        "select": {
+          "$ref": "#/$defs/Select",
+          "default": {
+            "attrs": null,
+            "kind": null,
+            "label": null,
+            "missing": null,
+            "provider": null,
+            "state": null
+          }
+        },
+        "sort": {
+          "default": "uptime_pct",
+          "title": "Sort",
+          "type": "string"
+        },
+        "title": {
+          "default": "Service availability",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "UptimeTable",
+      "type": "object"
+    },
     "UptimeWidget": {
       "additionalProperties": true,
       "description": "Availability history as a strip of cells per resource, and its SLA % (PLAN \u00a78,\n\u00a76.3). Implemented 2026-09-27 (Phase 2 slice 1); the type was reserved from v1.",
@@ -3732,11 +4261,30 @@
       ],
       "title": "UptimeWidget",
       "type": "object"
+    },
+    "Window": {
+      "additionalProperties": true,
+      "description": "``from: -7d`` to ``to: now`` \u2014 the only form v1 reads.",
+      "properties": {
+        "from": {
+          "default": "-7d",
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "const": "now",
+          "default": "now",
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "title": "Window",
+      "type": "object"
     }
   },
   "$id": "https://github.com/prophetizer/homelab-hud/schema/dashboard-v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "One schema per document kind. Provider and Board are frozen at hud/v1; Settings and RBAC may still gain optional keys.",
+  "description": "One schema per document kind. Provider and Board are frozen at hud/v1; Settings, RBAC and Report may still gain optional keys.",
   "oneOf": [
     {
       "$ref": "#/$defs/Provider"
@@ -3749,6 +4297,9 @@
     },
     {
       "$ref": "#/$defs/RBAC"
+    },
+    {
+      "$ref": "#/$defs/Report"
     }
   ],
   "title": "HUD configuration (hud/v1)",

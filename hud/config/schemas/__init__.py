@@ -16,6 +16,7 @@ from hud.config.schemas.board import (
 from hud.config.schemas.duration import parse_duration
 from hud.config.schemas.provider import ProviderDocument, ProviderSpec, ResourceSpec
 from hud.config.schemas.rbac import DEFAULT_RBAC_YAML, RbacDocument, RbacSpec
+from hud.config.schemas.report import ReportDocument
 from hud.config.schemas.settings import (
     DEFAULT_SETTINGS_YAML,
     AuthSettings,
@@ -29,6 +30,7 @@ KIND_SCHEMAS: dict[str, type[Document]] = {
     "Provider": ProviderDocument,
     "Board": BoardDocument,
     "RBAC": RbacDocument,
+    "Report": ReportDocument,
 }
 
 __all__ = [
@@ -48,6 +50,7 @@ __all__ = [
     "ProviderSpec",
     "RbacDocument",
     "RbacSpec",
+    "ReportDocument",
     "ResourceSpec",
     "ResourceWidget",
     "Retention",

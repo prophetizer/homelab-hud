@@ -3837,3 +3837,99 @@ a.svc__link:hover .svc__name {
 .cap__item[data-state="down"] .cap__forecast {
   color: var(--status-down);
 }
+
+/* ---------------------------------------------------------------- reports page */
+
+.reports {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: var(--space-3);
+}
+
+.report {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.report__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.report__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+
+.report__run {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.report__run:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.report__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px var(--space-3);
+  margin: 0;
+  font-size: var(--text-xs);
+}
+
+.report__facts dt {
+  color: var(--fg-faint);
+}
+
+.report__facts dd {
+  margin: 0;
+}
+
+.report__note {
+  grid-column: 2;
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+.report__faint {
+  color: var(--fg-faint);
+  font-size: var(--text-xs);
+}
+
+.report__bad,
+.reports__error {
+  color: var(--status-down);
+}
+
+.report__runs {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  list-style: none;
+  border-top: var(--border-w) solid var(--border-soft);
+  font-size: var(--text-xs);
+}
+
+.report__run-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.report__date {
+  min-width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}

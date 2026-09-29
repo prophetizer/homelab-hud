@@ -343,6 +343,15 @@ async def test_incidents_list_what_went_down_and_for_how_long(config_dir: Path, 
                     "confirmed_at": T,
                     "approximate": 0,
                 },
+                # Opened and closed at once (around a restart): not an incident.
+                {
+                    "resource_uid": "plex:service:main",
+                    "state": "down",
+                    "started_at": T - 3600,
+                    "ended_at": T - 3600,
+                    "confirmed_at": T - 3600,
+                    "approximate": 0,
+                },
             ],
         )
     doc = _one(

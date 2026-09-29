@@ -26,14 +26,15 @@ from hud.config.schemas import (
     Document,
     ProviderDocument,
     RbacDocument,
+    ReportDocument,
     SettingsDocument,
 )
 
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "schema" / "dashboard-v1.json"
 SCHEMA_ID = "https://github.com/prophetizer/homelab-hud/schema/dashboard-v1.json"
 
-# Frozen at v1: a change to either is a v2. Settings and RBAC are exported for editor
-# completion but are explicitly *not* frozen — they may still gain keys (PLAN.md §11.3).
+# Frozen at v1: a change to either is a v2. Settings, RBAC and Report are exported for
+# editor completion but are explicitly *not* frozen — they may still gain keys (§11.3).
 FROZEN = ("Provider", "Board")
 
 
@@ -43,6 +44,7 @@ def build_schema() -> dict[str, Any]:
         "Board": BoardDocument,
         "Settings": SettingsDocument,
         "RBAC": RbacDocument,
+        "Report": ReportDocument,
     }
     # Pydantic emits each model's nested definitions under that model's own "$defs", but
     # `ref_template` points every "$ref" at the document root. Hoist them so the refs
@@ -71,7 +73,7 @@ def build_schema() -> dict[str, Any]:
         "title": f"HUD configuration ({API_VERSION})",
         "description": (
             "One schema per document kind. Provider and Board are frozen at "
-            f"{API_VERSION}; Settings and RBAC may still gain optional keys."
+            f"{API_VERSION}; Settings, RBAC and Report may still gain optional keys."
         ),
         "x-frozen": list(FROZEN),
         "oneOf": [{"$ref": f"#/$defs/{kind}"} for kind in documents],

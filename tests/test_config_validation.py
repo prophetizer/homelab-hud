@@ -78,14 +78,16 @@ def test_unknown_kind_in_a_content_folder_is_contained(
     looks like to an older one: it degrades that file and the rest still loads (§11.3a)."""
     (config_dir / "settings.yaml").write_text(GOOD)
     (config_dir / "boards").mkdir()
-    (config_dir / "boards" / "x.yaml").write_text("apiVersion: hud/v1\nkind: Report\nspec: {}\n")
+    (config_dir / "boards" / "x.yaml").write_text("apiVersion: hud/v1\nkind: Alarm\nspec: {}\n")
     snap = manager.load()
     (q,) = snap.quarantined
     (issue,) = q.issues
     assert issue.file.name == "x.yaml"
     assert issue.line == 2
-    assert "unsupported kind 'Report' (known: Board, Provider, RBAC, Settings)" in issue.message
-    assert q.kind == "Report" and not q.serving_last_good
+    assert (
+        "unsupported kind 'Alarm' (known: Board, Provider, RBAC, Report, Settings)" in issue.message
+    )
+    assert q.kind == "Board" and not q.serving_last_good  # its folder's kind
 
 
 def test_unreadable_or_unrecognised_top_level_file_is_still_fatal(

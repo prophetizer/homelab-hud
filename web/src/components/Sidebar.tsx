@@ -3,7 +3,7 @@ import { useState } from "react";
 import { BrandMark } from "./BrandMark";
 import { openPalette } from "./CommandPalette";
 import { ThemeToggle } from "./ThemeToggle";
-import type { Me } from "../api/auth";
+import { type Me, hasPermission } from "../api/auth";
 import { buildNavigation } from "../api/nav";
 import type { App, BoardSummary } from "../api/types";
 import { appPath, boardPath, onLinkClick, type Route } from "../router";
@@ -58,6 +58,8 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
   const here =
     route.kind === "system"
       ? "System"
+      : route.kind === "reports"
+        ? "Reports"
       : route.kind === "board"
         ? nav.boards.find((b) => b.name === route.name)?.title
         : route.kind === "app"
@@ -125,6 +127,12 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
             <Icon name="mdi-heart-pulse" title="System" size="sm" />
             <span className="sidebar__label">System</span>
           </a>
+          {hasPermission(me, "reports:view") ? (
+            <a href="/reports" onClick={onLinkClick} aria-current={current("reports")} className="sidebar__system">
+              <Icon name="mdi-file-chart-outline" title="Reports" size="sm" />
+              <span className="sidebar__label">Reports</span>
+            </a>
+          ) : null}
           {boards && boards.length === 0 ? (
             <p className="sidebar__hint">No boards yet — add one under /config/boards/.</p>
           ) : null}
