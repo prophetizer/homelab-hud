@@ -67,6 +67,12 @@ export function fetchExpanded(board: string, widget: string, signal?: AbortSigna
   return getJson(`/api/v1/boards/${encodeURIComponent(board)}/widgets/${encodeURIComponent(widget)}/expanded`, signal);
 }
 
+/** One tile on its own; ``range`` shows a chart over another window. */
+export function fetchWidget(board: string, widget: string, range?: string, signal?: AbortSignal): Promise<ResolvedWidget> {
+  const q = range ? `?range=${encodeURIComponent(range)}` : "";
+  return getJson(`/api/v1/boards/${encodeURIComponent(board)}/widgets/${encodeURIComponent(widget)}${q}`, signal);
+}
+
 /** The layout editor's save. 409 means the file changed underneath; reload and retry. */
 export function patchBoard(name: string, revision: string, widgets: Placement[]): Promise<ResolvedBoard> {
   return sendJson("PATCH", `/api/v1/boards/${encodeURIComponent(name)}`, { revision, widgets });

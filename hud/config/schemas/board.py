@@ -28,11 +28,22 @@ from hud.config.schemas.duration import parse_duration
 from hud.models.enums import State
 
 PHASE1_WIDGET_TYPES: frozenset[str] = frozenset(
-    {"static", "resource", "list", "metric", "embed", "bars", "uptime", "status", "incidents"}
+    {
+        "static",
+        "resource",
+        "list",
+        "metric",
+        "embed",
+        "bars",
+        "uptime",
+        "status",
+        "incidents",
+        "chart",
+        "heatmap",
+    }
 )
 # Known from the taxonomy but implemented in a later phase. Anything else is simply unknown.
 LATER_WIDGET_TYPES: dict[str, str] = {
-    "chart": "Phase 2",
     "report": "Phase 2",
     "action": "Phase 3",
     "composite": "Phase 3",
@@ -397,6 +408,90 @@ class IncidentsWidget(_Widget):
     display: IncidentsDisplay = IncidentsDisplay()
 
 
+# --------------------------------------------------------------- chart and heatmap (Phase 2)
+
+# Ranges the chart widget's picker offers; a board may configure any other duration.
+CHART_RANGES = ("1h", "6h", "24h", "7d")
+MAX_CHART_RANGE = 30 * 86_400
+
+
+class ChartSeries(_Spec):
+    metric: str
+    resource: str
+    label: str | None = None
+
+
+class ChartSource(_Spec):
+    """PLAN §8.2: named ``series`` over a ``range``, read from the ``tier`` that suits it.
+    Also (added 2026-09-28) one series per resource a selection matches — ``select`` +
+    ``metric`` — the busiest ``limit`` of them by their latest value."""
+
+    series: list[ChartSeries] = Field(default_factory=list, max_length=8)
+    select: Select | None = None
+    metric: str | None = None
+    limit: int = Field(default=6, ge=1, le=12)
+    range: str = "24h"
+    # auto picks the coarsest tier with enough points (§9.1). Until the rollup worker
+    # exists every tier reads raw samples.
+    tier: Literal["auto", "samples", "5m", "1h", "1d"] = "auto"
+
+    @field_validator("range")
+    @classmethod
+    def _range(cls, v: str) -> str:
+        if not 0 < parse_duration(v) <= MAX_CHART_RANGE:
+            msg = "range must be a duration up to 30d, e.g. 24h"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def _one_way(self) -> Self:
+        by_select = self.select is not None or self.metric is not None
+        if bool(self.series) == by_select:
+            msg = "give either series, or select with metric — exactly one of the two"
+            raise ValueError(msg)
+        if by_select and (self.select is None or self.metric is None):
+            msg = "select and metric go together"
+            raise ValueError(msg)
+        return self
+
+
+class ChartDisplay(_Spec):
+    # PLAN §8.2: line or area; stacked draws each series on top of the ones before it.
+    kind: Literal["line", "area"] = "line"
+    stacked: bool = False
+    unit: str | None = None  # display unit override; storage unit is canonical
+    # Added 2026-09-28: decimals shown, and reference lines drawn in their state's colour.
+    precision: int = Field(default=1, ge=0, le=6)
+    thresholds: list[Threshold] = Field(default_factory=list, max_length=4)
+
+
+class ChartWidget(_Widget):
+    """A metric over time from HUD's own history — invariant 10: never from Prometheus
+    alone. Series are neutral (invariant 9): told apart by weight, dash and label, never
+    by hue; only threshold lines carry a status colour. Added 2026-09-28, dashboard/v1-
+    compatible (§11.3a)."""
+
+    type: Literal["chart"]
+    source: ChartSource
+    display: ChartDisplay = ChartDisplay()
+
+
+class HeatmapDisplay(_Spec):
+    range: Literal["7d", "30d"] = "7d"
+    agg: Literal["mean", "max"] = "mean"
+    unit: str | None = None  # display unit override, as the chart's
+    precision: int = Field(default=1, ge=0, le=6)
+
+
+class HeatmapWidget(_Widget):
+    """One metric by weekday and hour of day, in settings.timezone — when things get
+    used. Intensity is neutral, never a status colour. Added 2026-09-28."""
+
+    type: Literal["heatmap"]
+    source: MetricSource
+    display: HeatmapDisplay = HeatmapDisplay()
+
+
 class EmbedWidget(_Widget):
     type: Literal["embed"]
     source: EmbedSource
@@ -433,6 +528,8 @@ Widget = Annotated[
     | Annotated[UptimeWidget, Tag("uptime")]
     | Annotated[StatusWidget, Tag("status")]
     | Annotated[IncidentsWidget, Tag("incidents")]
+    | Annotated[ChartWidget, Tag("chart")]
+    | Annotated[HeatmapWidget, Tag("heatmap")]
     | Annotated[UnsupportedWidget, Tag("unsupported")],
     Discriminator(_widget_tag),
 ]

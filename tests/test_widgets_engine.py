@@ -143,7 +143,7 @@ spec:
       source: { url: http://portainer.lab/ }
       display: { fallback: new_tab }
     - id: later
-      type: chart
+      type: report
       grid: { col: 6, row: 4 }
       source: { series: [] }
 """
@@ -223,7 +223,9 @@ async def test_resolve_every_type(config_dir: Path, cache: LiveCache, db: Engine
     assert b.state is State.DEGRADED and b.error == "cannot be framed: X-Frame-Options: DENY"
     assert b.data["fallback"] == "new_tab" and b.data["url"] == "http://portainer.lab/"
 
-    assert w["later"].state is None and w["later"].error == "widget type 'chart' arrives in Phase 2"
+    assert (
+        w["later"].state is None and w["later"].error == "widget type 'report' arrives in Phase 2"
+    )
 
 
 async def test_plan_media_board_resolves_with_empty_cache(config_dir: Path) -> None:

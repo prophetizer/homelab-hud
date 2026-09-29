@@ -604,6 +604,12 @@
                 "$ref": "#/$defs/IncidentsWidget"
               },
               {
+                "$ref": "#/$defs/ChartWidget"
+              },
+              {
+                "$ref": "#/$defs/HeatmapWidget"
+              },
+              {
                 "$ref": "#/$defs/UnsupportedWidget"
               }
             ]
@@ -613,6 +619,211 @@
         }
       },
       "title": "BoardSpec",
+      "type": "object"
+    },
+    "ChartDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "default": "line",
+          "enum": [
+            "line",
+            "area"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "precision": {
+          "default": 1,
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "integer"
+        },
+        "stacked": {
+          "default": false,
+          "title": "Stacked",
+          "type": "boolean"
+        },
+        "thresholds": {
+          "items": {
+            "$ref": "#/$defs/Threshold"
+          },
+          "maxItems": 4,
+          "title": "Thresholds",
+          "type": "array"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "title": "ChartDisplay",
+      "type": "object"
+    },
+    "ChartSeries": {
+      "additionalProperties": true,
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "metric": {
+          "title": "Metric",
+          "type": "string"
+        },
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        }
+      },
+      "required": [
+        "metric",
+        "resource"
+      ],
+      "title": "ChartSeries",
+      "type": "object"
+    },
+    "ChartSource": {
+      "additionalProperties": true,
+      "description": "PLAN \u00a78.2: named ``series`` over a ``range``, read from the ``tier`` that suits it.\nAlso (added 2026-09-28) one series per resource a selection matches \u2014 ``select`` +\n``metric`` \u2014 the busiest ``limit`` of them by their latest value.",
+      "properties": {
+        "limit": {
+          "default": 6,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "metric": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric"
+        },
+        "range": {
+          "default": "24h",
+          "title": "Range",
+          "type": "string"
+        },
+        "select": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Select"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/ChartSeries"
+          },
+          "maxItems": 8,
+          "title": "Series",
+          "type": "array"
+        },
+        "tier": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "samples",
+            "5m",
+            "1h",
+            "1d"
+          ],
+          "title": "Tier",
+          "type": "string"
+        }
+      },
+      "title": "ChartSource",
+      "type": "object"
+    },
+    "ChartWidget": {
+      "additionalProperties": true,
+      "description": "A metric over time from HUD's own history \u2014 invariant 10: never from Prometheus\nalone. Series are neutral (invariant 9): told apart by weight, dash and label, never\nby hue; only threshold lines carry a status colour. Added 2026-09-28, dashboard/v1-\ncompatible (\u00a711.3a).",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/ChartDisplay",
+          "default": {
+            "kind": "line",
+            "precision": 1,
+            "stacked": false,
+            "thresholds": [],
+            "unit": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ChartSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "chart",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "ChartWidget",
       "type": "object"
     },
     "Columns": {
@@ -917,6 +1128,112 @@
         }
       },
       "title": "HeaderSettings",
+      "type": "object"
+    },
+    "HeatmapDisplay": {
+      "additionalProperties": true,
+      "properties": {
+        "agg": {
+          "default": "mean",
+          "enum": [
+            "mean",
+            "max"
+          ],
+          "title": "Agg",
+          "type": "string"
+        },
+        "precision": {
+          "default": 1,
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Precision",
+          "type": "integer"
+        },
+        "range": {
+          "default": "7d",
+          "enum": [
+            "7d",
+            "30d"
+          ],
+          "title": "Range",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "title": "HeatmapDisplay",
+      "type": "object"
+    },
+    "HeatmapWidget": {
+      "additionalProperties": true,
+      "description": "One metric by weekday and hour of day, in settings.timezone \u2014 when things get\nused. Intensity is neutral, never a status colour. Added 2026-09-28.",
+      "properties": {
+        "display": {
+          "$ref": "#/$defs/HeatmapDisplay",
+          "default": {
+            "agg": "mean",
+            "precision": 1,
+            "range": "7d",
+            "unit": null
+          }
+        },
+        "grid": {
+          "$ref": "#/$defs/Grid"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/MetricSource"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "heatmap",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "grid",
+        "type",
+        "source"
+      ],
+      "title": "HeatmapWidget",
       "type": "object"
     },
     "HeroStat": {

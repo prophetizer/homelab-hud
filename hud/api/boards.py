@@ -24,7 +24,8 @@ from hud.api import deps
 from hud.auth import Principal
 from hud.config import ConfigConflictError, ConfigError, LoadedDocument
 from hud.config.schemas import BoardDocument
-from hud.config.schemas.board import Grid
+from hud.config.schemas.board import MAX_CHART_RANGE, Grid
+from hud.config.schemas.duration import parse_duration
 from hud.widgets import BoardSummary, ResolvedBoard, ResolvedWidget
 
 router = APIRouter(tags=["boards"])
@@ -89,6 +90,31 @@ async def get_expanded_widget(request: Request, name: str, widget_id: str) -> Re
     engine = deps.widgets(request)
     return await engine.resolve(
         engine.expand(widget), datetime.now(UTC), page_origin=deps.page_origin(request)
+    )
+
+
+@router.get("/boards/{name}/widgets/{widget_id}", response_model=ResolvedWidget)
+async def get_widget(
+    request: Request, name: str, widget_id: str, range: str | None = None
+) -> ResolvedWidget:
+    """One tile, resolved on its own — a chart over another range (any duration up to
+    30d). The board must be one the caller can see, exactly as for the board itself."""
+    p = await deps.principal(request)
+    if range is not None:
+        try:
+            seconds = parse_duration(range)
+        except ValueError:
+            seconds = 0
+        if not 0 < seconds <= MAX_CHART_RANGE:
+            raise HTTPException(status_code=422, detail="range must be a duration up to 30d")
+    found = _find(request, p, name)
+    widget = (
+        next((w for w in _model(found).spec.widgets if w.id == widget_id), None) if found else None
+    )
+    if widget is None:
+        raise HTTPException(status_code=404, detail=f"no widget {widget_id!r} on board {name!r}")
+    return await deps.widgets(request).resolve(
+        widget, datetime.now(UTC), page_origin=deps.page_origin(request), chart_range=range
     )
 
 

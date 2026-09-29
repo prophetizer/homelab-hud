@@ -3354,3 +3354,146 @@ a.card__link:focus-visible {
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------- chart (widget type: chart) */
+
+.chart {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  min-height: 0;
+  height: 100%;
+}
+
+.chart__ranges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.chart__range {
+  padding: 1px var(--space-2);
+  border: var(--border-w) solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.chart__range:hover {
+  color: var(--fg);
+}
+
+.chart__range[aria-pressed="true"] {
+  border-color: var(--border);
+  color: var(--fg);
+  background: var(--bg-hover);
+}
+
+.chart__loading {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+}
+
+.chart__plot {
+  min-height: 180px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+}
+
+.chart__key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart__key[data-stale] {
+  opacity: 0.6;
+}
+
+.chart__label {
+  color: var(--fg-muted);
+}
+
+.chart__value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart__range-stats,
+.chart__at {
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .u-over {
+  cursor: crosshair;
+}
+
+/* ---------------------------------------------------------------- heatmap (widget type: heatmap) */
+
+.heatmap {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.heatmap__grid {
+  display: grid;
+  grid-template-columns: 2rem repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+
+.heatmap__hour,
+.heatmap__day {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap__cell {
+  aspect-ratio: 1;
+  min-height: 8px;
+  border-radius: 2px;
+  background: var(--fg);
+}
+
+.heatmap__cell[data-empty] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-soft);
+}
+
+.heatmap__scale {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap__ramp {
+  width: 4rem;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--fg) 8%, transparent), var(--fg));
+}
+
+.heatmap__note {
+  margin-left: auto;
+}

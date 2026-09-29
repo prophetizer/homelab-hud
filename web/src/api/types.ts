@@ -231,3 +231,39 @@ export interface IncidentsData {
   total: number;
   empty_text: string;
 }
+
+export interface ChartSeriesData {
+  uid: string;
+  metric: string;
+  label: string;
+  unit: Unit | null;
+  last: number | null;
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  stale: boolean;
+  values: (number | null)[];
+}
+export interface ChartData {
+  range: string;
+  ranges: string[];
+  kind: "line" | "area";
+  stacked: boolean;
+  timezone: string;
+  x: number[];
+  series: ChartSeriesData[];
+  unit: Unit | null;
+  thresholds: { gte: number | null; lte: number | null; state: "warn" | "error" }[];
+  format: { unit: string | null; precision: number };
+}
+export interface HeatmapData {
+  grid: (number | null)[][];
+  min: number | null;
+  max: number | null;
+  unit: Unit | null;
+  range: string;
+  agg: "mean" | "max";
+  samples: number;
+  resource_name: string;
+  format: { unit: string | null; precision: number };
+}

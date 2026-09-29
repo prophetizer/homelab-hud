@@ -14,7 +14,8 @@
   "dependencies": {
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-grid-layout": "2.2.4"
+    "react-grid-layout": "2.2.4",
+    "uplot": "1.6.32"
   },
   "devDependencies": {
     "@types/react": "19.3.0",

@@ -11,7 +11,7 @@ from hud.config.schemas import (
     MetricWidget,
     UnsupportedWidget,
 )
-from hud.config.schemas.board import UptimeWidget
+from hud.config.schemas.board import ChartWidget, UptimeWidget
 from tests.conftest import FIXTURES
 
 SETTINGS = "apiVersion: hud/v1\nkind: Settings\n"
@@ -73,9 +73,13 @@ def test_plan_example_loads(manager: ConfigManager, config_dir: Path) -> None:
     assert isinstance(by_id["plex-uptime"], UptimeWidget)
     assert by_id["plex-uptime"].source.resource == "plex:service:main"
     assert (by_id["plex-uptime"].display.range, by_id["plex-uptime"].display.buckets) == ("90d", 90)
-    # chart is still Phase 2: it validates, is kept, and says why it cannot render.
-    later = {w.id: w.reason for w in doc.unsupported_widgets}
-    assert later == {"net-throughput": "widget type 'chart' arrives in Phase 2"}
+    # The plan's chart (§8.2) validates as the real type since 2026-09-28.
+    chart = by_id["net-throughput"]
+    assert isinstance(chart, ChartWidget)
+    assert [s.label for s in chart.source.series] == ["Down", "Up"]
+    assert (chart.source.range, chart.source.tier) == ("24h", "auto")
+    assert (chart.display.kind, chart.display.stacked, chart.display.unit) == ("area", False, "bps")
+    assert doc.unsupported_widgets == []
     assert manager.snapshot.warnings == ()
 
 

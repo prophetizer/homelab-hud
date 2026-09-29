@@ -25,9 +25,12 @@ from hud.collector import STATE_SEVERITY, LiveCache, ResourceFilter
 from hud.collector.availability import effective_state
 from hud.config.schemas import BoardDocument, Widget
 from hud.config.schemas.board import (
+    CHART_RANGES,
     BarsWidget,
+    ChartWidget,
     EmbedWidget,
     Grid,
+    HeatmapWidget,
     HeroStat,
     IncidentsWidget,
     Layout,
@@ -48,6 +51,7 @@ from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
+from hud.widgets.series import bucket_axis, bucketed, heat, read_points
 from hud.widgets.uptime import RANGES, cells, day_cells, ratio, read_spans, tally
 
 # ----------------------------------------------------------------------------- payloads
@@ -161,6 +165,12 @@ class WidgetEngine:
                     uids.add(w.source.resource)
                 else:
                     uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
+            elif isinstance(w, ChartWidget):
+                uids.update(uid for uid, _, _ in self._chart_series(w))
+            elif isinstance(w, HeatmapWidget):
+                uids.add(w.source.resource)
+            if isinstance(w, ListWidget):
+                uids.update(stat.resource for stat in w.display.stats)
         return uids
 
     async def resolve_board(
@@ -194,10 +204,19 @@ class WidgetEngine:
         )
 
     async def resolve(
-        self, w: Widget, now: datetime, *, page_origin: str | None = None
+        self,
+        w: Widget,
+        now: datetime,
+        *,
+        page_origin: str | None = None,
+        chart_range: str | None = None,
     ) -> ResolvedWidget:
+        """``chart_range`` shows a chart over another of its ranges; other types ignore it."""
         try:
-            resolved = await self._dispatch(w, now, page_origin)
+            if chart_range is not None and isinstance(w, ChartWidget):
+                resolved = await self._chart(w, now, chart_range)
+            else:
+                resolved = await self._dispatch(w, now, page_origin)
         except Exception as exc:  # a bug in one resolver degrades one tile, never the board
             resolved = _tile(w, State.UNKNOWN, error=f"{type(exc).__name__}: {exc}", data={})
         resolved.icon = self._widget_icon(w, resolved)
@@ -211,6 +230,8 @@ class WidgetEngine:
         single = _single_resource(w)
         if single is not None:
             providers = {single.split(":", 1)[0]}
+        elif isinstance(w, ChartWidget):
+            providers = {str(s["uid"]).split(":", 1)[0] for s in resolved.data.get("series", [])}
         elif isinstance(w, ListWidget | BarsWidget | UptimeWidget | StatusWidget | IncidentsWidget):
             sel = _as_list(w.source.select.provider)
             data = resolved.data
@@ -239,6 +260,10 @@ class WidgetEngine:
                 pending = self._list_with_uptime(w, now)
             case IncidentsWidget():
                 pending = self._incidents(w, now)
+            case ChartWidget():
+                pending = self._chart(w, now)
+            case HeatmapWidget():
+                pending = self._heatmap(w, now)
             case _:
                 return self._resolve_sync(w)
         return await pending
@@ -352,6 +377,116 @@ class WidgetEngine:
             display = w.display.model_copy(update={"sparkline": Sparkline(range="24h")})
             return w.model_copy(update={"display": display})
         return w
+
+    def _chart_series(self, w: ChartWidget) -> list[tuple[str, str, str | None]]:
+        """(uid, metric, label) per series: as named, or the busiest ``limit`` resources a
+        selection matches, by their latest value of ``metric``."""
+        if w.source.series:
+            return [(s.resource, s.metric, s.label) for s in w.source.series]
+        assert w.source.select is not None and w.source.metric is not None
+        metric = w.source.metric
+        found = self.cache.resources(_filter(ListSource(select=w.source.select)))
+        latest = [(r, self.cache.metric(r.uid, metric)) for r in found]
+        ranked = sorted(((r, m) for r, m in latest if m is not None), key=lambda rm: -rm[1].value)
+        return [(r.uid, metric, None) for r, _ in ranked[: w.source.limit]]
+
+    async def _chart(
+        self, w: ChartWidget, now: datetime, range_: str | None = None
+    ) -> ResolvedWidget:
+        """Every series averaged into the same buckets over the window, so they share one
+        time axis; a bucket with no sample is a gap (None), never a zero."""
+        rng = range_ or w.source.range
+        to = int(now.timestamp())
+        frm = to - parse_duration(rng)
+        wanted = self._chart_series(w)
+        series: list[dict[str, Any]] = []
+        for uid, metric, label in wanted:
+            r = self.cache.resource(uid)
+            m = self.cache.metric(uid, metric)
+            points = (
+                await asyncio.to_thread(read_points, self.db, uid, metric, frm, to)
+                if self.db is not None
+                else []
+            )
+            values = bucketed(points, frm, to)
+            seen = [v for v in values if v is not None]
+            series.append(
+                {
+                    "uid": uid,
+                    "metric": metric,
+                    "label": label or (r.name if r is not None else uid),
+                    "unit": m.unit.value if m is not None else None,
+                    "last": m.value if m is not None else None,
+                    "min": min(seen) if seen else None,
+                    "max": max(seen) if seen else None,
+                    "mean": sum(seen) / len(seen) if seen else None,
+                    "stale": r.stale if r is not None else True,
+                    "values": values,
+                }
+            )
+        lasts = [s["last"] for s in series if s["last"] is not None]
+        if not series:
+            state, error = State.UNKNOWN, "no series: nothing matches this selection yet"
+        elif not lasts:
+            state, error = State.UNKNOWN, "no readings yet for any series"
+        else:
+            state = _threshold_state(max(lasts), w.display.thresholds)
+            error = None
+        return _tile(
+            w,
+            state,
+            stale=any(s["stale"] for s in series),
+            error=error,
+            data={
+                "range": rng,
+                "ranges": sorted({*CHART_RANGES, w.source.range}, key=parse_duration),
+                "kind": w.display.kind,
+                "stacked": w.display.stacked,
+                "timezone": self._timezone() if self._timezone else "UTC",
+                "x": bucket_axis(frm, to),
+                "series": series,
+                "unit": next((s["unit"] for s in series if s["unit"]), None),
+                "thresholds": [t.model_dump() for t in w.display.thresholds],
+                "format": {"unit": w.display.unit, "precision": w.display.precision},
+            },
+        )
+
+    async def _heatmap(self, w: HeatmapWidget, now: datetime) -> ResolvedWidget:
+        """One metric by weekday and hour, in settings.timezone."""
+        uid, metric = w.source.resource, w.source.metric
+        r = self.cache.resource(uid)
+        m = self.cache.metric(uid, metric)
+        to = int(now.timestamp())
+        frm = to - parse_duration(w.display.range)
+        points = (
+            await asyncio.to_thread(read_points, self.db, uid, metric, frm, to)
+            if self.db is not None
+            else []
+        )
+        grid = heat(points, self.tz, w.display.agg)
+        seen = [v for row in grid for v in row if v is not None]
+        error = None
+        if r is None:
+            error = f"no resource {uid!r} (is its provider polling?)"
+        elif not seen:
+            error = f"no history yet for {metric!r}"
+        return _tile(
+            w,
+            State.UNKNOWN if r is None else State.UP,
+            stale=r.stale if r is not None else False,
+            error=error,
+            data={
+                "grid": grid,
+                "min": min(seen) if seen else None,
+                "max": max(seen) if seen else None,
+                "unit": m.unit.value if m is not None else None,
+                "range": w.display.range,
+                "agg": w.display.agg,
+                "samples": len(points),
+                "resource_name": r.name if r is not None else uid,
+                "format": {"unit": w.display.unit, "precision": w.display.precision},
+            },
+        )
 
     async def _list_with_uptime(self, w: ListWidget, now: datetime) -> ResolvedWidget:
         resolved = self._list(w)
@@ -813,7 +948,7 @@ def _single_resource(w: Widget) -> str | None:
     """The one resource a tile is about, when it is about exactly one."""
     if isinstance(w, ResourceWidget | MetricWidget):
         return w.source.resource
-    if isinstance(w, UptimeWidget):
+    if isinstance(w, UptimeWidget | HeatmapWidget):
         return w.source.resource
     return None
 
