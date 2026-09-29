@@ -29,6 +29,7 @@ from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
+from hud.store.rollup import RollupWorker
 from hud.widgets import WidgetEngine
 from hud.widgets.icons import IconStore
 
@@ -65,6 +66,21 @@ async def _start_auth(engine: Engine, secrets: SecretResolver, snap: ConfigSnaps
     if purged:
         log.info("purged %d expired sessions", purged)
     return auth
+
+
+def _start_background(
+    tg: asyncio.TaskGroup, config: ConfigManager, cache: LiveCache, engine: Engine
+) -> list[asyncio.Task[None]]:
+    """The long-running loops beside the scheduler: config watching, availability spans,
+    and rollups with retention (§6.2) — retention read live from settings."""
+    return [
+        tg.create_task(config.watch(), name="config-watcher"),
+        tg.create_task(AvailabilityRecorder(cache, engine).run(), name="availability"),
+        tg.create_task(
+            RollupWorker(engine, lambda: config.snapshot.settings.spec.retention).run(),
+            name="rollups",
+        ),
+    ]
 
 
 def create_app(env: HudEnv | None = None) -> FastAPI:
@@ -116,16 +132,13 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         collector.start()
 
         async with asyncio.TaskGroup() as tg:
-            watcher = tg.create_task(config.watch(), name="config-watcher")
-            recorder = tg.create_task(
-                AvailabilityRecorder(cache, app.state.engine).run(), name="availability"
-            )
+            background = _start_background(tg, config, cache, app.state.engine)
             log.info("HUD %s ready on port %d", __version__, env.port)
             try:
                 yield
             finally:
-                watcher.cancel()
-                recorder.cancel()
+                for task in background:
+                    task.cancel()
                 await collector.stop()
                 await registry.shutdown()
         app.state.engine.dispose()

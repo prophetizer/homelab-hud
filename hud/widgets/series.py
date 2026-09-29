@@ -5,8 +5,8 @@ Charts need every series on one time axis, so points are averaged into equal buc
 the window — a bucket with no sample is None (a gap, never a zero). The heatmap folds a
 window into weekday-by-hour cells in settings.timezone.
 
-Raw samples only: until the rollup worker exists (§6.2), a 7-day chart reads a week of raw
-samples. Bounded by the widget's range and a single indexed series each.
+Reads go through the query planner (hud.reporting.query): raw samples for short windows,
+rollups for long ones.
 """
 
 from __future__ import annotations
@@ -14,10 +14,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime, tzinfo
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine
 
-from hud.store.tables import samples as samples_t
-from hud.store.tables import series as series_t
+from hud.reporting.query import pick_tier, read_range
 
 CHART_BUCKETS = 240
 
@@ -25,21 +24,16 @@ CHART_BUCKETS = 240
 def read_points(
     engine: Engine, resource_uid: str, metric: str, since: int, until: int
 ) -> list[tuple[int, float]]:
-    """Every raw sample in [since, until], ascending."""
-    with engine.connect() as conn:
-        sid = conn.execute(
-            select(series_t.c.id).where(
-                series_t.c.resource_uid == resource_uid, series_t.c.metric == metric
-            )
-        ).scalar()
-        if sid is None:
-            return []
-        rows = conn.execute(
-            select(samples_t.c.ts, samples_t.c.value)
-            .where(samples_t.c.series_id == sid, samples_t.c.ts >= since, samples_t.c.ts <= until)
-            .order_by(samples_t.c.ts)
-        ).all()
-    return [(int(ts), float(v)) for ts, v in rows]
+    """A series over [since, until] from the query planner: raw samples for short windows,
+    rollups for long ones, raw filling whatever the rollups do not reach yet (§6.2)."""
+    return read_range(engine, (resource_uid, metric), (since, until))
+
+
+def chart_buckets(span: int) -> int:
+    """How many buckets a chart over ``span`` can fill without gaps: CHART_BUCKETS, or the
+    number of rollup buckets when the planner reads a tier coarser than that."""
+    tier = pick_tier(span)
+    return min(CHART_BUCKETS, max(1, span // tier[1])) if tier else CHART_BUCKETS
 
 
 def bucket_axis(since: int, until: int, n: int = CHART_BUCKETS) -> list[int]:
@@ -133,6 +127,7 @@ __all__ = [
     "CHART_BUCKETS",
     "bucket_axis",
     "bucketed",
+    "chart_buckets",
     "fit",
     "forecast",
     "heat",

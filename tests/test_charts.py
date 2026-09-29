@@ -191,7 +191,8 @@ async def test_heatmap_reads_a_week_in_the_timezone(config_dir: Path, db: Engine
     doc = board(config_dir, _board(HEAT))
     engine = WidgetEngine(cache, db, timezone=lambda: "America/Chicago")
     (w,) = (await engine.resolve_board(doc, T0)).widgets
-    assert (w.data["min"], w.data["max"], w.data["samples"]) == (3.0, 3.0, 2)
+    # A week reads hourly points (the planner): both samples fall in one hour, max 3.0.
+    assert (w.data["min"], w.data["max"], w.data["samples"]) == (3.0, 3.0, 1)
     assert len(w.data["grid"]) == 7 and len(w.data["grid"][0]) == 24
     assert w.error is None and w.state is State.UP
 

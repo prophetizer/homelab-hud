@@ -48,12 +48,13 @@ from hud.config.schemas.board import (
 )
 from hud.config.schemas.duration import parse_duration
 from hud.models import Metric, Resource, State, Unit
+from hud.reporting.query import Agg, read_range
 from hud.widgets.icons import canonical as canonical_icon
 from hud.widgets.icons import resolve as resolve_icon
 from hud.widgets.icons import slug as icon_slug
 from hud.widgets.probe import Framing, FramingProber
 from hud.widgets.samples import read_samples
-from hud.widgets.series import bucket_axis, bucketed, forecast, heat, read_points
+from hud.widgets.series import bucket_axis, bucketed, chart_buckets, forecast, heat, read_points
 from hud.widgets.uptime import RANGES, cells, day_cells, ratio, read_spans, tally
 
 # ----------------------------------------------------------------------------- payloads
@@ -413,6 +414,7 @@ class WidgetEngine:
         to = int(now.timestamp())
         frm = to - parse_duration(rng)
         wanted = self._chart_series(w)
+        buckets = chart_buckets(to - frm)
         series: list[dict[str, Any]] = []
         for uid, metric, label in wanted:
             r = self.cache.resource(uid)
@@ -422,7 +424,7 @@ class WidgetEngine:
                 if self.db is not None
                 else []
             )
-            values = bucketed(points, frm, to)
+            values = bucketed(points, frm, to, buckets)
             seen = [v for v in values if v is not None]
             series.append(
                 {
@@ -457,7 +459,7 @@ class WidgetEngine:
                 "kind": w.display.kind,
                 "stacked": w.display.stacked,
                 "timezone": self._timezone() if self._timezone else "UTC",
-                "x": bucket_axis(frm, to),
+                "x": bucket_axis(frm, to, buckets),
                 "series": series,
                 "unit": next((s["unit"] for s in series if s["unit"]), None),
                 "thresholds": [t.model_dump() for t in w.display.thresholds],
@@ -472,9 +474,11 @@ class WidgetEngine:
         m = self.cache.metric(uid, metric)
         to = int(now.timestamp())
         frm = to - parse_duration(w.display.range)
+        agg: Agg = "max" if w.display.agg == "max" else "avg"
+        db = self.db
         points = (
-            await asyncio.to_thread(read_points, self.db, uid, metric, frm, to)
-            if self.db is not None
+            await asyncio.to_thread(read_range, db, (uid, metric), (frm, to), agg=agg)
+            if db is not None
             else []
         )
         grid = heat(points, self.tz, w.display.agg)
