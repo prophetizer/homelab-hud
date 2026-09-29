@@ -132,6 +132,7 @@ export interface ListItem {
   trend?: [number, number][]; // display.trend: the last 6 h of one metric
   group_count?: number; // display.group: how many rows this one stands for
   when?: { day: string; time: string | null } | null; // display.date: its day (and time) in settings.timezone
+  at?: string; // when this reading was taken (ISO)
 }
 export interface ListData {
   items: ListItem[];

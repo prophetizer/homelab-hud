@@ -28,14 +28,27 @@
       "SeriesName": "The Expanse",
       "Type": "Episode",
       "RunTimeTicks": 31800000000,
-      "Id": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1"
+      "Id": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+      "MediaStreams": [
+        {
+          "Type": "Video",
+          "Height": 720
+        },
+        {
+          "Type": "Audio"
+        }
+      ]
     },
     "TranscodingInfo": {
       "Bitrate": 8000000,
       "IsVideoDirect": false,
       "IsAudioDirect": true,
       "Framerate": 23.976,
-      "CompletionPercentage": 41.5
+      "CompletionPercentage": 41.5,
+      "TranscodeReasons": [
+        "VideoCodecNotSupported",
+        "SubtitleCodecNotSupported"
+      ]
     }
   },
   {
@@ -66,7 +79,16 @@
       "Name": "Arrival",
       "Type": "Movie",
       "RunTimeTicks": 69360000000,
-      "Id": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"
+      "Id": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2",
+      "MediaStreams": [
+        {
+          "Type": "Video",
+          "Height": 2160
+        },
+        {
+          "Type": "Audio"
+        }
+      ]
     }
   },
   {

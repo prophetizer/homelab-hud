@@ -3645,3 +3645,88 @@ a.svc__link:hover .svc__name {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------- now playing (media cards, 2026-09-28) */
+
+.media-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+/* How it plays is information, not status: neutral outlines. A transcode is drawn heavier
+   because the server is doing the work, never in a status colour. */
+.media-badge {
+  padding: 0 var(--space-1);
+  border: var(--border-w) solid var(--border);
+  border-radius: 3px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.media-badge[data-kind="transcode"] {
+  border-color: var(--fg-faint);
+  color: var(--fg);
+}
+
+.media-card__reason {
+  overflow: hidden;
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-card__progress {
+  display: grid;
+  gap: 2px;
+}
+
+.media-card__progress .meter__fill {
+  transition: width 1s linear;
+}
+
+.media-card__clock {
+  font-size: var(--text-2xs);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One stream alone: the whole width, a bigger poster and title, the art less blurred. */
+.media-cards--single {
+  grid-template-columns: 1fr;
+}
+
+.media-cards--single .media-card {
+  gap: var(--space-4);
+  padding: var(--space-3);
+  min-height: 11rem;
+}
+
+.media-cards--single .media-card__backdrop {
+  filter: blur(3px) brightness(0.34) saturate(1.1);
+}
+
+:root[data-theme="light"] .media-cards--single .media-card__backdrop {
+  filter: blur(3px) brightness(1.1) saturate(0.9) opacity(0.35);
+}
+
+.media-cards--single .poster--lg {
+  width: 6.5rem;
+  height: auto;
+  aspect-ratio: 2 / 3;
+}
+
+.media-cards--single .media-card__title {
+  font-size: var(--text-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-card__progress .meter__fill {
+    transition: none;
+  }
+}

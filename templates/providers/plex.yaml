@@ -95,6 +95,21 @@ spec:
           media_type:   "{{ item.type }}"
           # direct play / copy / transcode — the number that decides whether the box copes.
           decision:     "{{ item.Media[0].Part[0].decision | default('directplay') }}"
+          # The same three words on every media server: Direct play, Direct stream, Transcode.
+          # A TranscodeSession exists for a direct stream too; only a video transcode is one.
+          playback: >-
+            {{ 'Transcode' if item.TranscodeSession and item.TranscodeSession.videoDecision == 'transcode'
+               else 'Direct stream' if item.TranscodeSession else 'Direct play' }}
+          # What the server is converting, and whether in hardware.
+          transcode_reason: >-
+            {% set ts = item.TranscodeSession %}{{ ((['video' if ts.videoDecision == 'transcode' else none,
+               'audio' if ts.audioDecision == 'transcode' else none,
+               'subtitles burned in' if ts.subtitleDecision == 'burn' else none] | select | join(', '))
+               ~ (' · hardware' if ts.transcodeHwFullPipeline or ts.transcodeHwRequested else ''))
+               if ts else none }}
+          resolution: >-
+            {% set r = item.Media[0].videoResolution if item.Media else none %}{{
+               (r | upper if r in ['4k', 'sd'] else r ~ 'p') if r else none }}
           # The show's poster for an episode, else the item's own, resized by Plex's photo
           # transcoder: originals can be several MB (over HUD's 2 MiB cap) and a tile needs
           # 300 px. A path on this server, fetched by HUD with the token: /api/v1/images.

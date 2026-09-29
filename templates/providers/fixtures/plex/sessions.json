@@ -50,7 +50,8 @@
                 "decision": "directplay",
                 "size": 5368709120
               }
-            ]
+            ],
+            "videoResolution": "4k"
           }
         ]
       },
@@ -102,7 +103,8 @@
                 "decision": "transcode",
                 "size": 5368709120
               }
-            ]
+            ],
+            "videoResolution": "1080"
           }
         ],
         "grandparentTitle": "The Expanse",
@@ -168,7 +170,8 @@
                 "decision": "transcode",
                 "size": 5368709120
               }
-            ]
+            ],
+            "videoResolution": "720"
           }
         ],
         "grandparentTitle": "Severance",
@@ -183,7 +186,9 @@
           "videoDecision": "transcode",
           "audioDecision": "transcode",
           "sourceVideoCodec": "hevc",
-          "videoCodec": "h264"
+          "videoCodec": "h264",
+          "subtitleDecision": "burn",
+          "transcodeHwRequested": true
         }
       }
     ]

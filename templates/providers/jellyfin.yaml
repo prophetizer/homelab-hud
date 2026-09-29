@@ -118,6 +118,18 @@ spec:
                if (item.NowPlayingItem.SeriesId or item.NowPlayingItem.Id) else none }}
           # DirectPlay / DirectStream / Transcode — whether the server is doing the work.
           play_method: "{{ item.PlayState.PlayMethod }}"
+          # The same three words on every media server: Direct play, Direct stream, Transcode.
+          playback: >-
+            {{ {'DirectPlay': 'Direct play', 'DirectStream': 'Direct stream',
+                'Transcode': 'Transcode'}.get(item.PlayState.PlayMethod) }}
+          # Why the server transcodes, in its own words (VideoCodecNotSupported, …).
+          transcode_reason: >-
+            {{ item.TranscodingInfo.TranscodeReasons | join(', ')
+               if item.TranscodingInfo and item.TranscodingInfo.TranscodeReasons else none }}
+          resolution: >-
+            {% set h = (item.NowPlayingItem.MediaStreams | selectattr('Type', 'equalto', 'Video')
+                        | map(attribute='Height') | first) if item.NowPlayingItem.MediaStreams
+                        else none %}{{ ('4K' if h >= 2000 else h ~ 'p') if h else none }}
       metrics:
         # Positions and runtimes are in ticks: 10,000,000 per second.
         - name: position_seconds

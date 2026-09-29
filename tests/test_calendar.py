@@ -119,6 +119,7 @@ async def test_agenda_rows_carry_their_day_and_the_boards_today(config_dir: Path
     items = w.data["items"]
     assert [i["uid"] for i in items] == ["sonarr:upcoming:1-s1e1", "sonarr:upcoming:1-s1e2"]
     assert items[1]["when"] == {"day": "2026-09-27", "time": "20:00"}
+    assert items[1]["at"] == T0.isoformat()  # when the reading was taken
     assert items[1]["image"] is True and items[0]["image"] is False
     assert w.data["layout"] == "agenda"
     assert len(w.data["today"]) == 10

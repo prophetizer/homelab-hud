@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatValue } from "../../api/format";
+import { clock, livePosition, reasonWords } from "../../api/playback";
 import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
 import { WidgetFrame } from "../WidgetFrame";
 import { Empty } from "./Empty";
@@ -158,11 +159,52 @@ function Cards({ items }: { items: ListData["items"] }) {
 }
 
 /** Now playing as cards: the poster first, then what, who and where, and how far in. */
+// Playback fields the media card draws itself (progress clock, badges, reason) rather than
+// listing them as text.
+const PLAYBACK_KEYS = new Set([
+  "metric.position_seconds",
+  "metric.duration_seconds",
+  "attrs.playback",
+  "attrs.transcode_reason",
+  "attrs.resolution",
+]);
+
+/** The time, once a second, while ``active``: a playing stream's clock moves on. */
+function useTick(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [active]);
+  return now;
+}
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** A card per stream: the show's backdrop behind, its poster, who and where, a progress bar
+ *  that moves on between polls while playing, and how it plays (direct or transcoded, and
+ *  why). One stream on its own gets the whole width. */
 function MediaCards({ items }: { items: ListData["items"] }) {
+  const live = items.some((i) => i.fields.some((f) => f.key === "metric.position_seconds"));
+  const now = useTick(live);
   return (
-    <ul className="media-cards">
+    <ul className={items.length === 1 ? "media-cards media-cards--single" : "media-cards"}>
       {items.map((item) => {
-        const { sub, values, state } = splitFields(item.fields.filter((f) => String(f.value) !== item.title));
+        const field = (key: string) => item.fields.find((f) => f.key === key)?.value;
+        const { sub, values, state } = splitFields(
+          item.fields.filter((f) => String(f.value) !== item.title && !PLAYBACK_KEYS.has(f.key)),
+        );
+        const position = num(field("metric.position_seconds"));
+        const duration = num(field("metric.duration_seconds"));
+        const playing = item.state !== "paused";
+        const at = position !== null ? livePosition(position, duration, item.at, now, playing) : null;
+        const pct = at !== null && duration ? (at / duration) * 100 : (item.bar ?? null);
+        const playback = field("attrs.playback");
+        const resolution = field("attrs.resolution");
+        const reason = field("attrs.transcode_reason");
         return (
           <li key={item.uid} className="media-card" data-state={item.state} data-stale={item.stale || undefined}>
             {item.backdrop ? <Poster uid={item.uid} variant="backdrop" className="media-card__backdrop" /> : null}
@@ -179,8 +221,31 @@ function MediaCards({ items }: { items: ListData["items"] }) {
                 )}
               </span>
               {sub.length > 0 ? <span className="media-card__sub">{sub.map(fieldText).join(" · ")}</span> : null}
-              {item.bar !== undefined && item.bar !== null ? (
-                <Meter pct={item.bar} state={item.state} label={`${item.bar.toFixed(0)} % played`} />
+              {playback || resolution ? (
+                <span className="media-card__badges">
+                  {typeof playback === "string" ? (
+                    <span className="media-badge" data-kind={playback === "Transcode" ? "transcode" : "direct"}>
+                      {playback}
+                    </span>
+                  ) : null}
+                  {typeof resolution === "string" ? <span className="media-badge">{resolution}</span> : null}
+                  {typeof reason === "string" && reason ? (
+                    <span className="media-card__reason" title={reason}>
+                      {reasonWords(reason)}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+              {pct !== null ? (
+                <span className="media-card__progress">
+                  <Meter pct={pct} state={item.state} label={`${pct.toFixed(0)} % played`} />
+                  {at !== null && duration ? (
+                    <span className="media-card__clock">
+                      {clock(at)} / {clock(duration)}
+                      {!playing ? " · paused" : ""}
+                    </span>
+                  ) : null}
+                </span>
               ) : null}
               <span className="media-card__meta">
                 {state ? (

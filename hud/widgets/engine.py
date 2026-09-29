@@ -621,6 +621,9 @@ class WidgetEngine:
                 "group_count": counts[r.uid][0] if r.uid in counts else 1,
                 "state": r.state.value,
                 "stale": r.stale,
+                # When this reading was taken: lets a playing stream's position move on
+                # between polls without claiming anything the server did not say.
+                "at": r.fetched_at.isoformat(),
                 "links": r.links,
                 "fields": [self.field(r, key).model_dump() for key in w.display.fields],
                 "bar": self._bar(r, w.display.bar),
