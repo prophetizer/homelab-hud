@@ -147,5 +147,33 @@
         "bytes"
       ]
     }
+  },
+  "network": {
+    "resources": {
+      "glances:interface:eth0": "up",
+      "glances:interface:eth1": "up"
+    },
+    "metrics": {
+      "glances:interface:eth0/rx_bps": [
+        1193544.0,
+        "bps"
+      ],
+      "glances:interface:eth0/tx_bps": [
+        765976.0,
+        "bps"
+      ],
+      "glances:interface:eth0/link_bps": [
+        10485760000.0,
+        "bps"
+      ],
+      "glances:interface:eth1/rx_bps": [
+        8000.0,
+        "bps"
+      ],
+      "glances:interface:eth1/tx_bps": [
+        16000.0,
+        "bps"
+      ]
+    }
   }
 }

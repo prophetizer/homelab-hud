@@ -1,4 +1,4 @@
-# Glances — host CPU, memory, load and filesystems over the REST API (v4).
+# Glances — host CPU, memory, load, filesystems and network over the REST API (v4).
 #
 # Copy to /config/providers/glances.yaml, then supply:
 #   GLANCES_BASE_URL                 e.g. http://glances:61208 (environment)
@@ -6,7 +6,7 @@
 # If yours is, add a transport.auth of type basic (username glances) whose password is a
 # secret reference, and list that secret under requires.
 #
-# Mapped from a live Glances 4 instance. Only the system, cpu, mem, load and fs endpoints
+# Mapped from a live Glances 4 instance. Only the system, cpu, mem, load, fs and network endpoints
 # are read: the process endpoints can carry command lines, and command lines sometimes
 # carry passwords.
 apiVersion: hud/v1
@@ -140,3 +140,21 @@ spec:
         - { name: used_pct,    value: "{{ item.percent | float }}", unit: pct }
         - { name: free_bytes,  value: "{{ item.free | float }}",    unit: bytes }
         - { name: total_bytes, value: "{{ item.size | float }}",    unit: bytes }
+
+    # Network interfaces, one per name — the name is stable, so history does not fork.
+    # Loopback, and the container and bridge interfaces a host-networked Glances would see,
+    # are dropped. Glances 4 precomputes per-second rates; they are bytes, normalized to
+    # bits per second at the boundary (invariant 7). Shape confirmed on Glances 4.5.6.
+    - name: network
+      request: { path: /api/4/network }
+      select: "$[?(@.interface_name =~ '^(?!lo$|veth|docker|br-|virbr)')]"
+      map:
+        uid:   "glances:interface:{{ item.interface_name }}"
+        kind:  interface
+        name:  "{{ item.alias or item.interface_name }}"
+        state: up
+        parent_uid: "glances:host:main"
+      metrics:
+        - { name: rx_bps, value: "{{ item.bytes_recv_rate_per_sec | float }}", unit: bytes_per_sec, when: "{{ item.bytes_recv_rate_per_sec is number }}" }
+        - { name: tx_bps, value: "{{ item.bytes_sent_rate_per_sec | float }}", unit: bytes_per_sec, when: "{{ item.bytes_sent_rate_per_sec is number }}" }
+        - { name: link_bps, value: "{{ item.speed | float }}", unit: bps, when: "{{ item.speed | float > 0 }}" }
