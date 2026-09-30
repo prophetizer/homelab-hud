@@ -8,6 +8,7 @@ import { Empty } from "./Empty";
 import { Icon } from "./Icon";
 import { Meter } from "./Meter";
 import { MiniSpark } from "./MiniSpark";
+import { Lead } from "./Lead";
 import { Poster } from "./Poster";
 import { valueParts } from "./MetricWidget";
 import { cellState, formatSla } from "./UptimeWidget";
@@ -565,7 +566,8 @@ function ServiceCards({ items }: { items: ListData["items"] }) {
 
 export function ListWidget({ widget }: { widget: ResolvedWidget }) {
   const data = widget.data as unknown as ListData;
-  const stats = data.stats && data.stats.length > 0 ? <StatsStrip stats={data.stats} /> : null;
+  const stats =
+    data.stats && data.stats.length > 0 ? data.lead ? <Lead stats={data.stats} /> : <StatsStrip stats={data.stats} /> : null;
   if (data.layout === "services" && data.items.length > 0) {
     return (
       <WidgetFrame widget={widget}>

@@ -2,8 +2,9 @@
 import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import { type Me, hasPermission } from "../api/auth";
 import { fetchBoard, fetchExpanded } from "../api/client";
-import { formatAge } from "../api/format";
-import type { ResolvedBoard, ResolvedWidget, State } from "../api/types";
+import { formatAge, formatValue } from "../api/format";
+import { sectionGroups } from "../api/layout";
+import type { Problem, ResolvedBoard, ResolvedSection, ResolvedWidget, State } from "../api/types";
 import { DetailContext } from "./detail";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
@@ -127,22 +128,62 @@ function DetailOverlay({ board, widget, onClose }: { board: string; widget: stri
 
 const WORST_FIRST: State[] = ["down", "degraded", "unknown", "paused"];
 
+function jump(id: string | null | undefined) {
+  if (!id) return;
+  const el = document.getElementById(`widget-${id}`);
+  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  el?.classList.add("board__cell--flash");
+  window.setTimeout(() => el?.classList.remove("board__cell--flash"), 1600);
+}
+
+const VERDICT_NAMES = 3;
+const SAYS: Record<string, string> = { down: "is down", degraded: "is degraded", unknown: "is not reporting" };
+
+/** The board's one sentence: "2 things need attention — Portainer is down · Bazarr is
+ *  degraded", each name jumping to its tile; or a quiet "All clear". */
+export function Verdict({ problems, total }: { problems: Problem[]; total: number }) {
+  if (total === 0) return null;
+  if (problems.length === 0) {
+    return (
+      <p className="verdict" data-state="up">
+        <span className="status-dot" data-state="up" />
+        <b>All clear</b>
+      </p>
+    );
+  }
+  const worst = problems[0]?.state ?? "degraded";
+  return (
+    <p className="verdict" data-state={worst} role="status">
+      <span className="status-dot" data-state={worst} />
+      <b>
+        {problems.length === 1 ? "1 thing needs" : `${problems.length} things need`} attention
+      </b>
+      <span className="verdict__items">
+        {problems.slice(0, VERDICT_NAMES).map((p, i) => (
+          <span key={p.uid}>
+            {i > 0 ? " · " : null}
+            <button type="button" className="verdict__name" onClick={() => jump(p.widget)} disabled={!p.widget}>
+              {p.name}
+            </button>{" "}
+            {SAYS[p.state] ?? p.state}
+          </span>
+        ))}
+        {problems.length > VERDICT_NAMES ? ` · +${problems.length - VERDICT_NAMES} more` : null}
+      </span>
+    </p>
+  );
+}
+
 /** "142 resources · 1 down · 3 degraded · 2 tiles failing". Each problem count jumps to the
  *  first tile in that state; a board with nothing wrong gets one quiet line. */
 export function SummaryBar({ board }: { board: ResolvedBoard }) {
   const counts = board.summary ?? {};
   const total = Object.values(counts).reduce((a, b) => a + (b ?? 0), 0);
   const failing = board.widgets.filter((w) => w.error);
-  const jump = (id: string | undefined) => {
-    if (!id) return;
-    const el = document.getElementById(`widget-${id}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    el?.classList.add("board__cell--flash");
-    window.setTimeout(() => el?.classList.remove("board__cell--flash"), 1600);
-  };
   if (total === 0 && failing.length === 0) return null;
   return (
     <nav className="board__summary" aria-label="Board status">
+      {board.problems ? <Verdict problems={board.problems} total={total} /> : null}
       <span className="board__summary-total">
         <span className="status-dot" data-state={WORST_FIRST.find((s) => counts[s]) ?? "up"} />
         {total} {total === 1 ? "resource" : "resources"}
@@ -168,9 +209,50 @@ export function SummaryBar({ board }: { board: ResolvedBoard }) {
   );
 }
 
-// Explicit lg placement from grid:{col,row,w,h}; smaller breakpoints reflow in source
-// order with spans clamped to the column count (react-grid-layout comes with the editor).
+/** A section's heading band: its title, a rule, and its readings ("3 streaming"). */
+function SectionHead({ section }: { section: ResolvedSection }) {
+  const readings = section.stats.filter((s) => s.value !== null);
+  return (
+    <div className="board-section__head">
+      <h2 className="board-section__title">{section.title}</h2>
+      <span className="board-section__rule" />
+      {readings.length > 0 ? (
+        <span className="board-section__sum">
+          {readings.map((s, i) => (
+            <span key={s.label} data-state={s.state}>
+              {i > 0 ? " · " : null}
+              {formatValue(s.value, s.unit, s.unit === "pct" ? 0 : 1)} {s.label}
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function BoardGrid({ board }: { board: ResolvedBoard }) {
+  const groups = sectionGroups(board);
+  if (groups.length === 1 && groups[0]?.section === null) return <TileGrid board={board} widgets={board.widgets} />;
+  return (
+    <>
+      {groups.map((g) =>
+        g.section ? (
+          <section key={g.section.id} className="board-section" aria-label={g.section.title}>
+            <SectionHead section={g.section} />
+            <TileGrid board={board} widgets={g.widgets} />
+          </section>
+        ) : (
+          <TileGrid key="" board={board} widgets={g.widgets} />
+        ),
+      )}
+    </>
+  );
+}
+
+// Explicit lg placement from grid:{col,row,w,h} (rows count from the top of the tile's
+// section); smaller breakpoints reflow in source order with spans clamped to the column
+// count (react-grid-layout comes with the editor).
+function TileGrid({ board, widgets }: { board: ResolvedBoard; widgets: ResolvedWidget[] }) {
   const { columns, placed } = useColumns(board.layout);
   const style: CSSProperties = {
     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
@@ -181,7 +263,7 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
       className={["board board--grid", placed ? "" : "board--flow", columns === 1 ? "board--stacked" : ""].join(" ").trim()}
       style={style}
     >
-      {board.widgets.map((w) => {
+      {widgets.map((w) => {
         const span = Math.min(w.grid.w, columns);
         // Reflowed (below lg): tiles take their content's height instead of the desktop row
         // span, which left short lists in tall empty boxes. An embed has no content height,
@@ -196,7 +278,7 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
           </div>
         );
       })}
-      {board.widgets.length === 0 ? <p className="board-status">This board has no widgets.</p> : null}
+      {widgets.length === 0 ? <p className="board-status">This board has no widgets.</p> : null}
     </div>
   );
 }

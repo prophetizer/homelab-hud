@@ -209,6 +209,52 @@ async def test_list_stats_strip_reads_metrics_with_a_sparkline(
     assert w.data["items"][0]["bar"] == 40
 
 
+HERO = """
+- id: host
+  type: resource
+  grid: { col: 1, row: 1, w: 4 }
+  source: { resource: "sabnzbd:service:main" }
+  display:
+    style: hero
+    stats:
+      - { resource: "sabnzbd:service:main", metric: speed_bps, label: Speed, sparkline: 1h }
+      - { resource: "sabnzbd:service:main", metric: timeleft_seconds, label: Left }
+"""
+
+
+async def test_a_hero_card_draws_its_readings_sparklines_too(config_dir: Path, db: Engine) -> None:
+    # The same HeroStat as a list's strip: a hero card that asks for a sparkline gets one,
+    # rather than a setting that validates and does nothing.
+    from sqlalchemy import insert  # noqa: PLC0415
+
+    from hud.store.tables import samples, series  # noqa: PLC0415
+
+    uid = "sabnzbd:service:main"
+    now = int(T0.timestamp())
+    with db.begin() as conn:
+        sid = conn.execute(
+            insert(series).values(
+                provider="sabnzbd",
+                resource_uid=uid,
+                metric="speed_bps",
+                unit="bps",
+                first_seen=now - 3600,
+                last_seen=now,
+            )
+        ).inserted_primary_key[0]
+        conn.execute(
+            insert(samples),
+            [{"series_id": sid, "ts": now - 3000 + 60 * i, "value": 1e6 * i} for i in range(40)],
+        )
+    cache = LiveCache()
+    cache.apply("sabnzbd", "queue", [res(uid)], [metric(uid, "speed_bps", 8e7, Unit.BPS)])
+    doc = board(config_dir, _board(HERO))
+    (w,) = (await WidgetEngine(cache, db).resolve_board(doc, T0)).widgets
+    speed, left = w.data["stats"]
+    assert speed["value"] == 8e7 and len(speed["sparkline"]) == 40
+    assert "sparkline" not in left
+
+
 async def test_sportarr_events_are_named_by_title_and_never_fetch_outside_art(
     config_dir: Path,
 ) -> None:

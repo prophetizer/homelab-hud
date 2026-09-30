@@ -756,3 +756,88 @@ async def test_a_display_name_icon_is_tried_as_its_dashboard_icons_guess(
         "logo.png": "logo.png",  # a servable file name is used as it is, never slugged
         "theme.park": "theme-park",  # a dot in a name is not a file extension
     }
+
+
+SECTIONED = """\
+apiVersion: hud/v1
+kind: Board
+metadata: { name: b }
+spec:
+  sections:
+    - id: media
+      title: Media
+      stats: [{ resource: "plex:activity:main", metric: streams, label: streaming }]
+    - { id: system, title: System }
+  widgets:
+    - id: loose
+      type: static
+      grid: { col: 1, row: 1 }
+    - id: streams
+      type: list
+      section: media
+      grid: { col: 1, row: 1, w: 2 }
+      source: { select: { kind: container } }
+    - id: host
+      type: resource
+      section: system
+      grid: { col: 1, row: 1 }
+      source: { resource: "glances:host:main" }
+"""
+
+
+async def test_sections_resolve_in_order_with_their_tiles_and_summary(config_dir: Path) -> None:
+    """Sections (added 2026-09-29): each tile says which band it sits in, each band its
+    title and readings; a tile without one sits above them all."""
+    cache = LiveCache()
+    cache.apply(
+        "plex",
+        "sessions",
+        [res("plex:activity:main")],
+        [metric("plex:activity:main", "streams", 3)],
+    )
+    cache.apply("docker", "list", [res("docker:container:plex"), res("docker:container:sab")], [])
+    cache.apply("glances", "host", [res("glances:host:main")], [])
+    resolved = await WidgetEngine(cache, None).resolve_board(board(config_dir, SECTIONED), T0)
+    assert [(s.id, s.title) for s in resolved.sections] == [
+        ("media", "Media"),
+        ("system", "System"),
+    ]
+    assert resolved.sections[0].stats[0]["value"] == 3
+    assert {w.id: w.section for w in resolved.widgets} == {
+        "loose": None,
+        "streams": "media",
+        "host": "system",
+    }
+
+
+async def test_the_board_names_its_worst_resources_and_where_they_are(config_dir: Path) -> None:
+    """The header's verdict: "Portainer is down" — worst first, each with a tile to jump to."""
+    cache = LiveCache()
+    cache.apply("plex", "sessions", [res("plex:activity:main")], [])
+    cache.apply(
+        "docker",
+        "list",
+        [
+            res("docker:container:plex"),
+            res("docker:container:bazarr", State.DEGRADED),
+            res("docker:container:portainer", State.DOWN),
+        ],
+        [],
+    )
+    cache.apply("glances", "host", [res("glances:host:main", State.DOWN)], [])
+    resolved = await WidgetEngine(cache, None).resolve_board(board(config_dir, SECTIONED), T0)
+    assert [(p.name, p.state.value, p.widget) for p in resolved.problems] == [
+        ("main", "down", "host"),
+        ("portainer", "down", "streams"),
+        ("bazarr", "degraded", "streams"),
+    ]
+
+
+def test_a_tile_in_an_undefined_section_is_refused(config_dir: Path) -> None:
+    text = SECTIONED.replace("section: system", "section: sytem")
+    (config_dir / "settings.yaml").write_text("apiVersion: hud/v1\nkind: Settings\n")
+    (config_dir / "boards").mkdir(exist_ok=True)
+    (config_dir / "boards" / "b.yaml").write_text(text)
+    snap = ConfigManager(config_dir).load()
+    assert not [d for d in snap.documents if isinstance(d.model, BoardDocument)]
+    assert any("sytem" in str(q) for q in snap.quarantined)

@@ -178,6 +178,9 @@ class ListDisplay(_Spec):
     # A strip of readings above the rows — a queue's speed and time left, a request
     # manager's pending count — each a metric of any resource. Added 2026-09-27, optional.
     stats: list[HeroStat] = Field(default_factory=list, max_length=6)
+    # The first stat large, with its sparkline beneath, and the rest as facts — the tile's
+    # lead number — instead of an even strip. Added 2026-09-29, optional.
+    lead: bool = False
     # One line per row: the bar beside the name instead of under it, values right.
     # Added 2026-09-27, optional.
     dense: bool = False
@@ -234,7 +237,10 @@ class ResourceDisplay(_Spec):
     fields: list[str] = Field(default_factory=lambda: ["state", "name"])
     # fields: a label/value list. hero: a wide strip — the resource's name large, its
     # fields as a subtitle, and `stats` as a row of readings. Added 2026-09-26, optional.
-    style: Literal["fields", "hero"] = "fields"
+    # readings: each stat its own panel, the number large with its sparkline drawn behind
+    # it. lead: the first stat large with its trend, the rest as facts beneath. Both added
+    # 2026-09-29, optional.
+    style: Literal["fields", "hero", "readings", "lead"] = "fields"
     stats: list[HeroStat] = Field(default_factory=list)
 
 
@@ -306,6 +312,9 @@ class UptimeDisplay(_Spec):
 class StatusDisplay(_Spec):
     ok_text: str = "All systems operational"
     show: int = Field(default=5, ge=0, le=50)  # how many problems to name
+    # headline: the banner. wall: a square per resource, worst first, with the problems
+    # named beneath — every check at a glance. Added 2026-09-29, optional.
+    style: Literal["headline", "wall"] = "headline"
 
 
 class IncidentsDisplay(_Spec):
@@ -345,6 +354,10 @@ class _Widget(_Spec):
     # provider the tile shows, if it shows one. For an embed, also its sidebar icon.
     # Added 2026-09-26, optional: dashboard/v1-compatible.
     icon: str | None = None
+    # The id of the board section this tile sits in; its grid row counts from the top of
+    # that section. Unset: the tile sits above every section, as on a board without them.
+    # Added 2026-09-29, optional: dashboard/v1-compatible.
+    section: str | None = None
 
     @field_validator("id")
     @classmethod
@@ -492,6 +505,9 @@ class CapacityDisplay(_Spec):
     warn_days: int = Field(default=30, ge=1, le=3650)
     error_days: int = Field(default=7, ge=1, le=3650)
     empty_text: str = "No disks"
+    # rings: a card per disk with a ring. rows: one line per disk — a used bar and the
+    # forecast beside it. Added 2026-09-29, optional.
+    style: Literal["rings", "rows"] = "rings"
 
     @model_validator(mode="after")
     def _order(self) -> Self:
@@ -588,8 +604,27 @@ class BoardMetadata(Metadata):
         return v
 
 
+class BoardSection(_Spec):
+    """A titled band of tiles — "Media", "System" — in the order the board lists them, each
+    its own grid, with an optional one-line summary of readings beside the title ("3
+    streaming · 4 downloading"). Added 2026-09-29, optional: dashboard/v1-compatible."""
+
+    id: str
+    title: str
+    stats: list[HeroStat] = Field(default_factory=list, max_length=6)
+
+    @field_validator("id")
+    @classmethod
+    def _id_shape(cls, v: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", v):
+            msg = "section id must be [A-Za-z0-9_-]"
+            raise ValueError(msg)
+        return v
+
+
 class BoardSpec(_Spec):
     layout: Layout = Layout()
+    sections: list[BoardSection] = Field(default_factory=list)
     widgets: list[Widget] = Field(default_factory=list)
 
     @field_validator("widgets")
@@ -601,6 +636,19 @@ class BoardSpec(_Spec):
             msg = f"duplicate widget ids: {', '.join(dupes)}"
             raise ValueError(msg)
         return v
+
+    @model_validator(mode="after")
+    def _sections_known(self) -> Self:
+        ids = [s.id for s in self.sections]
+        dupes = sorted({i for i in ids if ids.count(i) > 1})
+        if dupes:
+            msg = f"duplicate section ids: {', '.join(dupes)}"
+            raise ValueError(msg)
+        unknown = sorted({w.section for w in self.widgets if w.section and w.section not in ids})
+        if unknown:
+            msg = f"widgets name sections this board does not define: {', '.join(unknown)}"
+            raise ValueError(msg)
+        return self
 
 
 class BoardDocument(Document):

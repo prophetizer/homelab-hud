@@ -19,6 +19,28 @@ export function CapacityWidget({ widget }: { widget: ResolvedWidget }) {
       </WidgetFrame>
     );
   }
+  if (d.style === "rows") {
+    return (
+      <WidgetFrame widget={widget}>
+        <ul className="cap-rows">
+          {d.items.map((i) => (
+            <li key={i.uid} className="cap-rows__item" data-state={i.state} data-stale={i.stale || undefined}>
+              <span className="cap-rows__name" title={i.title}>
+                {i.title}
+              </span>
+              <span className="cap-rows__bar" aria-hidden="true">
+                <i data-state={i.state} style={{ width: `${Math.max(0, Math.min(100, i.used_pct ?? 0))}%` }} />
+              </span>
+              <span className="cap-rows__pct">{i.used_pct === null ? "—" : `${Math.round(i.used_pct)} %`}</span>
+              <span className="cap-rows__forecast" data-verdict={i.forecast.verdict}>
+                {forecastText(i.forecast, d.window)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </WidgetFrame>
+    );
+  }
   return (
     <WidgetFrame widget={widget}>
       <ul className="cap">

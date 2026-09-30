@@ -53,6 +53,21 @@ export interface ResolvedWidget {
   error: string | null;
   data: Record<string, unknown>;
   icon?: string | null; // header icon: widget.icon, or its single provider's
+  section?: string | null; // the board section it sits in; null: above every section
+}
+
+export interface ResolvedSection {
+  id: string;
+  title: string;
+  stats: HeroStat[]; // readings beside the title: "3 streaming"
+}
+
+/** A resource on the board that is not fine, named, with the first tile showing it. */
+export interface Problem {
+  uid: string;
+  name: string;
+  state: State;
+  widget: string | null;
 }
 
 export interface ResolvedBoard {
@@ -65,6 +80,8 @@ export interface ResolvedBoard {
   resolved_at: string;
   widgets: ResolvedWidget[];
   summary?: Partial<Record<State, number>>; // distinct resources on the board, by state
+  sections?: ResolvedSection[];
+  problems?: Problem[]; // the worst few, worst first
 }
 
 export interface Placement {
@@ -108,11 +125,13 @@ export interface HeroStat {
   value: number | null;
   unit: Unit | null;
   state: State;
+  sparkline?: [number, number][]; // the reading's recent history, when the board asks
+  sparkline_range?: string; // over what: "1h"
 }
 export interface ResourceData {
   resource: Resource | null;
   fields: FieldValue[];
-  style?: "fields" | "hero";
+  style?: "fields" | "hero" | "readings" | "lead";
   stats?: HeroStat[];
 }
 export interface ListItem {
@@ -142,6 +161,7 @@ export interface ListData {
   today?: string; // YYYY-MM-DD in settings.timezone, for agenda headings
   stats?: (HeroStat & { sparkline?: [number, number][] })[]; // display.stats: readings above the rows
   dense?: boolean; // display.dense: one line per row
+  lead?: boolean; // display.lead: the first stat as the tile's lead number
 }
 export interface MetricData {
   value: number | null;
@@ -214,6 +234,8 @@ export interface StatusData {
   counts: Partial<Record<State, number>>;
   total: number;
   problems: { uid: string; title: string; state: State; links: Record<string, string> }[];
+  style?: "headline" | "wall";
+  cells?: { uid: string; title: string; state: State }[]; // style: wall — every resource, worst first
 }
 
 export interface Incident {
@@ -294,6 +316,7 @@ export interface CapacityData {
   items: CapacityItem[];
   total: number;
   window: string;
+  style?: "rings" | "rows";
   warn_days: number;
   error_days: number;
   empty_text: string;

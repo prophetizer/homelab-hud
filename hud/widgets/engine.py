@@ -77,6 +77,22 @@ class ResolvedWidget(BaseModel):
     error: str | None = None
     data: dict[str, Any]
     icon: str | None = None  # header icon: widget.icon, or its single provider's
+    section: str | None = None  # the board section it sits in; None: above every section
+
+
+class ResolvedSection(BaseModel):
+    id: str
+    title: str
+    stats: list[dict[str, Any]] = []  # the summary readings beside the title
+
+
+class Problem(BaseModel):
+    """One resource on the board that is not fine, for the header's verdict."""
+
+    uid: str
+    name: str
+    state: State
+    widget: str | None = None  # the first tile showing it, to jump to
 
 
 class ResolvedBoard(BaseModel):
@@ -90,6 +106,9 @@ class ResolvedBoard(BaseModel):
     widgets: list[ResolvedWidget]
     # Distinct resources the board shows, by state: the summary bar's counts.
     summary: dict[str, int] = {}
+    sections: list[ResolvedSection] = []
+    # The worst few of those resources, named (down first): "Portainer is down".
+    problems: list[Problem] = []
 
 
 class BoardSummary(BaseModel):
@@ -106,6 +125,33 @@ class BoardSummary(BaseModel):
     # sidebar's per-board dot and count. None for a board that shows no resources.
     state: State | None = None
     down: int = 0
+
+
+PROBLEM_STATES = (State.DOWN, State.DEGRADED, State.UNKNOWN)
+MAX_PROBLEMS = 5
+
+
+def _problems(
+    shown: list[Resource], doc: BoardDocument, widgets: list[ResolvedWidget]
+) -> list[Problem]:
+    """The board's worst resources, named, worst first then by name — each with the first
+    tile that shows it, found from the tiles' own rows."""
+    bad = sorted(
+        (r for r in shown if r.state in PROBLEM_STATES),
+        key=lambda r: (-STATE_SEVERITY[r.state], r.name.lower()),
+    )[:MAX_PROBLEMS]
+    single = {uid: w.id for w in doc.spec.widgets if (uid := _single_resource(w)) is not None}
+
+    def tile(uid: str) -> str | None:
+        if uid in single:
+            return single[uid]
+        for rw in widgets:
+            rows = rw.data.get("items") or rw.data.get("bars") or rw.data.get("problems") or []
+            if any(isinstance(i, dict) and i.get("uid") == uid for i in rows):
+                return rw.id
+        return None
+
+    return [Problem(uid=r.uid, name=r.name, state=r.state, widget=tile(r.uid)) for r in bad]
 
 
 # ----------------------------------------------------------------------------- engine
@@ -155,27 +201,35 @@ class WidgetEngine:
         ``/resources`` and ``/events`` APIs to what the caller's boards expose."""
         uids: set[str] = set()
         for w in doc.spec.widgets:
-            if isinstance(w, ResourceWidget | MetricWidget):
-                uids.add(w.source.resource)
-                if isinstance(w, MetricWidget) and w.display.total is not None:
-                    uids.add(w.display.total.resource or w.source.resource)
-                if isinstance(w, ResourceWidget):
-                    uids.update(stat.resource for stat in w.display.stats)
-            elif isinstance(w, ListWidget | BarsWidget | StatusWidget | IncidentsWidget):
-                uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
-            elif isinstance(w, UptimeWidget):
-                if w.source.resource:
-                    uids.add(w.source.resource)
-                else:
-                    uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
-            elif isinstance(w, ChartWidget):
-                uids.update(uid for uid, _, _ in self._chart_series(w))
-            elif isinstance(w, HeatmapWidget):
-                uids.add(w.source.resource)
-            elif isinstance(w, CapacityWidget):
-                uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
-            if isinstance(w, ListWidget):
+            uids |= self._widget_uids(w)
+        for section in doc.spec.sections:
+            uids.update(stat.resource for stat in section.stats)
+        return uids
+
+    def _widget_uids(self, w: Widget) -> set[str]:
+        """The resource uids one tile shows right now."""
+        uids: set[str] = set()
+        if isinstance(w, ResourceWidget | MetricWidget):
+            uids.add(w.source.resource)
+            if isinstance(w, MetricWidget) and w.display.total is not None:
+                uids.add(w.display.total.resource or w.source.resource)
+            if isinstance(w, ResourceWidget):
                 uids.update(stat.resource for stat in w.display.stats)
+        elif isinstance(w, ListWidget | BarsWidget | StatusWidget | IncidentsWidget):
+            uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
+        elif isinstance(w, UptimeWidget):
+            if w.source.resource:
+                uids.add(w.source.resource)
+            else:
+                uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
+        elif isinstance(w, ChartWidget):
+            uids.update(uid for uid, _, _ in self._chart_series(w))
+        elif isinstance(w, HeatmapWidget):
+            uids.add(w.source.resource)
+        elif isinstance(w, CapacityWidget):
+            uids.update(r.uid for r in self.cache.resources(_filter(w.source)))
+        if isinstance(w, ListWidget):
+            uids.update(stat.resource for stat in w.display.stats)
         return uids
 
     async def resolve_board(
@@ -192,11 +246,18 @@ class WidgetEngine:
             *(self.resolve(w, now, page_origin=page_origin) for w in doc.spec.widgets)
         )
         summary: dict[str, int] = {}
+        shown: list[Resource] = []
         for uid in self.referenced_uids(doc):
             r = self.cache.resource(uid)
             if r is not None:
                 summary[r.state.value] = summary.get(r.state.value, 0) + 1
+                shown.append(r)
         return ResolvedBoard(
+            sections=[
+                ResolvedSection(id=s.id, title=s.title, stats=[self.stat(x) for x in s.stats])
+                for s in doc.spec.sections
+            ],
+            problems=_problems(shown, doc, widgets),
             name=doc.metadata.name,
             title=doc.metadata.title or doc.metadata.name,
             icon=doc.metadata.icon,
@@ -225,6 +286,7 @@ class WidgetEngine:
         except Exception as exc:  # a bug in one resolver degrades one tile, never the board
             resolved = _tile(w, State.UNKNOWN, error=f"{type(exc).__name__}: {exc}", data={})
         resolved.icon = self._widget_icon(w, resolved)
+        resolved.section = w.section
         return resolved
 
     def _widget_icon(self, w: Widget, resolved: ResolvedWidget) -> str | None:
@@ -271,6 +333,8 @@ class WidgetEngine:
                 pending = self._uptime(w, now)
             case ListWidget():
                 pending = self._list_with_uptime(w, now)
+            case ResourceWidget():
+                pending = self._resource_with_sparklines(w, now)
             case IncidentsWidget():
                 pending = self._incidents(w, now)
             case ChartWidget():
@@ -574,11 +638,32 @@ class WidgetEngine:
                 "items": items,
                 "total": total,
                 "window": d.window,
+                "style": d.style,
                 "warn_days": d.warn_days,
                 "error_days": d.error_days,
                 "empty_text": d.empty_text,
             },
         )
+
+    async def _sparklines(self, stats: list[HeroStat], out: list[dict[str, Any]], to: int) -> None:
+        """Each reading's recent history, where the board asks for one (a hero card's or a
+        list's stats strip): about 60 points, from raw samples."""
+        if self.db is None:
+            return
+        for stat, reading in zip(stats, out, strict=True):
+            if stat.sparkline:
+                span = parse_duration(stat.sparkline)
+                points = await asyncio.to_thread(
+                    read_samples, self.db, stat.resource, stat.metric, to - span, to
+                )
+                reading["sparkline"] = points[:: max(1, len(points) // 60)]
+                reading["sparkline_range"] = stat.sparkline
+
+    async def _resource_with_sparklines(self, w: ResourceWidget, now: datetime) -> ResolvedWidget:
+        resolved = self._resource(w)
+        if "stats" in resolved.data:
+            await self._sparklines(w.display.stats, resolved.data["stats"], int(now.timestamp()))
+        return resolved
 
     async def _list_with_uptime(self, w: ListWidget, now: datetime) -> ResolvedWidget:
         resolved = self._list(w)
@@ -587,13 +672,7 @@ class WidgetEngine:
             return resolved
         to = int(now.timestamp())
         rows = resolved.data["items"]
-        for stat, out in zip(w.display.stats, resolved.data["stats"], strict=True):
-            if stat.sparkline:
-                span = parse_duration(stat.sparkline)
-                points = await asyncio.to_thread(
-                    read_samples, self.db, stat.resource, stat.metric, to - span, to
-                )
-                out["sparkline"] = points[:: max(1, len(points) // 60)]
+        await self._sparklines(w.display.stats, resolved.data["stats"], to)
         if w.display.uptime:
             frm = to - RANGES["24h"]
             uids = [r["uid"] for r in rows]
@@ -640,6 +719,19 @@ class WidgetEngine:
                 "headline": headline,
                 "counts": counts,
                 "total": total,
+                "style": w.display.style,
+                "cells": [
+                    {"uid": r.uid, "title": r.name, "state": effective_state(r)[0]}
+                    for r in sorted(
+                        items,
+                        key=lambda r: (
+                            -STATE_SEVERITY[State(effective_state(r)[0])],
+                            r.name.lower(),
+                        ),
+                    )
+                ]
+                if w.display.style == "wall"
+                else [],
                 "problems": [
                     {
                         "uid": r.uid,
@@ -745,6 +837,7 @@ class WidgetEngine:
                 "today": datetime.now(self.tz).date().isoformat(),
                 "stats": [self.stat(s) for s in w.display.stats],
                 "dense": w.display.dense,
+                "lead": w.display.lead,
             },
         )
 

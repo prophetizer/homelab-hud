@@ -445,6 +445,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "source": {
           "$ref": "#/$defs/BarsSource"
         },
@@ -502,6 +514,7 @@
               },
               "gap": 12
             },
+            "sections": [],
             "widgets": []
           }
         }
@@ -559,6 +572,34 @@
       "title": "BoardMetadata",
       "type": "object"
     },
+    "BoardSection": {
+      "additionalProperties": true,
+      "description": "A titled band of tiles \u2014 \"Media\", \"System\" \u2014 in the order the board lists them, each\nits own grid, with an optional one-line summary of readings beside the title (\"3\nstreaming \u00b7 4 downloading\"). Added 2026-09-29, optional: dashboard/v1-compatible.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "stats": {
+          "items": {
+            "$ref": "#/$defs/HeroStat"
+          },
+          "maxItems": 6,
+          "title": "Stats",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "title": "BoardSection",
+      "type": "object"
+    },
     "BoardSpec": {
       "additionalProperties": true,
       "properties": {
@@ -572,6 +613,13 @@
             },
             "gap": 12
           }
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/BoardSection"
+          },
+          "title": "Sections",
+          "type": "array"
         },
         "widgets": {
           "items": {
@@ -683,6 +731,15 @@
           "title": "Error Days",
           "type": "integer"
         },
+        "style": {
+          "default": "rings",
+          "enum": [
+            "rings",
+            "rows"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
         "used": {
           "default": "used_pct",
           "title": "Used",
@@ -718,6 +775,7 @@
           "default": {
             "empty_text": "No disks",
             "error_days": 7,
+            "style": "rings",
             "used": "used_pct",
             "warn_days": 30,
             "window": "7d"
@@ -741,6 +799,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/ListSource",
@@ -961,6 +1031,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "source": {
           "$ref": "#/$defs/ChartSource"
         },
@@ -1112,6 +1194,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/EmbedSource"
@@ -1410,6 +1504,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "source": {
           "$ref": "#/$defs/MetricSource"
         },
@@ -1616,6 +1722,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "source": {
           "$ref": "#/$defs/ListSource",
           "default": {
@@ -1789,6 +1907,11 @@
           "title": "Layout",
           "type": "string"
         },
+        "lead": {
+          "default": false,
+          "title": "Lead",
+          "type": "boolean"
+        },
         "stats": {
           "items": {
             "$ref": "#/$defs/HeroStat"
@@ -1887,6 +2010,7 @@
             "icon": null,
             "image": false,
             "layout": "rows",
+            "lead": false,
             "stats": [],
             "title": null,
             "trend": null,
@@ -1911,6 +2035,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/ListSource",
@@ -2209,6 +2345,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/MetricSource"
@@ -2886,7 +3034,9 @@
           "default": "fields",
           "enum": [
             "fields",
-            "hero"
+            "hero",
+            "readings",
+            "lead"
           ],
           "title": "Style",
           "type": "string"
@@ -3065,6 +3215,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/ResourceSource"
@@ -3524,6 +3686,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "title": {
           "anyOf": [
             {
@@ -3564,6 +3738,15 @@
           "minimum": 0,
           "title": "Show",
           "type": "integer"
+        },
+        "style": {
+          "default": "headline",
+          "enum": [
+            "headline",
+            "wall"
+          ],
+          "title": "Style",
+          "type": "string"
         }
       },
       "title": "StatusDisplay",
@@ -3577,7 +3760,8 @@
           "$ref": "#/$defs/StatusDisplay",
           "default": {
             "ok_text": "All systems operational",
-            "show": 5
+            "show": 5,
+            "style": "headline"
           }
         },
         "grid": {
@@ -3598,6 +3782,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/ListSource",
@@ -3970,6 +4166,18 @@
           "title": "Id",
           "type": "string"
         },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
         "source": {
           "anyOf": [
             {
@@ -4231,6 +4439,18 @@
         "id": {
           "title": "Id",
           "type": "string"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
         },
         "source": {
           "$ref": "#/$defs/UptimeSource"

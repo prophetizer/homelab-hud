@@ -27,6 +27,9 @@ function useChanged(state: string | null): string | undefined {
   return changed;
 }
 
+// The header says a problem in words; "up" is the dot alone.
+const STATE_WORDS: Record<string, string> = { down: "down", degraded: "degraded", unknown: "not reporting", paused: "paused" };
+
 export function WidgetFrame({ widget, children, className }: Props) {
   const title = widget.title ?? widget.id;
   const changed = useChanged(widget.state);
@@ -39,8 +42,9 @@ export function WidgetFrame({ widget, children, className }: Props) {
       data-changed={changed}
     >
       <h2 className="widget__title">
-        {widget.state ? <span className="status-dot" data-state={widget.state} aria-label={widget.state} /> : null}
-        <Icon name={widget.icon} title={title} size="sm" fallback="none" />
+        <span className="widget__icon">
+          <Icon name={widget.icon} title={title} size="sm" />
+        </span>
         {openDetail ? (
           <button type="button" className="widget__title-text widget__open" onClick={() => openDetail(widget.id)} title="Open larger">
             {title}
@@ -51,6 +55,12 @@ export function WidgetFrame({ widget, children, className }: Props) {
         {widget.stale ? (
           <span className="badge" title="last known good; the provider is failing">
             stale
+          </span>
+        ) : null}
+        {widget.state ? (
+          <span className="widget__state" data-state={widget.state}>
+            <span className="status-dot" data-state={widget.state} aria-label={widget.state} />
+            {widget.state === "up" ? null : STATE_WORDS[widget.state] ?? widget.state}
           </span>
         ) : null}
       </h2>
