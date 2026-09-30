@@ -168,11 +168,14 @@ code. Each `resources[]` entry is one request, a JSONPath `select`, and a `map` 
 sandboxed Jinja expressions over `item`. `templates/providers/home-assistant.yaml` is the
 worked example; every bundled template ships with a response fixture and a CI test.
 
-Bundled: `adguard-home`, `emby`, `glances`, `home-assistant`, `jellyfin`, `plex`, `radarr`,
-`sabnzbd`, `sonarr`. Each template's header says where its field shapes came from: a
-vendor's published OpenAPI document (radarr, sonarr, jellyfin, adguard-home), the vendor's
-own source (sabnzbd), a live instance (glances; the public server info of jellyfin and
-emby), or community documentation (plex — Plex publishes no API spec). The CI test proves
+Bundled: `adguard-home`, `bazarr`, `emby`, `glances`, `healthchecks`, `home-assistant`,
+`jellyfin`, `plex`, `prowlarr`, `radarr`, `sabnzbd`, `sonarr`, `sportarr`, `tautulli` — and
+the admin page *Connect a service* offers each one, with the containers on your host that
+match. Each template's header says where its field shapes came from: a vendor's published
+OpenAPI document (radarr, sonarr, prowlarr, jellyfin, adguard-home), its published API
+reference (healthchecks), the vendor's own source (sabnzbd, bazarr, tautulli), Sonarr's API
+as a fork answers it (sportarr), a live instance (glances; the public server info of
+jellyfin and emby), or community documentation (plex — Plex publishes no API spec). The CI test proves
 each template maps its fixture correctly; it cannot prove your server returns those shapes,
 so treat a missing field as a template bug worth reporting rather than a HUD bug.
 

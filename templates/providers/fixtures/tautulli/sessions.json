@@ -1,0 +1,65 @@
+{
+  "response": {
+    "result": "success",
+    "message": null,
+    "data": {
+      "stream_count": "2",
+      "stream_count_direct_play": 1,
+      "stream_count_direct_stream": 0,
+      "stream_count_transcode": 1,
+      "total_bandwidth": 14200,
+      "lan_bandwidth": 10000,
+      "wan_bandwidth": 4200,
+      "sessions": [
+        {
+          "session_key": "41",
+          "session_id": "abcd1234efgh5678",
+          "user": "viewer",
+          "friendly_name": "Viewer",
+          "full_title": "Example Show - An Episode",
+          "title": "An Episode",
+          "grandparent_title": "Example Show",
+          "media_type": "episode",
+          "player": "Living Room TV",
+          "platform": "Roku",
+          "product": "Plex for Roku",
+          "state": "playing",
+          "progress_percent": "35",
+          "view_offset": "1049400",
+          "duration": "2998272",
+          "stream_duration": "2998272",
+          "transcode_decision": "direct play",
+          "video_decision": "direct play",
+          "stream_video_full_resolution": "1080p",
+          "bandwidth": "10000",
+          "location": "lan",
+          "local": 1
+        },
+        {
+          "session_key": "42",
+          "session_id": "ijkl9012mnop3456",
+          "user": "guest",
+          "friendly_name": "Guest",
+          "full_title": "Example Film",
+          "title": "Example Film",
+          "grandparent_title": "",
+          "media_type": "movie",
+          "player": "Firefox",
+          "platform": "Firefox",
+          "product": "Plex Web",
+          "state": "paused",
+          "progress_percent": "8",
+          "view_offset": "540000",
+          "duration": "6780000",
+          "stream_duration": "6780000",
+          "transcode_decision": "transcode",
+          "video_decision": "transcode",
+          "stream_video_full_resolution": "720p",
+          "bandwidth": "4200",
+          "location": "wan",
+          "local": 0
+        }
+      ]
+    }
+  }
+}

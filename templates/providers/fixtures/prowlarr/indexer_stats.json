@@ -1,0 +1,35 @@
+{
+  "id": 1,
+  "indexers": [
+    {
+      "indexerId": 1,
+      "indexerName": "Example Usenet",
+      "averageResponseTime": 412,
+      "averageGrabResponseTime": 380,
+      "numberOfQueries": 5210,
+      "numberOfGrabs": 318,
+      "numberOfRssQueries": 4100,
+      "numberOfAuthQueries": 0,
+      "numberOfFailedQueries": 12,
+      "numberOfFailedGrabs": 1,
+      "numberOfFailedRssQueries": 3,
+      "numberOfFailedAuthQueries": 0
+    },
+    {
+      "indexerId": 2,
+      "indexerName": "Example Tracker",
+      "averageResponseTime": 0,
+      "averageGrabResponseTime": 0,
+      "numberOfQueries": 0,
+      "numberOfGrabs": 0,
+      "numberOfRssQueries": 0,
+      "numberOfAuthQueries": 0,
+      "numberOfFailedQueries": 0,
+      "numberOfFailedGrabs": 0,
+      "numberOfFailedRssQueries": 0,
+      "numberOfFailedAuthQueries": 0
+    }
+  ],
+  "userAgents": [],
+  "hosts": []
+}

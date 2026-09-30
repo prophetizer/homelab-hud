@@ -1,0 +1,35 @@
+[
+  {
+    "id": 1,
+    "name": "Example Usenet",
+    "definitionName": "newznab",
+    "implementation": "Newznab",
+    "enable": true,
+    "protocol": "usenet",
+    "privacy": "private",
+    "priority": 25,
+    "tags": []
+  },
+  {
+    "id": 2,
+    "name": "Example Tracker",
+    "definitionName": "exampletracker",
+    "implementation": "Cardigann",
+    "enable": true,
+    "protocol": "torrent",
+    "privacy": "public",
+    "priority": 25,
+    "tags": []
+  },
+  {
+    "id": 3,
+    "name": "Old Indexer",
+    "definitionName": "oldindexer",
+    "implementation": "Cardigann",
+    "enable": false,
+    "protocol": "torrent",
+    "privacy": "semiPrivate",
+    "priority": 50,
+    "tags": []
+  }
+]

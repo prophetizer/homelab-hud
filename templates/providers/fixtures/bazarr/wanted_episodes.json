@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "seriesTitle": "Example Show",
+      "episode_number": "2x05",
+      "episodeTitle": "An Episode",
+      "missing_subtitles": [
+        {
+          "name": "English",
+          "code2": "en",
+          "code3": "eng",
+          "forced": false,
+          "hi": false
+        }
+      ],
+      "sonarrSeriesId": 12,
+      "sonarrEpisodeId": 3401,
+      "sceneName": null,
+      "tags": [],
+      "seriesType": "standard"
+    }
+  ],
+  "total": 23
+}

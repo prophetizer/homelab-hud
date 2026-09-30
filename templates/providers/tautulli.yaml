@@ -1,0 +1,143 @@
+# Tautulli — Plex activity as Tautulli sees it: streams, bandwidth, libraries, and
+# whether Tautulli can reach Plex at all.
+#
+# Copy to /config/providers/tautulli.yaml, then supply:
+#   TAUTULLI_BASE_URL                e.g. http://tautulli:8181 (environment)
+#   ${secret:tautulli_api_key}       Settings → Web Interface → API → API key (Enable API on)
+#     → /run/secrets/tautulli_api_key, HUD_SECRET_TAUTULLI_API_KEY, or secrets.yaml
+#
+# Mapped from Tautulli's source (plexpy/api2.py, webserve.py, pmsconnect.py at commit
+# 9484667, v2.18.2). Every command is GET /api/v2?cmd=…, answering
+# {"response": {"result", "message", "data"}}. The key goes in the X-Api-Key header, which
+# Tautulli accepts from v2.18.0 ("preferred for security"); on an older Tautulli use a
+# query auth (param apikey) instead. Plex-derived numbers arrive as strings and are cast
+# here; bandwidth is kbps, positions and durations milliseconds.
+#
+# Degrade loudly: when Tautulli cannot reach Plex, get_activity answers "success" with
+# empty data — not an error. The activity resource reads that as down, and plex_link says
+# so directly (server_status).
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: tautulli
+  labels: { category: media }
+  template:
+    service: Tautulli
+    icon: mdi:chart-timeline-variant
+    docs: https://github.com/Tautulli/Tautulli/wiki/Tautulli-API-Reference
+    images: [tautulli]
+    port: 8181
+    requires:
+      - { name: TAUTULLI_BASE_URL, kind: env, hint: "Base URL of your Tautulli instance" }
+      - { name: tautulli_api_key, kind: secret, hint: "API key from Settings → Web Interface → API" }
+spec:
+  transport:
+    base_url: ${TAUTULLI_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:tautulli_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # Tautulli itself. Singleton.
+    - name: service
+      request: { method: GET, path: /api/v2, params: { cmd: get_tautulli_info } }
+      select: "$.response.data"
+      interval: 10m
+      map:
+        uid:   "tautulli:service:main"
+        kind:  service
+        name:  Tautulli
+        state: up
+        attrs:
+          version: "{{ item.tautulli_version }}"
+          branch:  "{{ item.tautulli_branch }}"
+        links:
+          ui: "${TAUTULLI_BASE_URL}/home"
+
+    # Whether Tautulli can reach Plex (server_status → {"connected": bool}). Singleton.
+    - name: plex_link
+      request: { method: GET, path: /api/v2, params: { cmd: server_status } }
+      select: "$.response.data"
+      interval: 60s
+      map:
+        uid:   "tautulli:plex_link:main"
+        kind:  plex_link
+        name:  Plex connection
+        state: "{{ 'up' if item.connected else 'down' }}"
+        parent_uid: "tautulli:service:main"
+
+    # Activity totals. stream_count is Plex's own count (a string); the rest Tautulli
+    # computes. Empty data means Plex was unreachable: down, with no numbers. Singleton.
+    - name: activity
+      request: { method: GET, path: /api/v2, params: { cmd: get_activity } }
+      select: "$.response.data"
+      map:
+        uid:   "tautulli:activity:main"
+        kind:  activity
+        name:  Activity
+        state: "{{ 'up' if item.stream_count is defined else 'down' }}"
+        parent_uid: "tautulli:service:main"
+      metrics:
+        - { name: streams,        when: "{{ item.stream_count is defined }}", value: "{{ item.stream_count | float }}",               unit: count }
+        - { name: direct_play,    when: "{{ item.stream_count is defined }}", value: "{{ item.stream_count_direct_play | float }}",   unit: count }
+        - { name: direct_stream,  when: "{{ item.stream_count is defined }}", value: "{{ item.stream_count_direct_stream | float }}", unit: count }
+        - { name: transcode,      when: "{{ item.stream_count is defined }}", value: "{{ item.stream_count_transcode | float }}",     unit: count }
+        - { name: bandwidth_bps,  when: "{{ item.stream_count is defined }}", value: "{{ item.total_bandwidth | float }}",            unit: kbps }
+        - { name: lan_bandwidth_bps, when: "{{ item.stream_count is defined }}", value: "{{ item.lan_bandwidth | float }}",          unit: kbps }
+        - { name: wan_bandwidth_bps, when: "{{ item.stream_count is defined }}", value: "{{ item.wan_bandwidth | float }}",          unit: kbps }
+
+    # One resource per stream, keyed on the Plex session for its life. Playing is up,
+    # paused is paused, buffering degraded. The same fields as the Plex template's streams
+    # (user, player, playback, resolution), so a Now Playing widget can show either.
+    - name: sessions
+      request: { method: GET, path: /api/v2, params: { cmd: get_activity } }
+      select: "$.response.data.sessions[*]"
+      map:
+        uid:   "tautulli:stream:{{ item.session_key }}"
+        kind:  stream
+        name:  "{{ item.full_title | default(item.title) }}"
+        state: >-
+          {{ 'paused' if item.state == 'paused'
+             else 'degraded' if item.state == 'buffering'
+             else 'up' }}
+        parent_uid: "tautulli:activity:main"
+        attrs:
+          user:       "{{ item.friendly_name | default(item.user) }}"
+          player:     "{{ item.player }}"
+          platform:   "{{ item.platform }}"
+          media_type: "{{ item.media_type }}"
+          location:   "{{ item.location }}"
+          playback: >-
+            {{ 'Transcode' if item.transcode_decision == 'transcode'
+               else 'Direct stream' if item.transcode_decision == 'copy'
+               else 'Direct play' }}
+          resolution: "{{ item.stream_video_full_resolution or none }}"
+      metrics:
+        - { name: position_seconds, value: "{{ item.view_offset | float }}",      unit: ms }
+        - { name: duration_seconds, value: "{{ item.duration | float }}",         unit: ms }
+        - { name: progress_pct,     value: "{{ item.progress_percent | float }}", unit: pct }
+        - { name: bitrate_bps,      value: "{{ (item.bandwidth or 0) | float }}", unit: kbps }
+
+    # Each Plex library. `count` is items (movies, shows, artists); seasons/episodes and
+    # albums/tracks come as parent_count/child_count, absent for a movie library.
+    - name: libraries
+      request: { method: GET, path: /api/v2, params: { cmd: get_libraries } }
+      select: "$.response.data[*]"
+      interval: 30m
+      map:
+        uid:   "tautulli:library:{{ item.section_id }}"
+        kind:  library
+        name:  "{{ item.section_name }}"
+        state: up
+        parent_uid: "tautulli:service:main"
+        attrs:
+          type: "{{ item.section_type }}"
+      metrics:
+        - { name: items,          value: "{{ item.count | float }}", unit: count }
+        - { name: parent_items,   when: "{{ item.parent_count is defined }}", value: "{{ item.parent_count | float }}", unit: count }
+        - { name: child_items,    when: "{{ item.child_count is defined }}",  value: "{{ item.child_count | float }}",  unit: count }

@@ -84,7 +84,10 @@ async def test_template_maps_fixture_to_expected(config_dir: Path, template: Pat
         with respx.mock(assert_all_called=True) as mock:
             for res in doc.spec.resources:
                 body = json.loads((fixtures / f"{res.name}.json").read_text())
-                mock.route(method=res.request.method, path=res.request.path).mock(
+                # Params too: several of a provider's resources may share one path and differ
+                # only by a command parameter (Tautulli's ?cmd=).
+                params = {k: v for k, v in res.request.params.items() if "{{" not in str(v)}
+                mock.route(method=res.request.method, path=res.request.path, params=params).mock(
                     return_value=httpx.Response(200, json=body)
                 )
                 result = await provider.poll(res.name)
@@ -189,3 +192,36 @@ def test_a_collision_uid_is_held_to_the_stable_uid_rule(config_dir: Path) -> Non
     (config_dir / "providers" / "sonarr.yaml").write_text(text)
     snap = ConfigManager(config_dir).load()
     assert any("uid_on_collision" in str(q) and "volatile" in str(q) for q in snap.quarantined)
+
+
+async def test_tautulli_reads_an_unreachable_plex_as_down_not_idle(config_dir: Path) -> None:
+    """Tautulli answers get_activity with result "success" and empty data when it cannot
+    reach Plex. That must read as down with no numbers — never as zero streams — and the
+    plex_link resource says it directly (invariant 6)."""
+    doc = _load(config_dir, TEMPLATES / "tautulli.yaml")
+    env = {"TAUTULLI_BASE_URL": BASE, "HUD_SECRET_TAUTULLI_API_KEY": "fixture-token"}
+    ctx = ProviderContext.create(
+        "tautulli", SecretResolver(config_dir, config_dir / "none", env=env), env
+    )
+    provider = build_declarative(doc, ctx)
+    await provider.startup()
+    empty = {"response": {"result": "success", "message": None, "data": {}}}
+    gone = {"response": {"result": "success", "message": None, "data": {"connected": False}}}
+    try:
+        with respx.mock() as mock:
+            mock.get(f"{BASE}/api/v2", params={"cmd": "get_activity"}).mock(
+                return_value=httpx.Response(200, json=empty)
+            )
+            route = mock.get(f"{BASE}/api/v2", params={"cmd": "server_status"}).mock(
+                return_value=httpx.Response(200, json=gone)
+            )
+            activity = await provider.poll("activity")
+            link = await provider.poll("plex_link")
+    finally:
+        await provider.shutdown()
+    assert [(r.uid, r.state.value) for r in activity.resources] == [
+        ("tautulli:activity:main", "down")
+    ]
+    assert activity.metrics == []
+    assert [r.state.value for r in link.resources] == ["down"]
+    assert route.calls.last.request.headers["x-api-key"] == "fixture-token"

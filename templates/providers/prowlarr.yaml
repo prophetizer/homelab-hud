@@ -1,0 +1,111 @@
+# Prowlarr — indexer manager: service health, each indexer, and how each one performs.
+#
+# Copy to /config/providers/prowlarr.yaml, then supply:
+#   PROWLARR_BASE_URL                e.g. http://prowlarr:9696 (environment)
+#   ${secret:prowlarr_api_key}       Settings → General → Security → API Key
+#     → /run/secrets/prowlarr_api_key, HUD_SECRET_PROWLARR_API_KEY, or secrets.yaml
+#
+# Mapped from Prowlarr's published OpenAPI document (src/Prowlarr.Api.V1/openapi.json on
+# the develop branch) and its source. Enums are camelCase strings; none of these endpoints
+# is paged. An indexer Prowlarr has blocked after failures appears in the health checks
+# (IndexerStatusCheck names it), so /indexerstatus — ids only — is not read.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: prowlarr
+  labels: { category: media }
+  template:
+    service: Prowlarr
+    icon: mdi:magnify
+    docs: https://prowlarr.com/docs/api/
+    images: [prowlarr]
+    port: 9696
+    requires:
+      - { name: PROWLARR_BASE_URL, kind: env, hint: "Base URL of your Prowlarr instance" }
+      - { name: prowlarr_api_key, kind: secret, hint: "API key from Settings → General → Security" }
+spec:
+  transport:
+    base_url: ${PROWLARR_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:prowlarr_api_key}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The service. Reaching /system/status at all means it is up. Singleton.
+    - name: service
+      request: { method: GET, path: /api/v1/system/status }
+      interval: 5m
+      map:
+        uid:   "prowlarr:service:main"
+        kind:  service
+        name:  "{{ item.instanceName | default('Prowlarr') }}"
+        state: up
+        attrs:
+          version:  "{{ item.version }}"
+          branch:   "{{ item.branch }}"
+          os:       "{{ item.osName }}"
+          docker:   "{{ item.isDocker }}"
+          url_base: "{{ item.urlBase }}"
+        links:
+          ui: "${PROWLARR_BASE_URL}/"
+
+    # Health checks, as in Sonarr: `source` is the check's class name, a stable uid.
+    # notice stays `up`; warning degrades; error is down.
+    - name: health
+      request: { method: GET, path: /api/v1/health }
+      interval: 5m
+      map:
+        uid:   "prowlarr:health_check:{{ item.source }}"
+        kind:  health_check
+        name:  "{{ item.source }}"
+        state: >-
+          {{ 'down' if item.type == 'error'
+               else 'degraded' if item.type == 'warning'
+               else 'up' }}
+        parent_uid: "prowlarr:service:main"
+        attrs:
+          message: "{{ item.message }}"
+        links:
+          wiki: "{{ item.wikiUrl }}"
+
+    # Each configured indexer, keyed on its name (renaming one starts a new history). One
+    # switched off in Prowlarr is paused, not down.
+    - name: indexers
+      request: { method: GET, path: /api/v1/indexer }
+      interval: 5m
+      map:
+        uid:   "prowlarr:indexer:{{ item.name }}"
+        kind:  indexer
+        name:  "{{ item.name }}"
+        state: "{{ 'up' if item.enable else 'paused' }}"
+        parent_uid: "prowlarr:service:main"
+        attrs:
+          protocol:   "{{ item.protocol }}"
+          privacy:    "{{ item.privacy }}"
+          priority:   "{{ item.priority }}"
+          definition: "{{ item.definitionName }}"
+
+    # How each indexer performs. Prowlarr counts from the start of its history (no date
+    # range sent), so the counts are lifetime totals — a chart shows their growth. Average
+    # response times are milliseconds, cached answers excluded, 0 with no data yet.
+    - name: indexer_stats
+      request: { method: GET, path: /api/v1/indexerstats }
+      select: "$.indexers[*]"
+      interval: 15m
+      map:
+        uid:   "prowlarr:indexer_stats:{{ item.indexerName }}"
+        kind:  indexer_stats
+        name:  "{{ item.indexerName }}"
+        state: up
+        parent_uid: "prowlarr:service:main"
+      metrics:
+        - { name: response_seconds,     value: "{{ item.averageResponseTime | float }}",   unit: ms }
+        - { name: queries_total,        value: "{{ item.numberOfQueries | float }}",       unit: count }
+        - { name: grabs_total,          value: "{{ item.numberOfGrabs | float }}",         unit: count }
+        - { name: failed_queries_total, value: "{{ item.numberOfFailedQueries | float }}", unit: count }
+        - { name: failed_grabs_total,   value: "{{ item.numberOfFailedGrabs | float }}",   unit: count }

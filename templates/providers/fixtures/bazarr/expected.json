@@ -1,0 +1,64 @@
+{
+  "service": {
+    "resources": {
+      "bazarr:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "badges": {
+    "resources": {
+      "bazarr:subtitles:main": "degraded"
+    },
+    "metrics": {
+      "bazarr:subtitles:main/missing_episode_languages": [
+        37.0,
+        "count"
+      ],
+      "bazarr:subtitles:main/missing_movie_languages": [
+        4.0,
+        "count"
+      ],
+      "bazarr:subtitles:main/throttled_providers": [
+        1.0,
+        "count"
+      ],
+      "bazarr:subtitles:main/health_issues": [
+        0.0,
+        "count"
+      ]
+    }
+  },
+  "wanted_episodes": {
+    "resources": {
+      "bazarr:wanted:episodes": "up"
+    },
+    "metrics": {
+      "bazarr:wanted:episodes/items": [
+        23.0,
+        "count"
+      ]
+    }
+  },
+  "wanted_movies": {
+    "resources": {
+      "bazarr:wanted:movies": "up"
+    },
+    "metrics": {
+      "bazarr:wanted:movies/items": [
+        4.0,
+        "count"
+      ]
+    }
+  },
+  "providers": {
+    "resources": {
+      "bazarr:provider:opensubtitlescom": "degraded",
+      "bazarr:provider:podnapisi": "up"
+    },
+    "metrics": {}
+  },
+  "health": {
+    "resources": {},
+    "metrics": {}
+  }
+}

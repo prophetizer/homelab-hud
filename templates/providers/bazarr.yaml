@@ -1,0 +1,133 @@
+# Bazarr — subtitle health: missing subtitles, throttled providers, health issues.
+#
+# Copy to /config/providers/bazarr.yaml, then supply:
+#   BAZARR_BASE_URL                  e.g. http://bazarr:6767 (environment)
+#   ${secret:bazarr_api_key}         Settings → General → Security → API Key
+#     → /run/secrets/bazarr_api_key, HUD_SECRET_BAZARR_API_KEY, or secrets.yaml
+#
+# Mapped from Bazarr's source (bazarr/api/: system/status.py, system/health.py,
+# badges/badges.py, providers/providers.py, episodes/wanted.py, movies/wanted.py at
+# commit 5dedccf). The key goes in the X-API-KEY header (api/utils.py accepts header,
+# query or form), so it stays out of URLs. Responses are wrapped inconsistently: status,
+# health and providers in {"data": …}, the wanted lists in {"data", "total"}, badges flat.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: bazarr
+  labels: { category: media }
+  template:
+    service: Bazarr
+    icon: mdi:subtitles-outline
+    docs: https://wiki.bazarr.media/
+    images: [bazarr]
+    port: 6767
+    requires:
+      - { name: BAZARR_BASE_URL, kind: env, hint: "Base URL of your Bazarr instance" }
+      - { name: bazarr_api_key, kind: secret, hint: "API key from Settings → General → Security" }
+spec:
+  transport:
+    base_url: ${BAZARR_BASE_URL}
+    auth:
+      type: api_key
+      header: X-API-KEY
+      key: ${secret:bazarr_api_key}
+    timeout: 10s
+  defaults:
+    interval: 5m
+    jitter: 20s
+
+  resources:
+    # The service. Reaching /system/status at all means it is up. Singleton.
+    - name: service
+      request: { method: GET, path: /api/system/status }
+      select: "$.data"
+      map:
+        uid:   "bazarr:service:main"
+        kind:  service
+        name:  Bazarr
+        state: up
+        attrs:
+          version:        "{{ item.bazarr_version }}"
+          sonarr_version: "{{ item.sonarr_version }}"
+          radarr_version: "{{ item.radarr_version }}"
+          os:             "{{ item.operating_system }}"
+        links:
+          ui: "${BAZARR_BASE_URL}/"
+
+    # The badges Bazarr shows in its own sidebar. `episodes` and `movies` count missing
+    # subtitle LANGUAGES (summed over items), not items; `providers` is how many are
+    # throttled; `status` is the number of health issues. A throttled provider, a health
+    # issue or a lost Sonarr/Radarr live connection ("DOWN") degrades it. Singleton.
+    - name: badges
+      request: { method: GET, path: /api/badges }
+      map:
+        uid:   "bazarr:subtitles:main"
+        kind:  subtitles
+        name:  Subtitles
+        state: >-
+          {{ 'degraded' if (item.providers or 0) > 0 or (item.status or 0) > 0
+                           or item.sonarr_signalr == 'DOWN' or item.radarr_signalr == 'DOWN'
+             else 'up' }}
+        parent_uid: "bazarr:service:main"
+        attrs:
+          sonarr_link: "{{ item.sonarr_signalr }}"
+          radarr_link: "{{ item.radarr_signalr }}"
+      metrics:
+        - { name: missing_episode_languages, value: "{{ item.episodes | float }}",  unit: count }
+        - { name: missing_movie_languages,   value: "{{ item.movies | float }}",    unit: count }
+        - { name: throttled_providers,       value: "{{ item.providers | float }}", unit: count }
+        - { name: health_issues,             value: "{{ item.status | float }}",    unit: count }
+
+    # Items still missing a subtitle, as Bazarr's Wanted pages count them (rows, not
+    # languages). length=1: the count without every row.
+    - name: wanted_episodes
+      request: { method: GET, path: /api/episodes/wanted, params: { start: "0", length: "1" } }
+      interval: 15m
+      map:
+        uid:   "bazarr:wanted:episodes"
+        kind:  wanted
+        name:  Episodes missing subtitles
+        state: up
+        parent_uid: "bazarr:service:main"
+      metrics:
+        - { name: items, value: "{{ item.total | float }}", unit: count }
+    - name: wanted_movies
+      request: { method: GET, path: /api/movies/wanted, params: { start: "0", length: "1" } }
+      interval: 15m
+      map:
+        uid:   "bazarr:wanted:movies"
+        kind:  wanted
+        name:  Movies missing subtitles
+        state: up
+        parent_uid: "bazarr:service:main"
+      metrics:
+        - { name: items, value: "{{ item.total | float }}", unit: count }
+
+    # Every enabled subtitle provider. "Good" means not throttled; anything else is the
+    # throttle reason (e.g. AuthenticationError) and degrades it until `retry`.
+    - name: providers
+      request: { method: GET, path: /api/providers }
+      select: "$.data[*]"
+      map:
+        uid:   "bazarr:provider:{{ item.name }}"
+        kind:  provider
+        name:  "{{ item.name }}"
+        state: "{{ 'up' if item.status == 'Good' else 'degraded' }}"
+        parent_uid: "bazarr:service:main"
+        attrs:
+          status: "{{ item.status }}"
+          retry:  "{{ item.retry }}"
+
+    # Health issues (an empty list when healthy): a Sonarr/Radarr root folder Bazarr cannot
+    # see, or a duplicate language profile. `object` names what is wrong.
+    - name: health
+      request: { method: GET, path: /api/system/health }
+      select: "$.data[*]"
+      map:
+        uid:   "bazarr:health_check:{{ item.object }}"
+        kind:  health_check
+        name:  "{{ item.object }}"
+        state: degraded
+        parent_uid: "bazarr:service:main"
+        attrs:
+          message: "{{ item.issue }}"

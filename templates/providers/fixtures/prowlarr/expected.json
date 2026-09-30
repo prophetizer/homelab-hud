@@ -1,0 +1,70 @@
+{
+  "service": {
+    "resources": {
+      "prowlarr:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "health": {
+    "resources": {
+      "prowlarr:health_check:IndexerStatusCheck": "degraded"
+    },
+    "metrics": {}
+  },
+  "indexers": {
+    "resources": {
+      "prowlarr:indexer:Example Usenet": "up",
+      "prowlarr:indexer:Example Tracker": "up",
+      "prowlarr:indexer:Old Indexer": "paused"
+    },
+    "metrics": {}
+  },
+  "indexer_stats": {
+    "resources": {
+      "prowlarr:indexer_stats:Example Usenet": "up",
+      "prowlarr:indexer_stats:Example Tracker": "up"
+    },
+    "metrics": {
+      "prowlarr:indexer_stats:Example Usenet/response_seconds": [
+        0.41200000000000003,
+        "seconds"
+      ],
+      "prowlarr:indexer_stats:Example Usenet/queries_total": [
+        5210.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Usenet/grabs_total": [
+        318.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Usenet/failed_queries_total": [
+        12.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Usenet/failed_grabs_total": [
+        1.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Tracker/response_seconds": [
+        0.0,
+        "seconds"
+      ],
+      "prowlarr:indexer_stats:Example Tracker/queries_total": [
+        0.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Tracker/grabs_total": [
+        0.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Tracker/failed_queries_total": [
+        0.0,
+        "count"
+      ],
+      "prowlarr:indexer_stats:Example Tracker/failed_grabs_total": [
+        0.0,
+        "count"
+      ]
+    }
+  }
+}
