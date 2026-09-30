@@ -90,6 +90,13 @@ spec:
           radarr:download:{{ ('movie-' ~ item.movieId) if item.movieId
              else ('dl-' ~ item.downloadId) if item.downloadId
              else '' }}
+        # Two queue rows for one movie (a stuck import and a new grab): the
+        # second is keyed on its download, or when it has none (still pending) on its release
+        # name, so both show.
+        uid_on_collision: >-
+          radarr:download:{{ ('dl-' ~ item.downloadId) if item.downloadId
+             else ('rel-' ~ item.title) if item.title
+             else '' }}
         kind:  download
         name:  "{{ item.movie.title | default(item.title) }}"
         state: >-

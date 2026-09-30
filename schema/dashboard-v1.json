@@ -3090,6 +3090,18 @@
         "uid": {
           "title": "Uid",
           "type": "string"
+        },
+        "uid_on_collision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid On Collision"
         }
       },
       "required": [

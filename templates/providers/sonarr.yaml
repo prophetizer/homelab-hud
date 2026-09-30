@@ -104,6 +104,13 @@ spec:
           sonarr:download:{{ ('ep-' ~ item.episodeId) if item.episodeId
              else ('dl-' ~ item.downloadId) if item.downloadId
              else '' }}
+        # Two queue rows for one episode (a stuck import and a new grab): the
+        # second is keyed on its download, or when it has none (still pending) on its release
+        # name, so both show.
+        uid_on_collision: >-
+          sonarr:download:{{ ('dl-' ~ item.downloadId) if item.downloadId
+             else ('rel-' ~ item.title) if item.title
+             else '' }}
         kind:  download
         name:  "{{ item.series.title | default(item.title) }}"
         state: >-

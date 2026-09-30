@@ -110,6 +110,14 @@ class DeclarativeProvider(Provider):
                 except ItemError as exc:
                     errors.append(str(exc))
                     continue
+                if resource.uid in seen and g.mapper.uid_on_collision is not None:
+                    # Two items for one thing (two queue rows for one episode): the second
+                    # shows under its own uid rather than being dropped.
+                    try:
+                        resource, metrics = g.mapper.map_item(item, fetched_at, collision=True)
+                    except ItemError as exc:
+                        errors.append(str(exc))
+                        continue
                 if resource.uid in seen:
                     errors.append(f"duplicate uid {resource.uid!r}")
                     continue

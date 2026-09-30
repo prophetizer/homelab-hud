@@ -53,6 +53,9 @@ class ResourceMapper:
         self._warned: set[str] = set()
         try:
             self.uid = self._compile(spec.uid, env)
+            self.uid_on_collision = (
+                self._compile(spec.uid_on_collision, env) if spec.uid_on_collision else None
+            )
             self.name = self._compile(spec.name, env)
             self.state = self._compile(spec.state, env)
             self.parent_uid = self._compile(spec.parent_uid, env) if spec.parent_uid else None
@@ -83,10 +86,19 @@ class ResourceMapper:
 
     # ------------------------------------------------------------------ per item
 
-    def map_item(self, item: Any, fetched_at: datetime) -> tuple[Resource, list[Metric]]:  # noqa: ANN401
+    def map_item(
+        self,
+        item: Any,  # noqa: ANN401
+        fetched_at: datetime,
+        *,
+        collision: bool = False,
+    ) -> tuple[Resource, list[Metric]]:
+        """One item as a resource and its metrics; ``collision`` maps it under
+        ``uid_on_collision`` (the caller found its ``uid`` already taken)."""
         ctx = {"item": item}
+        expr = self.uid_on_collision if collision and self.uid_on_collision else self.uid
         try:
-            uid = self.uid.render_str(**ctx)
+            uid = expr.render_str(**ctx)
             prefix = f"{self.provider}:{self.kind}:"
             native_id = uid.removeprefix(prefix)
             if not uid.startswith(prefix):

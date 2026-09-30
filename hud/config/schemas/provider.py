@@ -254,6 +254,10 @@ class MetricMap(_Spec):
 
 class ResourceMap(_Spec):
     uid: str
+    # A second uid for an item whose `uid` another item in the same poll already has — two
+    # queue rows for one episode — so both show instead of the second being dropped. The
+    # first item keeps `uid`. Added 2026-09-29, optional: dashboard/v1-compatible.
+    uid_on_collision: str | None = None
     kind: str
     name: str
     state: str = "unknown"
@@ -408,10 +412,14 @@ class ProviderDocument(Document):
     @model_validator(mode="after")
     def _uid_templates(self) -> Self:
         for i, res in enumerate(self.spec.resources):
-            problem = check_uid_template(self.metadata.name, res.map.kind, res.map.uid)
-            if problem:
-                msg = f"spec.resources.{i}.map.uid: {problem}"
-                raise ValueError(msg)
+            for key in ("uid", "uid_on_collision"):
+                template = getattr(res.map, key)
+                if template is None:
+                    continue
+                problem = check_uid_template(self.metadata.name, res.map.kind, template)
+                if problem:
+                    msg = f"spec.resources.{i}.map.{key}: {problem}"
+                    raise ValueError(msg)
         return self
 
 

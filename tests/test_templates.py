@@ -128,3 +128,64 @@ async def test_plex_negotiates_json_and_tolerates_an_idle_server(config_dir: Pat
         assert result.resources == [] and result.metrics == []
     finally:
         await provider.shutdown()
+
+
+# ------------------------------------------------------------------- *arr queue collisions
+
+
+async def test_two_queue_rows_for_one_episode_both_show(
+    config_dir: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Found live: Sonarr listed one episode twice (a failed download and a new grab). The
+    queue keys on the episode so a pending item keeps its history when grabbed; the second
+    row now shows under its download id (or, still pending, its release name) instead of being
+    dropped with a warning every poll."""
+    doc = _load(config_dir, TEMPLATES / "sonarr.yaml")
+    env = {"SONARR_BASE_URL": BASE, "HUD_SECRET_SONARR_API_KEY": "fixture-token"}
+    ctx = ProviderContext.create(
+        "sonarr", SecretResolver(config_dir, config_dir / "none", env=env), env
+    )
+    body = json.loads((TEMPLATES / "fixtures" / "sonarr" / "queue.json").read_text())
+    failed = next(r for r in body["records"] if r["episodeId"] == 1105)
+    body["records"].append(
+        {
+            **failed,
+            "id": 104,
+            "downloadId": "NEWGRAB",
+            "status": "downloading",
+            "trackedDownloadStatus": "ok",
+            "trackedDownloadState": "downloading",
+            "statusMessages": [],
+            "errorMessage": None,
+        }
+    )
+    pending = next(r for r in body["records"] if r["episodeId"] == 2101)
+    body["records"].append({**pending, "id": 205})
+    provider = build_declarative(doc, ctx)
+    await provider.startup()
+    try:
+        with respx.mock() as mock:
+            mock.get(f"{BASE}/api/v3/queue").mock(return_value=httpx.Response(200, json=body))
+            result = await provider.poll("queue")
+    finally:
+        await provider.shutdown()
+    states = {r.uid: r.state.value for r in result.resources}
+    assert states["sonarr:download:ep-1105"] == "down"  # the first row keeps the episode uid
+    assert states["sonarr:download:dl-NEWGRAB"] == "up"
+    assert any(u.startswith("sonarr:download:rel-") for u in states)
+    assert len(result.resources) == 9
+    assert "duplicate uid" not in caplog.text
+
+
+def test_a_collision_uid_is_held_to_the_stable_uid_rule(config_dir: Path) -> None:
+    """uid_on_collision is checked like uid (invariant 8): a queue row's id is volatile."""
+    text = (
+        (TEMPLATES / "sonarr.yaml")
+        .read_text()
+        .replace("else ('rel-' ~ item.title) if item.title", "else ('q-' ~ item.id) if item.id", 1)
+    )
+    (config_dir / "settings.yaml").write_text("apiVersion: hud/v1\nkind: Settings\n")
+    (config_dir / "providers").mkdir(exist_ok=True)
+    (config_dir / "providers" / "sonarr.yaml").write_text(text)
+    snap = ConfigManager(config_dir).load()
+    assert any("uid_on_collision" in str(q) and "volatile" in str(q) for q in snap.quarantined)
