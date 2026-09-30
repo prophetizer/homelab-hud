@@ -60,7 +60,8 @@ function Hero({ data }: { data: ResourceData }) {
 }
 
 function subtitle(data: ResourceData): string | null {
-  const sub = data.fields.filter((f) => f.key !== "name" && f.value !== null && f.value !== "");
+  // The name is the title and the state is in the header: neither repeats as a subtitle.
+  const sub = data.fields.filter((f) => f.key !== "name" && f.key !== "state" && f.value !== null && f.value !== "");
   return sub.length > 0 ? sub.map(fieldText).join(" · ") : null;
 }
 
