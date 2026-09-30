@@ -3,7 +3,8 @@
 
 import ipaddress
 import re
-from typing import Literal
+from typing import Literal, Self
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -244,6 +245,61 @@ class Appearance(BaseModel):
         return v
 
 
+THEME_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+
+
+class ThemePark(BaseModel):
+    """A theme.park palette for HUD's surfaces and text (PLAN §8.6). The backend fetches
+    ``{source}/css/theme-options/{theme}.css`` (or the community folder) and serves it as
+    HUD's own stylesheet, so the browser never loads a third-party one. Status colours are
+    never themed (invariant 9). Added 2026-09-29, optional."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str  # a theme.park instance's base URL, e.g. http://theme-park:80
+    # A theme name (organizr-contrast, nord, catppuccin-mocha). With `follow`, the one used
+    # while the picker cannot be asked.
+    theme: str | None = None
+    # A theme picker's current-theme endpoint (JSON with a "theme" key), so HUD wears
+    # whatever the rest of the stack wears, e.g. http://theme-picker:8090/api/current
+    follow: str | None = None
+    refresh: str = "1m"  # how often the theme is asked for and fetched again
+
+    @field_validator("source", "follow")
+    @classmethod
+    def _http(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        parts = urlsplit(v)
+        if parts.scheme not in ("http", "https") or not parts.netloc or parts.query:
+            msg = "theme_park URLs must be http(s), e.g. http://theme-park:80"
+            raise ValueError(msg)
+        return v.rstrip("/")
+
+    @field_validator("theme")
+    @classmethod
+    def _name(cls, v: str | None) -> str | None:
+        if v is not None and not THEME_NAME.fullmatch(v):
+            msg = "theme_park.theme must be a theme name like nord or organizr-contrast"
+            raise ValueError(msg)
+        return v
+
+    @model_validator(mode="after")
+    def _which(self) -> Self:
+        if self.theme is None and self.follow is None:
+            msg = "theme_park needs a theme, a follow URL, or both"
+            raise ValueError(msg)
+        return self
+
+    @field_validator("refresh")
+    @classmethod
+    def _dur(cls, v: str) -> str:
+        if not 60 <= parse_duration(v) <= 86_400:
+            msg = "theme_park.refresh must be between 1m and 24h"
+            raise ValueError(msg)
+        return v
+
+
 class SettingsSpec(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -254,6 +310,7 @@ class SettingsSpec(BaseModel):
     auth: AuthSettings = AuthSettings()
     header: HeaderSettings = HeaderSettings()
     appearance: Appearance = Appearance()
+    theme_park: ThemePark | None = None
 
     @field_validator("timezone")
     @classmethod
@@ -287,6 +344,10 @@ spec:
     # weather: weather:current:home   # a weather provider's resource (providers/weather.yaml)
     # stats:
     #   - { resource: glances:host:main, metric: cpu_percent, label: CPU }
+  # theme_park:          # a theme.park palette for surfaces and text; status colours stay
+  #   source: http://theme-park:80
+  #   theme: nord                                  # or, to wear the stack's current theme:
+  #   follow: http://theme-picker:8090/api/current
   # appearance:          # opt-in backdrop: put the image in /config/backgrounds/
   #   background: wallpaper.jpg
   #   dim: 60            # 50-95, percent of the page colour laid over the image

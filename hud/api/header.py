@@ -49,6 +49,20 @@ class Weather(BaseModel):
     metrics: dict[str, float] = {}
 
 
+@router.get("/theme.css", include_in_schema=False)
+async def theme_css(request: Request) -> Response:
+    """The instance's theme.park palette as HUD tokens (PLAN §8.6), or an empty stylesheet.
+    Unauthenticated on purpose: the sign-in page wears the theme too, and it holds only
+    colours."""
+    config = deps.config(request)
+    css = await request.app.state.theme_park.css(config.snapshot.settings.spec.theme_park)
+    return Response(
+        css,
+        media_type="text/css; charset=utf-8",
+        headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 class AppearanceOut(BaseModel):
     background: str | None  # the URL to fetch it from, versioned by file mtime
     dim: int

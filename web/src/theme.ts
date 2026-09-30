@@ -36,3 +36,21 @@ export function applyStoredTheme(): void {
     // no storage: keep the server's default
   }
 }
+
+/** settings.theme_park is set: HUD wears a theme.park palette (surfaces and text), so the
+ *  viewer's dark/light choice has nothing to change. */
+export function themeParkActive(): boolean {
+  return "themepark" in document.documentElement.dataset;
+}
+
+const THEMEPARK_REFRESH_MS = 60_000;
+
+/** Fetch the palette again every minute, so a theme changed in the stack's picker reaches an
+ *  open tab without a reload. Swapping the href only restyles once the new sheet is in. */
+export function watchThemePark(): void {
+  if (!themeParkActive()) return;
+  window.setInterval(() => {
+    const link = document.getElementById("themepark");
+    if (link instanceof HTMLLinkElement) link.href = `/api/v1/theme.css?t=${Date.now()}`;
+  }, THEMEPARK_REFRESH_MS);
+}

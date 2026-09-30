@@ -31,6 +31,7 @@ from hud.reporting.runner import ReportRunner
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
 from hud.store.rollup import RollupWorker
+from hud.theming import ThemeParkStore
 from hud.widgets import WidgetEngine
 from hud.widgets.icons import IconStore
 
@@ -108,6 +109,7 @@ def _wire(
     )
     app.state.icons = IconStore(env.data_dir / "icons")
     app.state.images = ImageCache()
+    app.state.theme_park = ThemeParkStore()
     app.state.reports = runner
     return registry, cache, collector, runner
 

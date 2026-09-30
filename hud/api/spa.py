@@ -48,12 +48,16 @@ def with_theme(html: str, config: ConfigManager | None) -> str:
     right; a viewer's own choice, kept in their browser, overrides it in the SPA. The
     value is a validated literal (dark | light | auto), never user text."""
     theme = "dark"
+    themepark = False
     if config is not None:
         try:
             theme = config.snapshot.settings.spec.theme
+            themepark = config.snapshot.settings.spec.theme_park is not None
         except RuntimeError:  # no config loaded yet: the default is fine
             theme = "dark"
-    return html.replace("<html ", f'<html data-theme="{theme}" ', 1)
+    # data-themepark: /api/v1/theme.css (a theme.park palette) applies; see hud/theming.py.
+    attrs = f'data-theme="{theme}"' + (" data-themepark" if themepark else "")
+    return html.replace("<html ", f"<html {attrs} ", 1)
 
 
 NOT_BUILT = (

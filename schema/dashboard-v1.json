@@ -3491,6 +3491,7 @@
               "samples": "48h"
             },
             "theme": "dark",
+            "theme_park": null,
             "timezone": "UTC",
             "title": "HUD"
           }
@@ -3581,6 +3582,17 @@
           ],
           "title": "Theme",
           "type": "string"
+        },
+        "theme_park": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ThemePark"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "timezone": {
           "default": "UTC",
@@ -3883,6 +3895,50 @@
         "service"
       ],
       "title": "TemplateInfo",
+      "type": "object"
+    },
+    "ThemePark": {
+      "additionalProperties": false,
+      "description": "A theme.park palette for HUD's surfaces and text (PLAN \u00a78.6). The backend fetches\n``{source}/css/theme-options/{theme}.css`` (or the community folder) and serves it as\nHUD's own stylesheet, so the browser never loads a third-party one. Status colours are\nnever themed (invariant 9). Added 2026-09-29, optional.",
+      "properties": {
+        "follow": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Follow"
+        },
+        "refresh": {
+          "default": "1m",
+          "title": "Refresh",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "theme": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Theme"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "ThemePark",
       "type": "object"
     },
     "Threshold": {

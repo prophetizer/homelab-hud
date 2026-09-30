@@ -3,9 +3,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./styles/base.css";
-import { applyStoredTheme } from "./theme";
+import { applyStoredTheme, watchThemePark } from "./theme";
 
 applyStoredTheme();
+watchThemePark();
 
 const root = document.getElementById("root");
 if (!root) {
