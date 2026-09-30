@@ -16,6 +16,8 @@ metadata:
     service: Sonarr
     icon: mdi:television-classic
     docs: https://sonarr.tv/docs/api/
+    images: [sonarr]
+    port: 8989
     requires:
       - { name: SONARR_BASE_URL, kind: env, hint: "Base URL of your Sonarr instance" }
       - { name: sonarr_api_key, kind: secret, hint: "API key from Settings → General" }

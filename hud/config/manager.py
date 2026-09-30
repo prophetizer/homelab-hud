@@ -429,6 +429,33 @@ class ConfigManager:
                 log.exception("reload hook %r failed", hook)
         return snapshot
 
+    async def create_async(self, relative_path: str, text: str) -> ConfigSnapshot:
+        """Write a new document (the wizard's provider file) under the reload lock: refused
+        if the file exists, if it does not validate, or if it holds a literal credential —
+        the same checks as :meth:`edit` — then the reload hooks, as for a file change."""
+        path = self.config_dir / relative_path
+        if path.name == SECRETS_FILE_NAME or not path.resolve().is_relative_to(
+            self.config_dir.resolve()
+        ):
+            msg = f"refusing to create {relative_path!r}"
+            raise ValueError(msg)
+
+        def write() -> ConfigSnapshot:
+            if path.exists():
+                raise FileExistsError(relative_path)
+            self._validate_document(path, parse_yaml(text, path))
+            atomic_write_text(path, text)
+            return self.load()
+
+        async with self._lock:
+            snapshot = await asyncio.to_thread(write)
+        for hook in self._hooks:
+            try:
+                await hook(snapshot)
+            except Exception:
+                log.exception("reload hook %r failed", hook)
+        return snapshot
+
     def iter_documents(self, kind: str) -> Iterator[LoadedDocument]:
         return (d for d in self.snapshot.documents if d.model.kind == kind)
 

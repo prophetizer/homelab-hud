@@ -97,6 +97,9 @@ async def test_discover_maps_containers(config_dir: Path, api: respx.MockRouter)
     assert hud.attrs["created"] == "2025-09-19T00:00:00+00:00"
     assert by_name["sonarr"].state is State.DEGRADED  # running but (unhealthy)
     assert by_name["sonarr"].attrs["ports"] == ["8989/tcp"]
+    assert hud.attrs["networks"] == ["proxy", "socket"]  # sorted, names only
+    assert by_name["sonarr"].attrs["networks"] == ["proxy"]
+    assert "networks" not in by_name["backup"].attrs
     assert by_name["backup"].state is State.DOWN
     assert by_name["paused-thing"].state is State.PAUSED
     assert "compose_project" not in by_name["backup"].attrs

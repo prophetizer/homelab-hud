@@ -18,6 +18,8 @@ metadata:
     service: AdGuard Home
     icon: mdi:shield-check
     docs: https://github.com/AdguardTeam/AdGuardHome/tree/master/openapi
+    images: [adguardhome, adguard-home]
+    port: 80
     requires:
       - { name: ADGUARD_BASE_URL, kind: env, hint: "Base URL of AdGuard Home's web interface" }
       - { name: adguard_password, kind: secret, hint: "Password of the AdGuard Home login" }

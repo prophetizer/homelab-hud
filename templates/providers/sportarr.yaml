@@ -17,6 +17,7 @@ metadata:
     service: Sportarr
     icon: mdi:trophy-outline
     docs: https://sonarr.tv/docs/api/
+    images: [sportarr]
     requires:
       - { name: SPORTARR_BASE_URL, kind: env, hint: "Base URL of your Sportarr instance" }
       - { name: sportarr_api_key, kind: secret, hint: "API key from Settings → General" }

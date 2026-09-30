@@ -63,6 +63,8 @@ COPY --from=deps --chown=1000:1000 /app/.venv ./.venv
 COPY --from=deps --chown=1000:1000 /app/hud ./hud
 COPY --from=web  --chown=1000:1000 /web/dist ./web/dist
 COPY --chown=1000:1000 alembic.ini LICENSE ./
+# The bundled provider templates: the Connect a service wizard's catalog (not their fixtures).
+COPY --chown=1000:1000 templates/providers/*.yaml ./templates/providers/
 
 USER 1000:1000
 VOLUME ["/config", "/data"]

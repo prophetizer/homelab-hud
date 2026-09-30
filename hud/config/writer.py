@@ -94,9 +94,12 @@ def has_explicit_start(text: str) -> bool:
     return False
 
 
-def atomic_write_text(path: Path, text: str) -> None:
+def atomic_write_text(path: Path, text: str, *, mode: int | None = None) -> None:
+    """Write via a temp file and rename. ``mode`` forces the permissions (owner-only for
+    secrets.yaml); otherwise an existing file keeps its own and a new one gets 0644."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    mode = path.stat().st_mode & 0o777 if path.exists() else 0o644
+    if mode is None:
+        mode = path.stat().st_mode & 0o777 if path.exists() else 0o644
     fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
     tmp = Path(tmp_name)
     try:

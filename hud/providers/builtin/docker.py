@@ -244,6 +244,8 @@ class DockerProvider(PluginProvider):
             if c.get("Created")
             else None,
             "ports": _ports(c.get("Ports") or []),
+            # Which Docker networks it is on: the wizard checks whether HUD can reach it.
+            "networks": sorted((c.get("NetworkSettings") or {}).get("Networks") or {}) or None,
         }
         if "com.docker.compose.project" in labels:
             attrs["compose_project"] = labels["com.docker.compose.project"]

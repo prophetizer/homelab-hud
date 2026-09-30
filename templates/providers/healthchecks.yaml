@@ -20,6 +20,8 @@ metadata:
     service: Healthchecks
     icon: mdi:calendar-check
     docs: https://healthchecks.io/docs/api/
+    images: [healthchecks]
+    port: 8000
     requires:
       - { name: HEALTHCHECKS_BASE_URL, kind: env, hint: "Base URL of your Healthchecks instance" }
       - { name: healthchecks_api_key, kind: secret, hint: "A read-only API key (Project → Settings → API Access)" }

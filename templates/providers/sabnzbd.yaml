@@ -21,6 +21,8 @@ metadata:
     service: SABnzbd
     icon: mdi:download
     docs: https://sabnzbd.org/wiki/configuration/4.5/api
+    images: [sabnzbd]
+    port: 8080
     requires:
       - { name: SABNZBD_BASE_URL, kind: env, hint: "Base URL of your SABnzbd web interface" }
       - { name: sabnzbd_api_key, kind: secret, hint: "API Key from Config → General → Security" }

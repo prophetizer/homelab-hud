@@ -3891,6 +3891,27 @@
           "default": null,
           "title": "Icon"
         },
+        "images": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Images",
+          "type": "array"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port"
+        },
         "requires": {
           "items": {
             "$ref": "#/$defs/Requirement"

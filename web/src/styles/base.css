@@ -4513,3 +4513,115 @@ a.svc__link:hover .svc__name {
 .media-cards {
   grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
 }
+
+/* ---------------------------------------------------------------- connect a service
+   2026-09-29 (round 3): found containers and the catalog as cards, a dialog to connect. */
+
+.connect__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.connect__card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-w) solid var(--border-soft);
+  border-radius: var(--radius-tile);
+  background: var(--bg-raised);
+  background-image: var(--tile-surface);
+  box-shadow: var(--tile-inset), var(--shadow-tile);
+}
+
+.connect__card[data-connected] {
+  opacity: 0.7;
+}
+
+.connect__what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.connect__sub,
+.connect__note {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connect__note {
+  color: var(--status-degraded);
+  white-space: normal;
+}
+
+.connect__done {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.connect__empty {
+  margin: 0;
+  color: var(--fg-muted);
+}
+
+.connect__dialog {
+  display: grid;
+  gap: var(--space-4);
+  width: min(34rem, 100%);
+  padding: var(--space-5);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-tile);
+  background: var(--bg-raised);
+  background-image: var(--tile-surface);
+}
+
+.connect__field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.connect__field > span {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.connect__field input {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.connect__field small {
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+}
+
+.connect__result {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--status-down);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.connect__result[data-ok] {
+  border-left-color: var(--status-up);
+}
+
+.connect__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

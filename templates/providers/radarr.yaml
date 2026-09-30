@@ -16,6 +16,8 @@ metadata:
     service: Radarr
     icon: mdi:filmstrip
     docs: https://radarr.video/docs/api/
+    images: [radarr]
+    port: 7878
     requires:
       - { name: RADARR_BASE_URL, kind: env, hint: "Base URL of your Radarr instance" }
       - { name: radarr_api_key, kind: secret, hint: "API key from Settings → General" }

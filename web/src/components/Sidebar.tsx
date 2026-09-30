@@ -60,6 +60,8 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
       ? "System"
       : route.kind === "reports"
         ? "Reports"
+      : route.kind === "connect"
+        ? "Connect a service"
       : route.kind === "board"
         ? nav.boards.find((b) => b.name === route.name)?.title
         : route.kind === "app"
@@ -131,6 +133,12 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
             <a href="/reports" onClick={onLinkClick} aria-current={current("reports")} className="sidebar__system">
               <Icon name="mdi-file-chart-outline" title="Reports" size="sm" />
               <span className="sidebar__label">Reports</span>
+            </a>
+          ) : null}
+          {hasPermission(me, "providers:edit") ? (
+            <a href="/connect" onClick={onLinkClick} aria-current={current("connect")} className="sidebar__system">
+              <Icon name="mdi-connection" title="Connect a service" size="sm" />
+              <span className="sidebar__label">Connect a service</span>
             </a>
           ) : null}
           {boards && boards.length === 0 ? (

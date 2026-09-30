@@ -133,6 +133,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
         app.state.engine = create_store_engine(paths)
 
         secrets = SecretResolver(env.config_dir)
+        app.state.secrets = secrets
         registry, cache, collector, runner = _wire(app, env, config, secrets)
         auth = await _start_auth(app.state.engine, secrets, snap)
         app.state.auth = auth

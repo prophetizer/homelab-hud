@@ -18,6 +18,8 @@ metadata:
     service: Glances
     icon: mdi:monitor-dashboard
     docs: https://glances.readthedocs.io/en/latest/api/restful.html
+    images: [glances]
+    port: 61208
     requires:
       - { name: GLANCES_BASE_URL, kind: env, hint: "Base URL of Glances' web server, port 61208" }
 spec:

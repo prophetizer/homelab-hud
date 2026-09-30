@@ -152,6 +152,18 @@ class SecretResolver:
         self._file = config_dir / SECRETS_FILE_NAME
         self._env = env if env is not None else dict(os.environ)
 
+    def source(self, name: str) -> str | None:
+        """Where ``name`` is set — "docker secret", "environment" or "secrets.yaml" — or None.
+        Never the value: the wizard uses this to say "already set" and to warn that a
+        higher-priority source would win over what it writes."""
+        if (self._secrets_dir / name).is_file():
+            return "docker secret"
+        if ENV_PREFIX + re.sub(r"[^A-Za-z0-9]", "_", name).upper() in self._env:
+            return "environment"
+        if self._file.is_file() and name in load_yaml(self._file):
+            return SECRETS_FILE_NAME
+        return None
+
     def resolve(self, name: str) -> str:
         """First source that has the name wins. A source that has it but blank is an error,
         not a fall-through: the operator put it there, so a lower-priority value silently

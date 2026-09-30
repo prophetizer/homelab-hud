@@ -13,6 +13,8 @@ metadata:
     service: Home Assistant
     icon: mdi:home-assistant
     docs: https://developers.home-assistant.io/docs/api/rest/
+    images: [home-assistant, homeassistant]
+    port: 8123
     requires:
       - { name: HA_BASE_URL, kind: env, hint: "Base URL of your Home Assistant instance" }
       - { name: home_assistant_token, kind: secret, hint: "Long-lived access token (Profile → Security)" }

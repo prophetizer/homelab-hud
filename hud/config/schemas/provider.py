@@ -332,6 +332,20 @@ class TemplateInfo(BaseModel):
     icon: str | None = None
     docs: str | None = None
     requires: list[Requirement] = Field(default_factory=list)
+    # For the wizard's container discovery (added 2026-09-29, optional): words that name
+    # this service in an image reference (``sonarr`` matches lscr.io/linuxserver/sonarr and
+    # ghcr.io/hotio/sonarr), and the port it listens on inside its container.
+    images: list[str] = Field(default_factory=list)
+    port: int | None = Field(default=None, ge=1, le=65535)
+
+    @field_validator("images")
+    @classmethod
+    def _image_words(cls, v: list[str]) -> list[str]:
+        for word in v:
+            if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", word):
+                msg = f"images: {word!r} must be a lowercase word from an image name"
+                raise ValueError(msg)
+        return v
 
 
 class ProviderMetadata(Metadata):

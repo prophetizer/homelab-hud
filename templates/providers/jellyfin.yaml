@@ -19,6 +19,8 @@ metadata:
     service: Jellyfin
     icon: mdi:jellyfish
     docs: https://api.jellyfin.org/
+    images: [jellyfin]
+    port: 8096
     requires:
       - { name: JELLYFIN_BASE_URL, kind: env, hint: "Base URL of your Jellyfin server, port 8096" }
       - { name: jellyfin_api_key, kind: secret, hint: "API key from Dashboard → API Keys" }

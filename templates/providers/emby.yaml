@@ -20,6 +20,8 @@ metadata:
     service: Emby
     icon: mdi:emby
     docs: https://dev.emby.media/doc/restapi/index.html
+    images: [emby, embyserver]
+    port: 8096
     requires:
       - { name: EMBY_BASE_URL, kind: env, hint: "Base URL of your Emby server, port 8096" }
       - { name: emby_api_key, kind: secret, hint: "API key from Settings → Advanced → API Keys" }

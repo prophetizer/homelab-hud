@@ -9,6 +9,7 @@
     "Ports": [{"IP": "0.0.0.0", "PrivatePort": 8080, "PublicPort": 8080, "Type": "tcp"},
               {"IP": "::", "PrivatePort": 8080, "PublicPort": 8080, "Type": "tcp"}],
     "Labels": {"com.docker.compose.project": "hud", "com.docker.compose.service": "hud"},
+    "NetworkSettings": {"Networks": {"socket": {"NetworkID": "a"}, "proxy": {"NetworkID": "b"}}},
     "State": "running",
     "Status": "Up 3 hours (healthy)"
   },
@@ -19,6 +20,7 @@
     "Created": 1758100000,
     "Ports": [{"PrivatePort": 8989, "Type": "tcp"}],
     "Labels": {},
+    "NetworkSettings": {"Networks": {"proxy": {"NetworkID": "b"}}},
     "State": "running",
     "Status": "Up 2 days (unhealthy)"
   },

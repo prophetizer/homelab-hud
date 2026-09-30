@@ -27,6 +27,8 @@ metadata:
     service: Plex Media Server
     icon: mdi:plex
     docs: https://github.com/pkkid/python-plexapi
+    images: [plex, pms-docker]
+    port: 32400
     requires:
       - { name: PLEX_BASE_URL, kind: env, hint: "Base URL of your Plex server, usually port 32400" }
       - { name: plex_token, kind: secret, hint: "X-Plex-Token (Plex Web → Get Info → View XML)" }
