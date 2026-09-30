@@ -134,10 +134,19 @@ class AuthSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     backends: list[AuthBackendName] = ["local"]
+    # Reverse proxies whose X-Forwarded-For HUD believes (e.g. Traefik's docker network), so
+    # sign-in limits and the audit log see the real client, not the proxy. Empty: the
+    # connection's own address, as before. Added 2026-09-30, optional.
+    trusted_proxies: list[str] = []
     session: SessionSettings = SessionSettings()
     forward: ForwardAuthSettings = ForwardAuthSettings()
     oidc: OidcSettings = OidcSettings()
     local: LocalAuthSettings = LocalAuthSettings()
+
+    @field_validator("trusted_proxies")
+    @classmethod
+    def _valid_proxies(cls, v: list[str]) -> list[str]:
+        return ForwardAuthSettings._valid_networks(v)
 
     @field_validator("backends")
     @classmethod

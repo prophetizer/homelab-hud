@@ -140,8 +140,43 @@ def test_login_rate_limit(app_env: HudEnv) -> None:
             assert _login(client, "admin", "bad-password-attempt").status_code == 401
         r = _login(client, "admin", ADMIN["password"])  # even the right password now
         assert r.status_code == 429 and int(r.headers["Retry-After"]) > 0
-        svc.limiter.reset("ip:testclient", "user:admin")
+        svc.limiter.reset("ip:testclient", "user:admin@testclient")
         assert _login(client, "admin", ADMIN["password"]).status_code == 200
+
+
+def test_guesses_lock_an_account_only_where_they_come_from(app_env: HudEnv) -> None:
+    """Behind a proxy (auth.trusted_proxies) each client is its own address: guesses at the
+    admin from one address lock the admin out there, not from the LAN; an address spoofed in
+    a header by a client that is not a trusted proxy is never believed."""
+    (app_env.config_dir / "settings.yaml").write_text(
+        "apiVersion: hud/v1\nkind: Settings\nspec:\n  auth:\n    trusted_proxies: [127.0.0.0/8]\n"
+    )
+    with TestClient(create_app(app_env), client=("127.0.0.1", 50000)) as client:
+        sign_in_admin(client)
+        client.post("/api/v1/auth/logout")
+        svc = client.app.state.auth  # type: ignore[attr-defined]
+        svc.limiter.max_failures = 3
+        work = {"X-Forwarded-For": "203.0.113.9"}
+        for _ in range(3):
+            r = client.post(
+                "/api/v1/auth/login",
+                json={"username": "admin", "password": "wrong-guess-1"},
+                headers=work,
+            )
+            assert r.status_code == 401
+        blocked = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin", "password": ADMIN["password"]},
+            headers=work,
+        )
+        assert blocked.status_code == 429
+        lan = {"X-Forwarded-For": "172.31.1.1"}
+        ok = client.post(
+            "/api/v1/auth/login",
+            json={"username": "admin", "password": ADMIN["password"]},
+            headers=lan,
+        )
+        assert ok.status_code == 200  # the admin is not locked out from home
 
 
 def test_session_survives_restart_and_expires(app_env: HudEnv) -> None:

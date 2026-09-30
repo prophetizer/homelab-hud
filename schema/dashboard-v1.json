@@ -280,6 +280,14 @@
             "cookie_name": "hud_session",
             "lifetime": "7d"
           }
+        },
+        "trusted_proxies": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Trusted Proxies",
+          "type": "array"
         }
       },
       "title": "AuthSettings",
@@ -3486,7 +3494,8 @@
               "session": {
                 "cookie_name": "hud_session",
                 "lifetime": "7d"
-              }
+              },
+              "trusted_proxies": []
             },
             "header": {
               "clock": true,
@@ -3562,7 +3571,8 @@
             "session": {
               "cookie_name": "hud_session",
               "lifetime": "7d"
-            }
+            },
+            "trusted_proxies": []
           }
         },
         "header": {

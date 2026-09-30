@@ -66,7 +66,11 @@ class AuthService:
         self._secrets = secrets_resolver
         self.settings = settings
         self.authorizer = authorizer
+        # Tight: 10 failures per address, and per account from one address — so guessing at
+        # an account locks it only where the guesses come from. Loose: 50 per account from
+        # anywhere, the backstop against a guesser spread over many addresses.
         self.limiter = LoginLimiter()
+        self.account_limiter = LoginLimiter(max_failures=50)
         # Per-process key for CSRF tokens of identities that have no session row (forward).
         self._csrf_key = secrets.token_bytes(32)
         self._forward: ForwardBackend | None = None
@@ -239,8 +243,9 @@ class AuthService:
         was wrong, and runs a hash verification even for unknown users."""
         self._require_local()
         username = username.strip().lower()
-        keys = (f"ip:{client_ip}", f"user:{username}")
-        wait = self.limiter.retry_after(*keys)
+        keys = (f"ip:{client_ip}", f"user:{username}@{client_ip}")
+        account = f"user:{username}"
+        wait = max(self.limiter.retry_after(*keys), self.account_limiter.retry_after(account))
         if wait:
             await asyncio.to_thread(
                 self.store.audit, username, "auth.login", None, "rate_limited", {"ip": client_ip}
@@ -250,11 +255,13 @@ class AuthService:
         ok = await asyncio.to_thread(verify_password, stored_hash, password)
         if not ok or user is None:
             self.limiter.record_failure(*keys)
+            self.account_limiter.record_failure(account)
             await asyncio.to_thread(
                 self.store.audit, username, "auth.login", None, "denied", {"ip": client_ip}
             )
             raise InvalidCredentialsError()
         self.limiter.reset(*keys)
+        self.account_limiter.reset(account)
         if stored_hash is not None and needs_rehash(stored_hash):
             await asyncio.to_thread(self.store.set_password, user.id, hash_password(password))
         token, session = await asyncio.to_thread(

@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from hud.api import deps
 from hud.auth import ADMIN_GROUP, AuthError, Principal
+from hud.auth.clientip import client_ip, networks
 from hud.auth.service import is_https
 from hud.auth.store import User
 
@@ -103,7 +104,9 @@ class UserList(BaseModel):
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    """The real client behind a trusted proxy (auth.trusted_proxies), else the connection."""
+    trusted = deps.auth(request).settings.trusted_proxies
+    return client_ip(request, networks(trusted))
 
 
 # ----------------------------------------------------------------------------- session
