@@ -8,6 +8,9 @@ interface Props {
   widget: ResolvedWidget;
   children: ReactNode;
   className?: string | undefined;
+  // Artwork laid behind the whole tile, blurred and dimmed (media only: it is content,
+  // never status — invariant 9).
+  ambient?: ReactNode;
 }
 
 // Every widget shares this frame: title with status dot, a "stale" badge when the data
@@ -30,7 +33,7 @@ function useChanged(state: string | null): string | undefined {
 // The header says a problem in words; "up" is the dot alone.
 const STATE_WORDS: Record<string, string> = { down: "down", degraded: "degraded", unknown: "not reporting", paused: "paused" };
 
-export function WidgetFrame({ widget, children, className }: Props) {
+export function WidgetFrame({ widget, children, className, ambient }: Props) {
   const title = widget.title ?? widget.id;
   const changed = useChanged(widget.state);
   const openDetail = useContext(DetailContext);
@@ -40,7 +43,13 @@ export function WidgetFrame({ widget, children, className }: Props) {
       aria-label={title}
       data-stale={widget.stale || undefined}
       data-changed={changed}
+      data-ambient={ambient ? "" : undefined}
     >
+      {ambient ? (
+        <span className="widget__ambient" aria-hidden="true">
+          {ambient}
+        </span>
+      ) : null}
       <h2 className="widget__title">
         <span className="widget__icon">
           <Icon name={widget.icon} title={title} size="sm" />

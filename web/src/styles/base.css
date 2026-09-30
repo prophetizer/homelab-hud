@@ -4412,3 +4412,104 @@ a.svc__link:hover .svc__name {
 .status-wall__problems .list__state {
   margin-left: auto;
 }
+
+/* ---------------------------------------------------------------- richer media art
+   2026-09-29: artwork used at a size and strength you can recognise — the stream's
+   backdrop through its card with a scrim only under the text, the playing title's art far
+   behind the whole tile, and larger posters. Art is content, never status (invariant 9);
+   it is always dimmed at least half, as the opt-in page backdrop is. */
+
+.widget[data-ambient] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.widget__ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.widget__ambient-art {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  object-fit: cover;
+  filter: blur(36px) saturate(1.15);
+  opacity: 0.32;
+}
+
+.widget__ambient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-raised) 35%, transparent), var(--bg-raised) 92%);
+}
+
+.media-card {
+  position: relative;
+  isolation: isolate;
+  min-height: 8.5rem;
+  padding: var(--space-3);
+  border-radius: 12px;
+}
+
+.media-card__backdrop {
+  filter: blur(3px) brightness(0.62) saturate(1.1);
+}
+
+.media-card__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.72) 0%, rgb(0 0 0 / 0.5) 55%, rgb(0 0 0 / 0.22) 100%);
+}
+
+.media-card .poster--lg {
+  width: 5.5rem;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px -10px rgb(0 0 0 / 0.85);
+}
+
+.media-card__title {
+  font-size: var(--text-md);
+}
+
+.media-card .meter {
+  height: 0.5rem;
+  border-radius: 999px;
+}
+
+.shelf {
+  grid-auto-columns: 8rem;
+  gap: var(--space-4);
+}
+
+.shelf__art {
+  border-radius: 8px;
+  box-shadow: 0 10px 22px -12px rgb(0 0 0 / 0.9);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.shelf__item a:hover .shelf__art {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 28px -12px rgb(0 0 0 / 0.95);
+}
+
+.dense-row__poster {
+  width: 1.75rem;
+  height: 2.625rem;
+  border-radius: 3px;
+}
+
+/* A stream reads as a row of its own: wide enough for the title and its badges. */
+.media-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+}

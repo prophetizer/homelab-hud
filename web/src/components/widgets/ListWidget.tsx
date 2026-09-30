@@ -209,6 +209,7 @@ function MediaCards({ items }: { items: ListData["items"] }) {
         return (
           <li key={item.uid} className="media-card" data-state={item.state} data-stale={item.stale || undefined}>
             {item.backdrop ? <Poster uid={item.uid} variant="backdrop" className="media-card__backdrop" /> : null}
+            {item.backdrop ? <span className="media-card__scrim" aria-hidden="true" /> : null}
             {item.image ? <Poster uid={item.uid} large /> : null}
             <div className="media-card__body">
               <span className="media-card__title">
@@ -609,8 +610,11 @@ export function ListWidget({ widget }: { widget: ResolvedWidget }) {
     );
   }
   if (data.layout === "media" && data.items.length > 0) {
+    // The tile wears the artwork of what is playing (the first playing stream, else the
+    // first), blurred far back — the look of a player, not a list.
+    const lead = data.items.find((i) => i.backdrop && i.state !== "paused") ?? data.items.find((i) => i.backdrop);
     return (
-      <WidgetFrame widget={widget}>
+      <WidgetFrame widget={widget} ambient={lead ? <Poster uid={lead.uid} variant="backdrop" className="widget__ambient-art" /> : undefined}>
         {stats}
         <MediaCards items={data.items} />
       </WidgetFrame>
