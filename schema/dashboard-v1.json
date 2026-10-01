@@ -3282,6 +3282,16 @@
       "additionalProperties": true,
       "description": "Retention per tier (PLAN.md \u00a76.2). Stored as the user wrote them; parsed on demand.",
       "properties": {
+        "availability": {
+          "default": "400d",
+          "title": "Availability",
+          "type": "string"
+        },
+        "events": {
+          "default": "180d",
+          "title": "Events",
+          "type": "string"
+        },
         "rollup_1d": {
           "default": "forever",
           "title": "Rollup 1D",
@@ -3506,6 +3516,8 @@
               "weather": null
             },
             "retention": {
+              "availability": "400d",
+              "events": "180d",
               "rollup_1d": "forever",
               "rollup_1h": "180d",
               "rollup_5m": "14d",
@@ -3589,6 +3601,8 @@
         "retention": {
           "$ref": "#/$defs/Retention",
           "default": {
+            "availability": "400d",
+            "events": "180d",
             "rollup_1d": "forever",
             "rollup_1h": "180d",
             "rollup_5m": "14d",

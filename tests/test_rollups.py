@@ -185,3 +185,120 @@ def test_a_week_reads_hours_then_the_live_edge_from_raw(db: Engine) -> None:
     assert stamps[-1] >= NOW - 3600  # the current hour comes from raw
     peak = read_range(db, (UID, METRIC), (NOW - 7 * 86_400, NOW), agg="max")
     assert peak[0][1] == 59.0  # the first hour's highest minute
+
+
+# ------------------------------------------------------------------ events and uptime retention
+
+
+def test_old_events_and_ended_spans_age_out_but_an_open_span_never(db: Engine) -> None:
+    from hud.store.tables import availability, events  # noqa: PLC0415
+
+    day = 86_400
+    with db.begin() as conn:
+        conn.execute(
+            insert(events),
+            [
+                {
+                    "resource_uid": UID,
+                    "type": "state",
+                    "severity": "warn",
+                    "message": "old",
+                    "ts": NOW - 200 * day,
+                },
+                {
+                    "resource_uid": UID,
+                    "type": "state",
+                    "severity": "warn",
+                    "message": "new",
+                    "ts": NOW - 10 * day,
+                },
+            ],
+        )
+        conn.execute(
+            insert(availability),
+            [
+                {
+                    "resource_uid": UID,
+                    "state": "down",
+                    "started_at": NOW - 500 * day,
+                    "ended_at": NOW - 450 * day,
+                },
+                {
+                    "resource_uid": UID,
+                    "state": "up",
+                    "started_at": NOW - 450 * day,
+                    "ended_at": NOW - 5 * day,
+                },
+                {
+                    "resource_uid": "glances:host:main",
+                    "state": "up",
+                    "started_at": NOW - 600 * day,
+                    "ended_at": None,
+                },
+            ],
+        )
+    stats = worker(db).run_once(NOW)  # defaults: events 180d, availability 400d
+    assert stats.deleted["events"] == 1 and stats.deleted["availability"] == 1
+    assert _count(db, events) == 1 and _count(db, availability) == 2  # the open span stays
+    forever = worker(db, events="forever", availability="forever").run_once(NOW + 400 * day)
+    assert forever.deleted["events"] == 0 and forever.deleted["availability"] == 0
+
+
+# ------------------------------------------------------------------ verify-rollups (R6)
+
+
+def test_verify_finds_nothing_wrong_with_honest_rollups_and_names_a_bad_one(db: Engine) -> None:
+    from sqlalchemy import update  # noqa: PLC0415
+
+    from hud.store.verify import verify  # noqa: PLC0415
+
+    sid = _seed(db, days=2)
+    worker(db).run_once(NOW)
+    result = verify(db, NOW - 86_400, NOW - 3600, now=NOW)
+    assert result.ok, result.mismatches[:3]
+    # A window that starts mid-bucket checks from the next whole bucket, not a partial one.
+    assert verify(db, NOW - 86_400 + 137, NOW - 3600, now=NOW).ok
+    assert result.checked["5m"] > 250 and result.checked["1h"] >= 22
+    bad_5m, bad_1h = NOW - 7200, NOW - 4 * 3600
+    with db.begin() as conn:
+        conn.execute(
+            update(rollups)
+            .where(rollups.c.tier == "5m", rollups.c.bucket == bad_5m)
+            .values(avg_v=-1.0)
+        )
+        conn.execute(
+            update(rollups).where(rollups.c.tier == "1h", rollups.c.bucket == bad_1h).values(n=1)
+        )
+    result = verify(db, NOW - 86_400, NOW - 3600, now=NOW)
+    found = {(m.tier, m.bucket, m.field, m.series) for m in result.mismatches}
+    assert ("5m", bad_5m, "avg_v", f"{UID}/{METRIC}") in found
+    assert ("1h", bad_1h, "n", f"{UID}/{METRIC}") in found
+    assert sid  # seeded
+
+
+def test_the_nightly_check_runs_once_a_day_after_one_and_warns_only_on_a_mismatch(
+    db: Engine, caplog: pytest.LogCaptureFixture
+) -> None:
+    from datetime import UTC, datetime  # noqa: PLC0415
+
+    from sqlalchemy import update  # noqa: PLC0415
+
+    _seed(db, days=2)
+    w = worker(db)
+    w.run_once(NOW)
+    midnight = NOW - NOW % 86_400
+    w.verify_yesterday(datetime.fromtimestamp(midnight + 1800, UTC))  # 00:30: too early
+    assert "verify-rollups" not in caplog.text
+    at = datetime.fromtimestamp(midnight + 3 * 3600, UTC)
+    with caplog.at_level("INFO", logger="hud.store.rollup"):
+        w.verify_yesterday(at)
+    assert "all match" in caplog.text
+    with db.begin() as conn:
+        conn.execute(update(rollups).where(rollups.c.tier == "5m").values(max_v=-5.0))
+    caplog.clear()
+    w.verify_yesterday(at)  # same day: not again
+    assert caplog.text == ""
+    w._verified = None
+    with caplog.at_level("INFO", logger="hud.store.rollup"):
+        w.verify_yesterday(at)
+    assert "disagree" in caplog.text and "WARNING" in caplog.text

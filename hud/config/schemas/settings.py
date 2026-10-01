@@ -24,8 +24,12 @@ class Retention(BaseModel):
     rollup_5m: str = "14d"
     rollup_1h: str = "180d"
     rollup_1d: str = "forever"
+    # Events (state changes, warnings) and closed uptime spans. Added 2026-09-30 with Mike:
+    # half a year of events; 400 days of uptime, the longest report window.
+    events: str = "180d"
+    availability: str = "400d"
 
-    @field_validator("samples", "rollup_5m", "rollup_1h", "rollup_1d")
+    @field_validator("samples", "rollup_5m", "rollup_1h", "rollup_1d", "events", "availability")
     @classmethod
     def _valid_duration(cls, v: str) -> str:
         parse_duration(v)
@@ -366,6 +370,8 @@ spec:
     rollup_5m: 14d
     rollup_1h: 180d
     rollup_1d: forever
+    events: 180d         # state changes and warnings
+    availability: 400d   # uptime spans (the longest report window)
   auth:                  # PLAN §10.1 — any of local, forward, oidc; order is precedence
     backends: [local]    # local: first visit creates the admin account; no default credentials
     session:

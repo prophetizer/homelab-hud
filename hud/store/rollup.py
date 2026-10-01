@@ -25,6 +25,8 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as dt_time
 
 from sqlalchemy import Connection, Engine, select, text
 
@@ -99,6 +101,17 @@ _FIRST_BUCKET = text(
     "SELECT MIN(bucket) FROM metrics.rollups WHERE series_id = :sid AND tier = :tier"
 )
 _DELETE_SAMPLES = text("DELETE FROM metrics.samples WHERE series_id = :sid AND ts < :before")
+# Events, and uptime spans that have ended: a bounded batch per run, so a first prune of a
+# long history never holds the write lock for long. An open span is never touched.
+PRUNE_BATCH = 5000
+_DELETE_EVENTS = text(
+    "DELETE FROM metrics.events WHERE id IN "
+    "(SELECT id FROM metrics.events WHERE ts < :before LIMIT :n)"
+)
+_DELETE_SPANS = text(
+    "DELETE FROM metrics.availability WHERE id IN (SELECT id FROM metrics.availability "
+    "WHERE ended_at IS NOT NULL AND ended_at < :before LIMIT :n)"
+)
 _DELETE_ROLLUPS = text(
     "DELETE FROM metrics.rollups WHERE series_id = :sid AND tier = :tier AND bucket < :before"
 )
@@ -123,6 +136,7 @@ class RollupWorker:
     def __init__(self, engine: Engine, retention: Callable[[], Retention]) -> None:
         self.engine = engine
         self.retention = retention
+        self._verified: date | None = None  # the last UTC day checked by verify-rollups
 
     async def run(self) -> None:
         while True:
@@ -137,7 +151,32 @@ class RollupWorker:
                 )
             except Exception:
                 log.exception("rollups: run failed; retrying next cycle")
+            try:
+                await asyncio.to_thread(self.verify_yesterday)
+            except Exception:
+                log.exception("verify-rollups: the nightly check failed")
             await asyncio.sleep(RUN_SECONDS)
+
+    def verify_yesterday(self, now: datetime | None = None) -> None:
+        """Once a UTC day, after 01:00, check the previous day's rollups against their raw
+        data (PLAN R6). Quiet (INFO) when all match; a WARNING naming the first few when not."""
+        from hud.store.verify import verify  # noqa: PLC0415 — verify imports this module
+
+        now = now or datetime.now(UTC)
+        today = now.date()
+        if self._verified == today or now.hour < 1:
+            return
+        self._verified = today
+        start = int(datetime.combine(today - timedelta(days=1), dt_time(), UTC).timestamp())
+        result = verify(self.engine, start, start + 86_400, int(now.timestamp()))
+        if result.ok:
+            log.info("%s", result.summary())
+            return
+        shown = "; ".join(
+            f"{m.tier} {m.series} @{m.bucket} {m.field} {m.stored} != {m.expected}"
+            for m in result.mismatches[:5]
+        )
+        log.warning("%s — %s", result.summary(), shown)
 
     def run_once(self, now: int | None = None) -> RunStats:
         started = time.monotonic()
@@ -169,6 +208,7 @@ class RollupWorker:
                     pending = False
             if pending:
                 time.sleep(PAUSE_SECONDS)
+        self._prune(now, keep, stats)
         with self.engine.begin() as conn:
             conn.exec_driver_sql(_VACUUM)
         # Hand the write-ahead log back too: a backfill's large transactions would otherwise
@@ -177,6 +217,20 @@ class RollupWorker:
             conn.exec_driver_sql(_CHECKPOINT)
         stats.seconds = time.monotonic() - started
         return stats
+
+    def _prune(self, now: int, keep: Retention, stats: RunStats) -> None:
+        """Age out events and ended uptime spans by their own retention; forever = never."""
+        for name, stmt, value in (
+            ("events", _DELETE_EVENTS, keep.events),
+            ("availability", _DELETE_SPANS, keep.availability),
+        ):
+            horizon = _seconds(value)
+            stats.deleted.setdefault(name, 0)
+            if horizon <= 0:
+                continue
+            with self.engine.begin() as conn:
+                deleted = conn.execute(stmt, {"before": now - horizon, "n": PRUNE_BATCH}).rowcount
+            stats.deleted[name] = stats.deleted.get(name, 0) + (deleted or 0)
 
     def _series(
         self, conn: Connection, sid: int, now: int, horizon: dict[str, int], stats: RunStats
