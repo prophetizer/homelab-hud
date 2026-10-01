@@ -9,6 +9,7 @@ import { DetailContext } from "./detail";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
 import { LayoutEditor } from "./LayoutEditor";
+import { type BuilderMode, WidgetBuilder } from "./WidgetBuilder";
 import { Widget } from "./Widget";
 
 const POLL_MS = 10_000;
@@ -21,6 +22,8 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
   );
   const [editing, setEditing] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
+  const [builder, setBuilder] = useState<BuilderMode | null>(null);
+  const closeBuilder = useCallback(() => setBuilder(null), []);
   const closeDetail = useCallback(() => setDetail(null), []);
   const { placed } = useColumns(data?.layout ?? { columns: { sm: 1, md: 2, lg: 4 }, gap: 12 });
   if (!data) {
@@ -35,6 +38,9 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
   // Editing is on the lg grid only: on narrower viewports the board reflows and a drag
   // would not mean what it looks like.
   const canEdit = placed && hasPermission(me, `boards:edit:${name}`);
+  // The builder lists everything HUD collects, so it also needs resources:view.
+  const canBuild = canEdit && hasPermission(me, "resources:view");
+  const addAt = canBuild ? (section: string | null) => setBuilder({ kind: "add", section }) : undefined;
   return (
     <>
       <header className="board__header">
@@ -47,6 +53,14 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
               {" · "}
               <button className="board__edit" type="button" onClick={() => setEditing(true)}>
                 Edit layout
+              </button>
+            </>
+          ) : null}
+          {addAt && !editing ? (
+            <>
+              {" · "}
+              <button className="board__edit" type="button" onClick={() => addAt(null)}>
+                + Add widget
               </button>
             </>
           ) : null}
@@ -66,13 +80,26 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
             refresh();
             setEditing(false);
           }}
+          onEdit={canBuild ? (widget) => setBuilder({ kind: "edit", widget }) : undefined}
         />
       ) : (
         <DetailContext.Provider value={setDetail}>
-          <BoardGrid board={data} />
+          <BoardGrid board={data} onAdd={addAt} />
         </DetailContext.Provider>
       )}
       {detail ? <DetailOverlay board={name} widget={detail} onClose={closeDetail} /> : null}
+      {builder ? (
+        <WidgetBuilder
+          key={builder.kind === "edit" ? builder.widget : `add:${builder.section ?? ""}`}
+          board={data}
+          mode={builder}
+          onClose={closeBuilder}
+          onDone={(fresh) => {
+            accept(fresh);
+            setBuilder(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -210,7 +237,7 @@ export function SummaryBar({ board }: { board: ResolvedBoard }) {
 }
 
 /** A section's heading band: its title, a rule, and its readings ("3 streaming"). */
-function SectionHead({ section }: { section: ResolvedSection }) {
+function SectionHead({ section, onAdd }: { section: ResolvedSection; onAdd?: ((section: string) => void) | undefined }) {
   const readings = section.stats.filter((s) => s.value !== null);
   return (
     <div className="board-section__head">
@@ -226,11 +253,16 @@ function SectionHead({ section }: { section: ResolvedSection }) {
           ))}
         </span>
       ) : null}
+      {onAdd ? (
+        <button type="button" className="board__edit board-section__add" onClick={() => onAdd(section.id)}>
+          + Add here
+        </button>
+      ) : null}
     </div>
   );
 }
 
-export function BoardGrid({ board }: { board: ResolvedBoard }) {
+export function BoardGrid({ board, onAdd }: { board: ResolvedBoard; onAdd?: ((section: string | null) => void) | undefined }) {
   const groups = sectionGroups(board);
   if (groups.length === 1 && groups[0]?.section === null) return <TileGrid board={board} widgets={board.widgets} />;
   return (
@@ -238,7 +270,7 @@ export function BoardGrid({ board }: { board: ResolvedBoard }) {
       {groups.map((g) =>
         g.section ? (
           <section key={g.section.id} className="board-section" aria-label={g.section.title}>
-            <SectionHead section={g.section} />
+            <SectionHead section={g.section} onAdd={onAdd} />
             <TileGrid board={board} widgets={g.widgets} />
           </section>
         ) : (

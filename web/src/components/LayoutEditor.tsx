@@ -12,6 +12,7 @@ interface Props {
   onSaved: (board: ResolvedBoard) => void;
   onCancel: () => void;
   onReload: () => void;
+  onEdit?: ((widget: string) => void) | undefined; // the widget builder, for one tile
 }
 
 const ROW_PX = 120; // matches .board--grid grid-auto-rows
@@ -24,7 +25,7 @@ const ROW_PX = 120; // matches .board--grid grid-auto-rows
  * gets a grid per section; a tile moves within its section (its row counts from the
  * section's top) — moving it to another section is a YAML edit.
  */
-export function LayoutEditor({ board, onSaved, onCancel, onReload }: Props) {
+export function LayoutEditor({ board, onSaved, onCancel, onReload, onEdit }: Props) {
   const groups = sectionGroups(board);
   const [initial] = useState<RglLayout>(() => toCells(board));
   const [layouts, setLayouts] = useState<Record<string, RglLayout>>(() =>
@@ -91,6 +92,7 @@ export function LayoutEditor({ board, onSaved, onCancel, onReload }: Props) {
               widgets={g.widgets}
               layout={layouts[key] ?? []}
               onChange={(next) => setLayouts((all) => ({ ...all, [key]: next }))}
+              onEdit={onEdit}
             />
           </div>
         );
@@ -104,11 +106,13 @@ function EditorGrid({
   widgets,
   layout,
   onChange,
+  onEdit,
 }: {
   board: ResolvedBoard;
   widgets: ResolvedWidget[];
   layout: RglLayout;
   onChange: (layout: RglLayout) => void;
+  onEdit?: ((widget: string) => void) | undefined;
 }) {
   const { width, containerRef, mounted } = useContainerWidth();
   return (
@@ -121,10 +125,16 @@ function EditorGrid({
           compactor={noCompactor}
           gridConfig={{ cols: board.layout.columns.lg, rowHeight: ROW_PX, margin: [board.layout.gap, board.layout.gap], containerPadding: [0, 0] }}
           resizeConfig={{ handles: ["se"] }}
+          dragConfig={{ cancel: ".builder-edit" }}
         >
           {widgets.map((w) => (
             <div key={w.id} className="board__cell board__cell--editing">
               <Widget widget={w} />
+              {onEdit ? (
+                <button type="button" className="builder-edit" onClick={() => onEdit(w.id)} aria-label={`Edit ${w.title ?? w.id}`} title="Edit this widget">
+                  ✎
+                </button>
+              ) : null}
             </div>
           ))}
         </GridLayout>
