@@ -67,7 +67,11 @@ def _selected(cache: LiveCache, sel: Select) -> list[Resource]:
 
 
 def uptime_table(s: UptimeTable, db: Engine, cache: LiveCache, w: Window) -> SectionResult:
-    found = _selected(cache, s.select)
+    if s.resource is not None:
+        one = cache.resource(s.resource)
+        found = [one] if one is not None else []
+    else:
+        found = _selected(cache, s.select)
     spans = read_spans(db, [r.uid for r in found], w.since, w.until, w.until)
     rows: list[dict[str, Any]] = []
     for r in found:
@@ -100,7 +104,8 @@ def uptime_table(s: UptimeTable, db: Engine, cache: LiveCache, w: Window) -> Sec
             if isinstance(row.get(col), int | float)
             and ((h.lt is not None and row[col] < h.lt) or (h.gt is not None and row[col] > h.gt))
         }
-    return SectionResult("uptime_table", s.title, list(s.columns), rows)
+    note = None if rows else "nothing matched"
+    return SectionResult("uptime_table", s.title, list(s.columns), rows, note=note)
 
 
 def trend_chart(s: TrendChart, db: Engine, cache: LiveCache, w: Window) -> SectionResult:

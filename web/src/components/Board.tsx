@@ -6,6 +6,7 @@ import { formatAge, formatValue } from "../api/format";
 import { sectionGroups } from "../api/layout";
 import type { Problem, ResolvedBoard, ResolvedSection, ResolvedWidget, State } from "../api/types";
 import { DetailContext } from "./detail";
+import { ExportMenu } from "./ExportMenu";
 import { useColumns } from "../hooks/useColumns";
 import { usePoll } from "../hooks/usePoll";
 import { LayoutEditor } from "./LayoutEditor";
@@ -62,6 +63,12 @@ export function BoardView({ name, me }: { name: string; me: Me }) {
               <button className="board__edit" type="button" onClick={() => addAt(null)}>
                 + Add widget
               </button>
+            </>
+          ) : null}
+          {hasPermission(me, "reports:view") && !editing ? (
+            <>
+              {" · "}
+              <ExportMenu board={name} me={me} />
             </>
           ) : null}
         </span>

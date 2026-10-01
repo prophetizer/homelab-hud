@@ -4489,6 +4489,18 @@
           "title": "Kind",
           "type": "string"
         },
+        "resource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        },
         "select": {
           "$ref": "#/$defs/Select",
           "default": {

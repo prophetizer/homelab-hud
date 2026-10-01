@@ -80,6 +80,9 @@ class UptimeTable(_Spec):
     kind: Literal["uptime_table"]
     title: str = "Service availability"
     select: Select = Select()
+    # One resource by uid instead of a selection, as an uptime widget may name one. Added
+    # 2026-09-30 for board export.
+    resource: str | None = None
     columns: list[UptimeColumn] = Field(default_factory=_all_columns)
     # A column to sort by, "-" first for descending; uptime ascending puts the worst first.
     sort: str = "uptime_pct"

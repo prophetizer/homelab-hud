@@ -55,3 +55,37 @@ export function runsByDate(files: ReportFile[], name: string): { date: string; f
 
 /** One run's links always read View, PDF, CSV — whichever file was written last. */
 const FORMAT_ORDER = ["html", "pdf", "csv"];
+
+/** Board export (PLAN §9.5): a GET, so the PDF opens in the browser's own viewer. */
+export type ExportRange = "24h" | "7d" | "30d";
+export const EXPORT_RANGES: { value: ExportRange; label: string }[] = [
+  { value: "24h", label: "24 hours" },
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+];
+
+export function exportUrl(board: string, range: ExportRange, format: "pdf" | "csv"): string {
+  const q = new URLSearchParams({ board, range, format });
+  return `/api/v1/reports/adhoc?${q.toString()}`;
+}
+
+export interface SavedReport {
+  report: string;
+  file: string;
+  left_out: string[];
+  next_run: string | null;
+}
+
+/** Save a board as a weekly report file; refused (409) when one of that name exists. */
+export function saveBoardAsReport(board: string): Promise<SavedReport> {
+  return sendJson("POST", "/api/v1/reports/from-board", { board });
+}
+
+export interface ExportPlan {
+  sections: string[];
+  left_out: string[];
+}
+
+export function fetchExportPlan(board: string, signal?: AbortSignal): Promise<ExportPlan> {
+  return getJson(`/api/v1/reports/adhoc/plan?${new URLSearchParams({ board }).toString()}`, signal);
+}

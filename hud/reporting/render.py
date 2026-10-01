@@ -190,6 +190,7 @@ class ReportMeta:
     tz: tzinfo
     version: str
     skipped: list[str] = field(default_factory=list)  # outputs this build cannot produce yet
+    left_out: list[str] = field(default_factory=list)  # board export: tiles with no history
 
 
 def html(meta: ReportMeta, sections: list[SectionResult]) -> str:
@@ -223,6 +224,7 @@ def html(meta: ReportMeta, sections: list[SectionResult]) -> str:
         generated=local(meta.until, stamp),
         tz=str(meta.tz),
         skipped=", ".join(meta.skipped),
+        left_out=", ".join(meta.left_out),
     )
 
 
@@ -250,6 +252,8 @@ def csv_text(sections: list[SectionResult], tz: tzinfo) -> str:
                 for ts, v in series["points"]:
                     stamp = datetime.fromtimestamp(ts, tz).isoformat()
                     out.writerow([s.kind, s.title, stamp, series["label"], v])
+            if s.note:  # a chart with no history says so here too
+                out.writerow([s.kind, s.title, "", "note", s.note])
             continue
         for i, row in enumerate(s.rows, start=1):
             label = row.get("name") or row.get("when") or str(i)
