@@ -4947,3 +4947,42 @@ a.svc__link:hover .svc__name {
 :root.kiosk .export {
   display: none;
 }
+
+/* ---------------------------------------------------------------- phone pass (2026-10-01) */
+
+/* One column: a list takes its full height and the page scrolls, never the tile — a
+   scroll inside a scroll is a trap on a touch screen (the Services board was one list
+   scrolling 321px inside a page that did not scroll). Long lists are bounded by `limit`. */
+.board--stacked .board__cell > .widget--list {
+  max-height: none;
+}
+
+/* The wall's hint says what works: pointing with a mouse, tapping on a touch screen. */
+.wall__hint--touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .wall__hint--pointer {
+    display: none;
+  }
+  .wall__hint--touch {
+    display: inline;
+  }
+}
+
+/* A finger needs a bigger target than a pointer: 32px tall at least. */
+@media (pointer: coarse) {
+  .chart__range {
+    min-width: 2.25rem;
+    min-height: 2rem;
+  }
+  .board__edit {
+    display: inline-block;
+    min-height: 2rem;
+    line-height: 2rem;
+  }
+  .export__range {
+    min-height: 2.25rem;
+  }
+}

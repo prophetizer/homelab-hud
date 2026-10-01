@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-import { useEffect, useState } from "react";
+import { type MouseEvent, type PointerEvent, useEffect, useRef, useState } from "react";
 import { formatValue } from "../../api/format";
 import { clock, livePosition, reasonWords } from "../../api/playback";
 import type { FieldValue, ListData, ResolvedWidget, State } from "../../api/types";
@@ -64,16 +64,32 @@ function MiniUptime({ uptime }: { uptime: NonNullable<ListData["items"][number][
 
 /** A wall of status squares: 117 containers readable in one glance, trouble in colour. The
  *  square under the pointer (or keyboard focus) is described in a line beneath the wall —
- *  a floating card would be clipped at the tile's edge. */
+ *  a floating card would be clipped at the tile's edge. On a touch screen there is no
+ *  pointing: the first tap on a square describes it, a second tap opens its app. */
 function Wall({ items }: { items: ListData["items"] }) {
   const [focus, setFocus] = useState<string | null>(null);
+  const touch = useRef(false);
   const item = items.find((i) => i.uid === focus);
   return (
     <>
-      <ul className="wall" onPointerLeave={() => setFocus(null)}>
+      <ul className="wall" onPointerLeave={(e) => e.pointerType !== "touch" && setFocus(null)}>
         {items.map((it) => {
           const label = `${it.title}: ${it.state}`;
-          const on = { onPointerEnter: () => setFocus(it.uid), onFocus: () => setFocus(it.uid) };
+          const on = {
+            onPointerDown: (e: PointerEvent) => {
+              touch.current = e.pointerType === "touch";
+            },
+            onPointerEnter: (e: PointerEvent) => {
+              if (e.pointerType !== "touch") setFocus(it.uid);
+            },
+            onFocus: () => setFocus(it.uid),
+            onClick: (e: MouseEvent) => {
+              if (touch.current && focus !== it.uid) {
+                e.preventDefault();
+                setFocus(it.uid);
+              }
+            },
+          };
           return (
             <li key={it.uid} className="wall__cell" data-state={it.state} data-stale={it.stale || undefined} data-focus={focus === it.uid || undefined}>
               {it.links["ui"] ? (
@@ -96,7 +112,10 @@ function Wall({ items }: { items: ListData["items"] }) {
             {item.uptime ? <MiniUptime uptime={item.uptime} /> : null}
           </>
         ) : (
-          <span className="wall__hint">Point at a square for details</span>
+          <>
+            <span className="wall__hint wall__hint--pointer">Point at a square for details</span>
+            <span className="wall__hint wall__hint--touch">Tap a square for details, again to open it</span>
+          </>
         )}
       </div>
     </>
