@@ -4986,3 +4986,146 @@ a.svc__link:hover .svc__name {
     min-height: 2.25rem;
   }
 }
+
+/* ---------------------------------------------------------------- account and users (2026-10-01) */
+
+.account {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.account__card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.account__card--wide {
+  grid-column: 1 / -1;
+}
+
+.account__title {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.account__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+a.sidebar__user {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.sidebar__user:hover,
+a.sidebar__user[aria-current="page"] {
+  text-decoration: underline;
+}
+
+.users {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.users__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-top: var(--border-w) solid var(--border-soft);
+}
+
+.users__row:first-child {
+  border-top: 0;
+}
+
+.users__who {
+  display: grid;
+  min-width: 0;
+}
+
+.users__name {
+  font-weight: 600;
+}
+
+.users__meta {
+  font-size: var(--text-xs);
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}
+
+.users__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.users__edit,
+.users__row > .gate__error,
+.users__row > .account__note {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.users__groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.users__groups > legend {
+  margin-bottom: var(--space-1);
+}
+
+.users__group {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.gate__forgot {
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.gate__forgot p,
+.gate__forgot ul {
+  margin: 0;
+}
+
+.gate__forgot ul {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.gate__command {
+  display: block;
+  margin: var(--space-1) 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+@media (max-width: 700px) {
+  .users__row {
+    grid-template-columns: 1fr;
+  }
+}

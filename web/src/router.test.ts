@@ -8,6 +8,8 @@ describe("parseRoute", () => {
     expect(parseRoute("")).toEqual({ kind: "home" });
     expect(parseRoute("/system")).toEqual({ kind: "system" });
     expect(parseRoute("/connect")).toEqual({ kind: "connect" });
+    expect(parseRoute("/account")).toEqual({ kind: "account" });
+    expect(parseRoute("/users")).toEqual({ kind: "users" });
     expect(parseRoute("/boards/media")).toEqual({ kind: "board", name: "media" });
     expect(parseRoute("/boards/media/")).toEqual({ kind: "board", name: "media" });
     expect(parseRoute("/boards/")).toEqual({ kind: "missing", path: "/boards" });

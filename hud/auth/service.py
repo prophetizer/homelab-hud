@@ -133,6 +133,7 @@ class AuthService:
         session, user = found
         if user.source != source:
             return None
+        request.state.session_expires = session.expires_at  # for the account page
         return self._principal(user, csrf_token=session.csrf_token)
 
     async def _principal_from_external(self, ident: ExternalIdentity) -> Principal:
@@ -351,6 +352,16 @@ class AuthService:
         principal = getattr(request.state, "principal", None)
         if principal is not None:
             await asyncio.to_thread(self.store.audit, principal.subject, "auth.logout", None, "ok")
+
+    async def logout_everywhere(self, principal: Principal) -> int:
+        """End every session of the caller's, this one included; returns how many."""
+        if principal.user_id is None:
+            return 0
+        ended = await asyncio.to_thread(self.store.delete_sessions_for_user, principal.user_id)
+        await asyncio.to_thread(
+            self.store.audit, principal.subject, "auth.logout_all", None, "ok", {"ended": ended}
+        )
+        return ended
 
     def set_cookie(self, response: Response, request: Request, token: str) -> None:
         response.set_cookie(

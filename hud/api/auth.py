@@ -103,6 +103,31 @@ class UserList(BaseModel):
     users: list[UserOut]
 
 
+class Account(BaseModel):
+    """How the caller is signed in, for the account page."""
+
+    subject: str
+    display_name: str
+    source: Literal["local", "forward", "oidc"]
+    groups: list[str]
+    # A password HUD keeps (local accounts); else it belongs to the proxy or the IdP.
+    can_change_password: bool
+    session_expires: int | None  # this browser's session; None when the proxy signs in
+    sessions: int | None  # signed-in browsers; None when the proxy signs in
+    min_password_length: int
+
+
+class GroupInfo(BaseModel):
+    name: str
+    admin: bool  # grants every permission
+    permissions: list[str]
+
+
+class GroupList(BaseModel):
+    groups: list[GroupInfo]
+    unmatched_group: str  # what an account in no listed group gets
+
+
 def _client_ip(request: Request) -> str:
     """The real client behind a trusted proxy (auth.trusted_proxies), else the connection."""
     trusted = deps.auth(request).settings.trusted_proxies
@@ -158,6 +183,37 @@ async def logout(request: Request) -> Response:
     svc = deps.auth(request)
     await deps.principal(request)
     await svc.logout(request)
+    response = Response(status_code=204)
+    svc.clear_cookie(response, request)
+    return response
+
+
+@router.get("/account", response_model=Account)
+async def account(request: Request) -> Account:
+    p = await deps.principal(request)
+    svc = deps.auth(request)
+    session_based = p.source in ("local", "oidc") and p.user_id is not None
+    sessions = None
+    if session_based and p.user_id is not None:
+        sessions = await asyncio.to_thread(svc.store.count_sessions, p.user_id)
+    return Account(
+        subject=p.subject,
+        display_name=p.display_name,
+        source=p.source,
+        groups=sorted(p.groups),
+        can_change_password=p.source == "local" and "local" in svc.settings.backends,
+        session_expires=getattr(request.state, "session_expires", None),
+        sessions=sessions,
+        min_password_length=svc.settings.local.min_password_length,
+    )
+
+
+@router.post("/logout-all", status_code=204)
+async def logout_all(request: Request) -> Response:
+    """Sign out on every device, this one included."""
+    p = await deps.principal(request)
+    svc = deps.auth(request)
+    await svc.logout_everywhere(p)
     response = Response(status_code=204)
     svc.clear_cookie(response, request)
     return response
@@ -233,6 +289,20 @@ async def list_users(request: Request) -> UserList:
     await deps.require(request, USERS_MANAGE)
     users = await asyncio.to_thread(deps.auth(request).store.list_users)
     return UserList(users=[UserOut.of(u) for u in users])
+
+
+@router.get("/groups", response_model=GroupList)
+async def list_groups(request: Request) -> GroupList:
+    """The groups rbac.yaml defines, for the users page's picker."""
+    await deps.require(request, USERS_MANAGE)
+    spec = deps.auth(request).authorizer.spec
+    return GroupList(
+        groups=[
+            GroupInfo(name=name, admin="*" in g.permissions, permissions=sorted(g.permissions))
+            for name, g in sorted(spec.groups.items())
+        ],
+        unmatched_group=spec.defaults.unmatched_group,
+    )
 
 
 @router.post("/users", response_model=UserOut, status_code=201)

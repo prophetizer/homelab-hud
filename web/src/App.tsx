@@ -12,6 +12,8 @@ import { Login } from "./components/Login";
 import { Overview } from "./components/Overview";
 import { Reports } from "./components/Reports";
 import { Connect } from "./components/Connect";
+import { Account } from "./components/Account";
+import { Users } from "./components/Users";
 import { Sidebar } from "./components/Sidebar";
 import { Workspace } from "./components/Workspace";
 import { usePoll } from "./hooks/usePoll";
@@ -82,6 +84,10 @@ function Shell({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
           <Reports me={me} />
         ) : route.kind === "connect" ? (
           <Connect />
+        ) : route.kind === "account" ? (
+          <Account me={me} />
+        ) : route.kind === "users" ? (
+          <Users me={me} />
         ) : route.kind === "system" ? (
           system
         ) : route.kind === "home" ? (

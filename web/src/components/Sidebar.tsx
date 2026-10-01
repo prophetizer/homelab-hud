@@ -141,6 +141,12 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
               <span className="sidebar__label">Connect a service</span>
             </a>
           ) : null}
+          {hasPermission(me, "users:manage") ? (
+            <a href="/users" onClick={onLinkClick} aria-current={current("users")} className="sidebar__system">
+              <Icon name="mdi-account-multiple-outline" title="Users" size="sm" />
+              <span className="sidebar__label">Users</span>
+            </a>
+          ) : null}
           {boards && boards.length === 0 ? (
             <p className="sidebar__hint">No boards yet — add one under /config/boards/.</p>
           ) : null}
@@ -198,9 +204,15 @@ export function Sidebar({ boards, boardsError, apps, route, me, onSignOut }: Pro
         ) : null}
       </div>
       <div className="sidebar__account">
-        <span className="sidebar__user" title={`${me.subject} via ${me.source}`}>
+        <a
+          href="/account"
+          onClick={onLinkClick}
+          className="sidebar__user"
+          aria-current={current("account")}
+          title={`Your account: ${me.subject} via ${me.source}`}
+        >
           {me.display_name}
-        </span>
+        </a>
         <ThemeToggle />
         {me.source === "forward" ? null : (
           <button className="sidebar__signout" type="button" onClick={onSignOut}>

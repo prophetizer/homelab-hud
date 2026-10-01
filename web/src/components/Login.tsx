@@ -27,6 +27,7 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
   const next = window.location.pathname + window.location.search;
 
   const submit = async (e: FormEvent) => {
@@ -58,7 +59,9 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
         </h1>
         {mode === "setup" ? (
           <p className="gate__hint">
-            This is a fresh install. The first account is placed in the <code>admins</code> group.
+            This is a fresh install. The first account is placed in the <code>admins</code> group. Save the
+            password in a password manager: HUD keeps only a one-way fingerprint of it and cannot show it to you
+            later.
           </p>
         ) : null}
         {local ? (
@@ -110,6 +113,27 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
             <button className="button button--primary" type="submit" disabled={busy}>
               {busy ? "…" : title}
             </button>
+            {mode === "login" ? (
+              <button className="gate__link" type="button" aria-expanded={forgot} onClick={() => setForgot((f) => !f)}>
+                Forgot your password?
+              </button>
+            ) : null}
+            {mode === "login" && forgot ? (
+              <div className="gate__hint gate__forgot">
+                <p>HUD cannot show a password: it keeps only a one-way fingerprint. To get back in:</p>
+                <ul>
+                  <li>
+                    <strong>Someone else is an admin:</strong> ask them to set a new one under <em>Users</em>.
+                  </li>
+                  <li>
+                    <strong>You are the admin:</strong> on the server, run
+                    <code className="gate__command">docker exec -it hud python -m hud.auth.reset {username.trim() || "<username>"}</code>
+                    (use your container&apos;s name if it is not <code>hud</code>). It asks for the new password
+                    twice and signs that account out everywhere.
+                  </li>
+                </ul>
+              </div>
+            ) : null}
             {mode === "login" && backends.registration ? (
               <button className="gate__link" type="button" onClick={() => setMode("register")}>
                 Need an account? Register

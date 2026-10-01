@@ -129,7 +129,7 @@ class AuthStore:
                     password_hash=password_hash,
                     groups_json=json.dumps(sorted(groups)),
                     created_at=now,
-                    last_seen=now,
+                    last_seen=None,  # until the first sign-in
                 )
             )
             pk = result.inserted_primary_key
@@ -249,6 +249,22 @@ class AuthStore:
     def delete_session(self, token: str) -> None:
         with self._engine.begin() as conn:
             conn.execute(delete(sessions).where(sessions.c.token_hash == _hash_token(token)))
+
+    def delete_sessions_for_user(self, user_id: int) -> int:
+        """End every session the user has, on every device."""
+        with self._engine.begin() as conn:
+            result = conn.execute(delete(sessions).where(sessions.c.user_id == user_id))
+        return result.rowcount
+
+    def count_sessions(self, user_id: int) -> int:
+        """Signed-in browsers for the user: unexpired sessions."""
+        with self._engine.connect() as conn:
+            found = conn.execute(
+                select(func.count())
+                .select_from(sessions)
+                .where(sessions.c.user_id == user_id, sessions.c.expires_at > int(time.time()))
+            ).scalar()
+        return int(found or 0)
 
     def purge_expired_sessions(self) -> int:
         with self._engine.begin() as conn:
