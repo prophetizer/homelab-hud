@@ -118,3 +118,78 @@ def test_default_style_sequences_round_trip(manager: ConfigManager, config_dir: 
     target.write_text(text)
     manager.edit("settings.yaml", lambda _d: None)
     assert target.read_text() == text
+
+
+SPACED = """\
+# A hand-written board with spaced flow mappings.
+apiVersion: hud/v1
+kind: Board
+metadata: { name: spaced, title: Spaced }
+spec:
+  layout:
+    columns: { sm: 1, md: 2, lg: 4 }
+  widgets:
+    - id: a
+      type: static
+      grid: { col: 1, row: 1 }
+      display: { text: "A" }
+    - id: b
+      type: static
+      grid: { col: 2, row: 1 }
+      display: { text: "B" }   # trailing comment
+"""
+
+
+def test_an_edit_leaves_every_other_line_byte_for_byte(
+    manager: ConfigManager, config_dir: Path
+) -> None:
+    """PLAN R9: ruamel re-spaces flow mappings ({ a: 1 } → {a: 1}) wherever it dumps; an
+    edit must change only the lines it edits, the rest staying as the author wrote them."""
+    (config_dir / "settings.yaml").write_text("apiVersion: hud/v1\nkind: Settings\n")
+    (config_dir / "boards").mkdir()
+    target = config_dir / "boards" / "spaced.yaml"
+    target.write_text(SPACED)
+
+    def mutate(doc: CommentedMap) -> None:
+        doc["spec"]["widgets"][1]["display"]["text"] = "B2"
+
+    manager.edit("boards/spaced.yaml", mutate)
+    before, after = _lines(SPACED), _lines(target.read_text())
+    changed = [(a, b) for a, b in zip(before, after, strict=True) if a != b]
+    assert (
+        len(changed) == 1 and changed[0][0] == '      display: { text: "B" }   # trailing comment\n'
+    )
+    assert "B2" in changed[0][1] and "# trailing comment" in changed[0][1]
+
+
+def test_an_appended_widget_adds_lines_and_changes_none(
+    manager: ConfigManager, config_dir: Path
+) -> None:
+    from hud.widgets.builder import to_node  # noqa: PLC0415
+
+    (config_dir / "settings.yaml").write_text("apiVersion: hud/v1\nkind: Settings\n")
+    (config_dir / "boards").mkdir()
+    target = config_dir / "boards" / "spaced.yaml"
+    target.write_text(SPACED)
+    manager.edit(
+        "boards/spaced.yaml",
+        lambda doc: doc["spec"]["widgets"].append(
+            to_node(
+                {
+                    "id": "c",
+                    "type": "static",
+                    "display": {"text": "C"},
+                    "grid": {"col": 3, "row": 1},
+                }
+            )
+        ),
+    )
+    text = target.read_text()
+    assert text.startswith(SPACED)
+    added = [
+        "    - id: c",
+        "      type: static",
+        "      display: {text: C}",
+        "      grid: {col: 3, row: 1}",
+    ]
+    assert text[len(SPACED) :] == "\n".join(added) + "\n"

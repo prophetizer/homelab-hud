@@ -12,6 +12,7 @@ import io
 import os
 import tempfile
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -92,6 +93,32 @@ def has_explicit_start(text: str) -> bool:
             continue
         return stripped == "---" or stripped.startswith("--- ")
     return False
+
+
+def keep_original_lines(original: str, base: str, rendered: str) -> str:
+    """Give back the user's own text for every line an edit did not change.
+
+    ruamel keeps comments and key order but not every byte: a flow mapping written
+    ``{ col: 1 }`` comes back ``{col: 1}`` — everywhere in the file, on any write. So the
+    edit is applied as a line diff: ``base`` is the file parsed and dumped untouched,
+    ``rendered`` the same after the edit; lines the two share come from ``original``
+    verbatim, changed lines from ``rendered`` (PLAN R9: byte-level preservation outside the
+    edited region). When ruamel reflowed the file so its lines no longer pair one-to-one
+    with the original, the rendered text is returned as before.
+    """
+    o = original.splitlines(keepends=True)
+    b = base.splitlines(keepends=True)
+    r = rendered.splitlines(keepends=True)
+    if len(o) != len(b) or any(_squash(x) != _squash(y) for x, y in zip(o, b, strict=True)):
+        return rendered
+    out: list[str] = []
+    for tag, i1, i2, j1, j2 in SequenceMatcher(None, b, r, autojunk=False).get_opcodes():
+        out.extend(o[i1:i2] if tag == "equal" else r[j1:j2])
+    return "".join(out)
+
+
+def _squash(line: str) -> str:
+    return "".join(line.split())
 
 
 def atomic_write_text(path: Path, text: str, *, mode: int | None = None) -> None:

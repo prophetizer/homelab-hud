@@ -154,9 +154,11 @@ def _collect_unknown(
             continue
         name = aliases.get(key, key)
         if name not in declared:
-            line, col = node.lc.key(key)
+            # A node added by a write (the widget builder) has no source position yet.
+            at = node.lc.key(key)
+            line, col = (at[0] + 1, at[1] + 1) if at is not None else (None, None)
             dotted = ".".join((*path, key))
-            out.append(ConfigIssue(file, f"unknown key '{dotted}' (ignored)", line + 1, col + 1))
+            out.append(ConfigIssue(file, f"unknown key '{dotted}' (ignored)", line, col))
             continue
         _descend(node[key], declared[name].annotation, file, (*path, key), out)
 

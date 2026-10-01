@@ -41,7 +41,13 @@ from hud.config.schemas import (
     SettingsDocument,
 )
 from hud.config.secrets import SECRETS_FILE_NAME, scan_literal_secrets
-from hud.config.writer import IndentStyle, atomic_write_text, dump_yaml, has_explicit_start
+from hud.config.writer import (
+    IndentStyle,
+    atomic_write_text,
+    dump_yaml,
+    has_explicit_start,
+    keep_original_lines,
+)
 
 log = logging.getLogger(__name__)
 
@@ -401,12 +407,13 @@ class ConfigManager:
         if expected_revision is not None and document_revision(text) != expected_revision:
             raise ConfigConflictError(path, expected_revision, document_revision(text))
         doc = parse_yaml(text, path) if text.strip() else CommentedMap()
+        indent = IndentStyle.detect(text)
+        start = has_explicit_start(text)
+        base = dump_yaml(doc, explicit_start=start, indent=indent) if text.strip() else ""
         mutate(doc)
         self._validate_document(path, doc)
-        rendered = dump_yaml(
-            doc, explicit_start=has_explicit_start(text), indent=IndentStyle.detect(text)
-        )
-        atomic_write_text(path, rendered)
+        rendered = dump_yaml(doc, explicit_start=start, indent=indent)
+        atomic_write_text(path, keep_original_lines(text, base, rendered) if base else rendered)
         return self.load()
 
     async def edit_async(
