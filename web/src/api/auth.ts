@@ -11,6 +11,7 @@ export interface Me {
   source: Source;
   permissions: string[];
   csrf_token: string;
+  session_expires?: number | null; // epoch seconds; null when the proxy signs you in
 }
 
 export interface Backends {

@@ -5129,3 +5129,14 @@ a.sidebar__user[aria-current="page"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Why the sign-in page is showing: a session that ran out or was ended (2026-10-02). */
+.gate__notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-w) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}

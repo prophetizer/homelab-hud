@@ -7,6 +7,7 @@ Not in the plan's Appendix A; recorded as a Phase 1b amendment in PLAN.md §12.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -41,9 +42,13 @@ class Me(BaseModel):
     source: Literal["local", "forward", "oidc"]
     permissions: list[str]
     csrf_token: str
+    # When this browser's session ends (epoch seconds); None when the proxy signs you in.
+    # The browser keeps it so the sign-in page can say "your session expired" — once it
+    # has, the cookie is gone and the server cannot tell. Added 2026-10-02.
+    session_expires: int | None = None
 
     @classmethod
-    def of(cls, p: Principal) -> Me:
+    def of(cls, p: Principal, session_expires: int | None = None) -> Me:
         return cls(
             subject=p.subject,
             display_name=p.display_name,
@@ -51,6 +56,7 @@ class Me(BaseModel):
             source=p.source,
             permissions=sorted(p.permissions),
             csrf_token=p.csrf_token,
+            session_expires=session_expires,
         )
 
 
@@ -147,9 +153,15 @@ async def backends(request: Request) -> Backends:
     )
 
 
+def _fresh(request: Request) -> int:
+    """A session just started: it ends one lifetime from now."""
+    return int(time.time()) + deps.auth(request).session_lifetime
+
+
 @router.get("/me", response_model=Me)
 async def me(request: Request) -> Me:
-    return Me.of(await deps.principal(request))
+    p = await deps.principal(request)
+    return Me.of(p, getattr(request.state, "session_expires", None))
 
 
 @router.post("/setup", response_model=Me, status_code=201)
@@ -158,7 +170,7 @@ async def setup(request: Request, body: NewAccount, response: Response) -> Me:
     await svc.setup(body.username, body.password, body.display_name)
     principal, token = await svc.login(body.username, body.password, _client_ip(request))
     svc.set_cookie(response, request, token)
-    return Me.of(principal)
+    return Me.of(principal, _fresh(request))
 
 
 @router.post("/register", response_model=Me, status_code=201)
@@ -167,7 +179,7 @@ async def register(request: Request, body: NewAccount, response: Response) -> Me
     await svc.register(body.username, body.password, body.display_name)
     principal, token = await svc.login(body.username, body.password, _client_ip(request))
     svc.set_cookie(response, request, token)
-    return Me.of(principal)
+    return Me.of(principal, _fresh(request))
 
 
 @router.post("/login", response_model=Me)
@@ -175,7 +187,7 @@ async def login(request: Request, body: Credentials, response: Response) -> Me:
     svc = deps.auth(request)
     principal, token = await svc.login(body.username, body.password, _client_ip(request))
     svc.set_cookie(response, request, token)
-    return Me.of(principal)
+    return Me.of(principal, _fresh(request))
 
 
 @router.post("/logout", status_code=204)

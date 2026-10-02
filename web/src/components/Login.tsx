@@ -2,6 +2,7 @@
 import { type FormEvent, useState } from "react";
 import { BrandMark } from "./BrandMark";
 import { type Backends, oidcStartUrl } from "../api/auth";
+import { recall, whySignedOut } from "../api/lastSession";
 
 interface Props {
   backends: Backends;
@@ -22,7 +23,8 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
   const local = backends.backends.includes("local");
   const oidc = backends.backends.includes("oidc");
   const [mode, setMode] = useState<Mode>(backends.setup_required ? "setup" : "login");
-  const [username, setUsername] = useState("");
+  const [why] = useState(() => (backends.setup_required ? null : whySignedOut(recall(), Date.now() / 1000)));
+  const [username, setUsername] = useState(why?.subject ?? "");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,6 +59,13 @@ export function Login({ backends, error, onSignIn, onSetUp, onSignUp }: Props) {
         <h1 id="gate-title" className="gate__title">
           {title}
         </h1>
+        {mode === "login" && why ? (
+          <p className="gate__notice" role="status">
+            {why.kind === "expired"
+              ? `Your session expired on ${new Date(why.at * 1000).toLocaleString()}. Sign in again to carry on.`
+              : "You were signed out: your password was changed, or every session was signed out. Sign in again."}
+          </p>
+        ) : null}
         {mode === "setup" ? (
           <p className="gate__hint">
             This is a fresh install. The first account is placed in the <code>admins</code> group. Save the

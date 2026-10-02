@@ -114,3 +114,13 @@ def test_the_reset_command_refuses_and_changes_nothing(
 def test_the_reset_command_needs_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     assert reset_cli.main(["admin"]) == 2
+
+
+def test_me_and_sign_in_say_when_the_session_ends(client: TestClient) -> None:
+    setup = sign_in_admin(client)
+    me = client.get("/api/v1/auth/me").json()
+    assert me["session_expires"] == client.get("/api/v1/auth/account").json()["session_expires"]
+    assert abs(setup["session_expires"] - me["session_expires"]) <= 2
+    client.post("/api/v1/auth/logout")
+    r = client.post("/api/v1/auth/login", json={"username": "admin", "password": ADMIN["password"]})
+    assert 6 * 86_400 < r.json()["session_expires"] - time.time() <= 7 * 86_400

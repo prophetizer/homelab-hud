@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { type Backends, type Me, fetchBackends, fetchMe, login, logout, register, setup } from "../api/auth";
 import { ApiError, UNAUTHORIZED_EVENT, setCsrfToken } from "../api/client";
+import { forget, remember } from "../api/lastSession";
 
 export type Session =
   | { status: "loading"; backends: Backends | null; me: null; error: string | null }
@@ -27,6 +28,7 @@ export function useSession(): SessionApi {
 
   const accept = useCallback((backends: Backends, me: Me) => {
     setCsrfToken(me.csrf_token);
+    remember(me);
     setSession({ status: "signed-in", backends, me, error: null });
   }, []);
 
@@ -72,6 +74,7 @@ export function useSession(): SessionApi {
     setUp: (u, p, d) => withBackends(() => setup(u, p, d)),
     signUp: (u, p, d) => withBackends(() => register(u, p, d)),
     signOut: async () => {
+      forget(); // on purpose: the sign-in page has nothing to explain
       try {
         await logout();
       } finally {
