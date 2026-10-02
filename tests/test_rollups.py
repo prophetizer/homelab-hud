@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import ColumnElement, Engine, Table, event, func, insert, select
 
 from hud.config.schemas.settings import Retention
-from hud.reporting.query import pick_tier, read_range
+from hud.reporting.query import MAX_POINTS, pick_tier, read_range
 from hud.store import StorePaths, create_store_engine, rollup, upgrade_all
 from hud.store.rollup import RollupWorker
 from hud.store.tables import rollups, samples, series
@@ -185,6 +185,53 @@ def test_a_week_reads_hours_then_the_live_edge_from_raw(db: Engine) -> None:
     assert stamps[-1] >= NOW - 3600  # the current hour comes from raw
     peak = read_range(db, (UID, METRIC), (NOW - 7 * 86_400, NOW), agg="max")
     assert peak[0][1] == 59.0  # the first hour's highest minute
+
+
+def test_raw_beyond_a_thousand_points_is_merged_and_keeps_its_extremes(db: Engine) -> None:
+    _seed(db)  # a sample a minute: 1440 in a day
+    window = (NOW - 86_400, NOW)
+    raw = read_range(db, (UID, METRIC), window, tier="samples", agg="max")
+    assert len(raw) <= MAX_POINTS
+    assert max(v for _, v in raw) == float(3 * 1440 - 1)  # the newest minute survives
+    avg = read_range(db, (UID, METRIC), window, tier="samples")
+    assert 120 <= len(avg) <= MAX_POINTS
+    stamps = [t for t, _ in avg]
+    assert stamps == sorted(stamps) and len(set(stamps)) == len(stamps)
+
+
+def test_ninety_days_of_hours_come_back_as_three_hour_weighted_buckets(db: Engine) -> None:
+    since = NOW - 90 * 86_400
+    with db.begin() as conn:
+        sid = conn.execute(
+            insert(series).values(
+                provider="glances",
+                resource_uid=UID,
+                metric=METRIC,
+                unit="pct",
+                first_seen=since,
+                last_seen=NOW,
+            )
+        ).inserted_primary_key[0]
+        conn.execute(
+            insert(rollups),
+            [
+                {
+                    "series_id": sid,
+                    "tier": "1h",
+                    "bucket": since + 3600 * i,
+                    "min_v": float(i % 3),
+                    "max_v": float(i % 3),
+                    "avg_v": float(i % 3),
+                    "last_v": float(i % 3),
+                    "n": 1 if i % 3 == 0 else 2,  # hours that saw more samples weigh more
+                }
+                for i in range(90 * 24)
+            ],
+        )
+    points = read_range(db, (UID, METRIC), (since, NOW))  # 1h tier: 2160 buckets
+    assert len(points) == 720 and all(t % 10_800 == 0 for t, _ in points)
+    assert points[0] == (since, (0 * 1 + 1 * 2 + 2 * 2) / 5)  # weighted, not 1.0
+    assert read_range(db, (UID, METRIC), (since, NOW), agg="max")[0] == (since, 2.0)
 
 
 # ------------------------------------------------------------------ events and uptime retention

@@ -11,6 +11,12 @@ chosen tier does not cover is filled from raw samples, averaged to the tier's wi
 
 Where neither has anything, there is nothing: a gap, never an invented value. Rollup
 tiers answer with the bucket's average by default, or its min, max or last value.
+
+At most ``MAX_POINTS`` come back (§9.1: "≥ 120 and ≤ 1000 points"): when the span holds
+more of the chosen tier's buckets — 90 days of hours, or hours of raw samples — neighbouring
+points are merged into wider buckets (a whole number of the tier's width, set by the span):
+averages weighted by how many samples each stands for, min of mins, max of maxes, the last
+of the lasts.
 """
 
 from __future__ import annotations
@@ -26,6 +32,7 @@ from hud.store.tables import series as series_t
 
 Agg = Literal["avg", "min", "max", "last"]
 MIN_POINTS = 120
+MAX_POINTS = 1000
 TIER_WIDTHS: tuple[tuple[str, int], ...] = (("1d", 86_400), ("1h", 3600), ("5m", 300))
 
 
@@ -59,7 +66,8 @@ def read_range(
             return []
         chosen = pick_tier(until - since) if tier == "auto" else _named(tier)
         if chosen is None:
-            return _raw(conn, sid, since, until)
+            raw = [(ts, v, 1) for ts, v in _raw(conn, sid, since, until)]
+            return _cap(raw, until - since, 1, agg)
         name, width = chosen
         col = {
             "avg": rollups_t.c.avg_v,
@@ -68,9 +76,9 @@ def read_range(
             "last": rollups_t.c.last_v,
         }[agg]
         rows = [
-            (int(b), float(v))
-            for b, v in conn.execute(
-                select(rollups_t.c.bucket, col)
+            (int(b), float(v), int(n))
+            for b, v, n in conn.execute(
+                select(rollups_t.c.bucket, col, rollups_t.c.n)
                 .where(
                     rollups_t.c.series_id == sid,
                     rollups_t.c.tier == name,
@@ -90,7 +98,46 @@ def read_range(
             if rows and tail_start <= until
             else []
         )
-    return head + rows + tail
+    return _cap(head + rows + tail, until - since, width, agg)
+
+
+Weighted = tuple[int, float, int]  # bucket start, value, samples it stands for
+
+
+def returned_width(span: int, base: int) -> int:
+    """The bucket width a range comes back in: ``base`` (the tier's width; 1 for raw) while
+    the span holds at most MAX_POINTS of them, else the narrowest whole multiple of it that
+    does. Decided by the span alone, so a range always has one resolution, however much
+    data there happens to be."""
+    if span // base <= MAX_POINTS:
+        return base
+    merged = -(-span // (MAX_POINTS - 1))  # ceil: at most MAX_POINTS buckets over the span
+    return -(-merged // base) * base
+
+
+def _cap(points: list[Weighted], span: int, base: int, agg: Agg) -> list[tuple[int, float]]:
+    """``points`` as (ts, value), merged into :func:`returned_width` buckets when that is
+    wider than ``base``."""
+    width = returned_width(span, base)
+    if width == base:
+        return [(ts, v) for ts, v, _ in points]
+    groups: dict[int, list[Weighted]] = {}
+    for point in points:
+        groups.setdefault(point[0] - point[0] % width, []).append(point)
+    out: list[tuple[int, float]] = []
+    for b in sorted(groups):
+        g = groups[b]
+        if agg == "avg":
+            total = sum(n for _, _, n in g)
+            value = sum(v * n for _, v, n in g) / total if total else g[-1][1]
+        elif agg == "min":
+            value = min(v for _, v, _ in g)
+        elif agg == "max":
+            value = max(v for _, v, _ in g)
+        else:
+            value = g[-1][1]
+        out.append((b, value))
+    return out
 
 
 def _named(tier: str) -> tuple[str, int] | None:
@@ -109,12 +156,13 @@ def _raw(conn: Connection, sid: int, since: int, until: int) -> list[tuple[int, 
     return [(int(ts), float(v)) for ts, v in rows]
 
 
-def _bucketed(points: Sequence[tuple[int, float]], width: int, agg: Agg) -> list[tuple[int, float]]:
-    """Raw points folded into ``width`` buckets (bucket start as ts), by ``agg``."""
+def _bucketed(points: Sequence[tuple[int, float]], width: int, agg: Agg) -> list[Weighted]:
+    """Raw points folded into ``width`` buckets (bucket start as ts), by ``agg``, each with
+    the number of samples in it."""
     groups: dict[int, list[float]] = {}
     for ts, v in points:
         groups.setdefault(ts - ts % width, []).append(v)
-    out: list[tuple[int, float]] = []
+    out: list[Weighted] = []
     for b in sorted(groups):
         vs = groups[b]
         value = {
@@ -123,8 +171,16 @@ def _bucketed(points: Sequence[tuple[int, float]], width: int, agg: Agg) -> list
             "max": max(vs),
             "last": vs[-1],
         }[agg]
-        out.append((b, value))
+        out.append((b, value, len(vs)))
     return out
 
 
-__all__ = ["MIN_POINTS", "TIER_WIDTHS", "Agg", "pick_tier", "read_range"]
+__all__ = [
+    "MAX_POINTS",
+    "MIN_POINTS",
+    "TIER_WIDTHS",
+    "Agg",
+    "pick_tier",
+    "read_range",
+    "returned_width",
+]
