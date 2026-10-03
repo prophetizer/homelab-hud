@@ -170,7 +170,7 @@ def test_guesses_lock_an_account_only_where_they_come_from(app_env: HudEnv) -> N
             headers=work,
         )
         assert blocked.status_code == 429
-        lan = {"X-Forwarded-For": "172.31.1.1"}
+        lan = {"X-Forwarded-For": "172.31.0.1"}
         ok = client.post(
             "/api/v1/auth/login",
             json={"username": "admin", "password": ADMIN["password"]},
@@ -334,7 +334,7 @@ def test_forward_auth_fails_closed(tmp_path: Path, mock: respx.MockRouter) -> No
     headers = {"Remote-User": "alice", "Remote-Groups": "household, ops", "Remote-Name": "Alice"}
     app = create_app(env)
     # Same headers from an untrusted peer: anonymous.
-    with TestClient(app, client=("172.31.1.9", 1)) as client:
+    with TestClient(app, client=("172.31.0.9", 1)) as client:
         assert client.get("/api/v1/auth/me", headers=headers).status_code == 401
     # Trusted peer, no user header: anonymous, not a crash.
     with TestClient(app, client=("10.1.2.3", 1)) as client:

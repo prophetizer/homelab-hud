@@ -63,7 +63,7 @@ def test_render_fills_the_url_and_leaves_the_secret_a_reference() -> None:
 
 async def test_the_guard_refuses_what_a_service_never_is(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake(host: str, port: int, *_a: object, **_k: object) -> list[tuple]:
-        ip = {"meta.test": "169.254.169.254", "lab.test": "172.31.1.20"}.get(host, "127.0.0.1")
+        ip = {"meta.test": "169.254.169.254", "lab.test": "172.31.0.20"}.get(host, "127.0.0.1")
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port))]
 
     monkeypatch.setattr(socket, "getaddrinfo", fake)
@@ -120,7 +120,7 @@ def test_a_stored_secret_is_owner_only_and_keeps_the_rest(tmp_path: Path) -> Non
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     def fake(host: str, port: int, *_a: object, **_k: object) -> list[tuple]:
-        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("172.31.1.20", port))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("172.31.0.20", port))]
 
     monkeypatch.setattr(socket, "getaddrinfo", fake)
     env = _env(tmp_path)
