@@ -18,6 +18,7 @@ from hud import __version__
 from hud.api import api_v1
 from hud.api.auth import auth_error_response
 from hud.api.images import ImageCache
+from hud.api.marker import MarkResponses
 from hud.api.spa import mount_spa
 from hud.auth import AuthError, Authorizer, AuthService
 from hud.collector import LiveCache, StoreWriter
@@ -171,6 +172,7 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
     )
     app.include_router(api_v1)
     app.add_exception_handler(AuthError, lambda _req, exc: auth_error_response(exc))
+    app.add_middleware(MarkResponses)  # X-HUD: tells HUD's 401s from a login gate's
     mount_spa(app, env.static_dir)
     return app
 

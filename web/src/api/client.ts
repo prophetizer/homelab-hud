@@ -14,6 +14,43 @@ export class ApiError extends Error {
 /** Fired on any 401 so the session hook can drop to the login screen at once. */
 export const UNAUTHORIZED_EVENT = "hud:unauthorized";
 
+/** HUD marks every response it sends (hud/api/marker.py); a login gate in front of HUD
+ *  (Authelia via Traefik) does not. */
+export const HUD_HEADER = "X-HUD";
+const RELOAD_KEY = "hud.gateReloadAt";
+
+/**
+ * True when the gate in front of HUD answered instead of HUD: its session lapsed, so it
+ * redirected the call to its sign-in portal or refused it. HUD's own 401 means "sign in
+ * to HUD" and is handled by the session hook; this one means "sign in at the gate".
+ */
+export function fromGate(res: Pick<Response, "type" | "status" | "headers">): boolean {
+  if (res.type === "opaqueredirect") return true; // HUD's API never redirects a fetch
+  return (res.status === 401 || res.status === 403) && !res.headers.has(HUD_HEADER);
+}
+
+/** Reload so the browser itself meets the gate and lands on its sign-in, then back here
+ *  — at most once a minute, so a gate that refuses even page loads cannot loop us. */
+function reloadThroughGate(): void {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+  } catch {
+    // storage blocked: reload anyway, once per page
+  }
+  window.location.reload();
+}
+
+/** The gate's answer, if it was one: reloads and throws; else returns ``res``. */
+export function checkGate(res: Response): Response {
+  if (fromGate(res)) {
+    reloadThroughGate();
+    throw new ApiError(res.status, "signed out at the login in front of HUD; reloading");
+  }
+  return res;
+}
+
 let csrfToken: string | null = null;
 
 /** The session's CSRF token, from `GET /auth/me`; every mutating call echoes it. */
@@ -34,7 +71,7 @@ async function raise(res: Response): Promise<never> {
 }
 
 export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(path, { signal: signal ?? null, cache: "no-store" });
+  const res = checkGate(await fetch(path, { signal: signal ?? null, cache: "no-store", redirect: "manual" }));
   if (!res.ok) return raise(res);
   return (await res.json()) as T;
 }
@@ -43,12 +80,15 @@ export async function sendJson<T>(method: "POST" | "PATCH" | "DELETE", path: str
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body === undefined ? null : JSON.stringify(body),
-    cache: "no-store",
-  });
+  const res = checkGate(
+    await fetch(path, {
+      method,
+      headers,
+      body: body === undefined ? null : JSON.stringify(body),
+      cache: "no-store",
+      redirect: "manual",
+    }),
+  );
   if (!res.ok) return raise(res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

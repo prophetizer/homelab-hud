@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Mirrors hud/api/health.py. Kept in step by hand.
+import { checkGate } from "./client";
 import type { ProviderHealth } from "./types";
 
 /** An invalid Provider/Board file whose failure is contained to itself. */
@@ -33,7 +34,7 @@ export interface Health {
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<Health> {
-  const res = await fetch("/api/v1/health", { signal: signal ?? null, cache: "no-store" });
+  const res = checkGate(await fetch("/api/v1/health", { signal: signal ?? null, cache: "no-store", redirect: "manual" }));
   if (!res.ok) {
     throw new Error(`health ${res.status} ${res.statusText}`);
   }
