@@ -209,14 +209,25 @@ spec:
 from hud.providers.sdk import PluginConfig, PluginProvider, Resource, State, register
 from datetime import UTC, datetime
 
+
 class Config(PluginConfig):
     greeting: str = "hi"
 
+
 @register("hello", config_model=Config)
 class Hello(PluginProvider):
-    async def discover(self) -> list[Resource]:          # every 5 min
-        return [Resource(uid=f"{self.name}:thing:one", provider=self.name, kind="thing",
-                         name=self.config.greeting, state=State.UP, fetched_at=datetime.now(UTC))]
+    async def discover(self) -> list[Resource]:  # every 5 min
+        return [
+            Resource(
+                uid=f"{self.name}:thing:one",
+                provider=self.name,
+                kind="thing",
+                name=self.config.greeting,
+                state=State.UP,
+                fetched_at=datetime.now(UTC),
+            )
+        ]
+
     # collect(resources) -> PollResult runs at spec.defaults.interval; default keeps state only
 ```
 

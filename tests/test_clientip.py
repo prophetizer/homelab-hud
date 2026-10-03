@@ -20,9 +20,7 @@ def test_behind_a_trusted_proxy_the_client_is_the_last_untrusted_hop() -> None:
     # A client-supplied entry on the left is not believed over what the proxy appended.
     assert client_ip(request("172.31.90.56", "10.9.9.9, 203.0.113.9"), TRAEFIK) == "203.0.113.9"
     # Hops that are themselves trusted proxies are skipped.
-    assert (
-        client_ip(request("172.31.90.56", "203.0.113.9, 172.31.90.7"), TRAEFIK) == "203.0.113.9"
-    )
+    assert client_ip(request("172.31.90.56", "203.0.113.9, 172.31.90.7"), TRAEFIK) == "203.0.113.9"
 
 
 def test_anyone_else_is_their_connection_whatever_they_claim() -> None:
