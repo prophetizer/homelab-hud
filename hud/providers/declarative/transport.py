@@ -50,8 +50,9 @@ def build_http_options(ctx: ProviderContext, spec: Transport) -> HttpOptions:
                 headers[header] = ctx.secrets.resolve(secret_name(ref))
             case AuthBasic(username=user, password=ref):
                 auth = httpx.BasicAuth(user, ctx.secrets.resolve(secret_name(ref)))
-            case AuthHeader(name=name, value=ref):
-                headers[name] = ctx.secrets.resolve(secret_name(ref))
+            case AuthHeader(name=name, value=ref, prefix=prefix):
+                value = ctx.secrets.resolve(secret_name(ref))
+                headers[name] = value if value.startswith(prefix) else prefix + value
             case AuthQuery(param=param, value=ref):
                 params[param] = ctx.secrets.resolve(secret_name(ref))
             case _:

@@ -163,6 +163,13 @@
           "title": "Name",
           "type": "string"
         },
+        "prefix": {
+          "default": "",
+          "maxLength": 32,
+          "pattern": "^[A-Za-z0-9 _.-]*$",
+          "title": "Prefix",
+          "type": "string"
+        },
         "type": {
           "const": "header",
           "title": "Type",
@@ -3110,6 +3117,19 @@
           ],
           "default": null,
           "title": "Uid On Collision"
+        },
+        "uid_stable_reason": {
+          "anyOf": [
+            {
+              "minLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uid Stable Reason"
         }
       },
       "required": [

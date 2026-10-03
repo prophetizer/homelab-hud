@@ -47,6 +47,10 @@ _ITEM_REF = re.compile(r"item((?:\.[A-Za-z_][A-Za-z0-9_]*|\[['\"][^'\"]+['\"]\])
 _EXPR_MARKER = re.compile(r"\{\{|\{%")
 _LITERAL_NATIVE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-/]*")
 _LAST_SEG = re.compile(r"(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[['\"]([^'\"]+)['\"]\])$")
+# ``item.get('id')`` (or ``item.x.get('id')``) reads the field ``id`` as surely as ``item.id``.
+_ITEM_GET = re.compile(
+    r"item(?:\.[A-Za-z_][A-Za-z0-9_]*|\[['\"][^'\"]+['\"]\])*\.get\(\s*['\"]([^'\"]+)['\"]"
+)
 
 
 def _duration(v: str) -> str:
@@ -108,6 +112,11 @@ class AuthHeader(BaseModel):
     type: Literal["header"]
     name: str
     value: str
+    # Literal text sent before the secret — "Token " for Django REST Framework's
+    # ``Authorization: Token <key>`` (Paperless-ngx) — so the secret is the bare key a user
+    # copies from the app. A secret that already starts with it is sent as is. Added
+    # 2026-10-03, optional: dashboard/v1-compatible.
+    prefix: str = Field(default="", max_length=32, pattern=r"^[A-Za-z0-9 _.-]*$")
 
     @field_validator("value")
     @classmethod
@@ -258,6 +267,11 @@ class ResourceMap(_Spec):
     # queue rows for one episode — so both show instead of the second being dropped. The
     # first item keeps `uid`. Added 2026-09-29, optional: dashboard/v1-compatible.
     uid_on_collision: str | None = None
+    # Why a uid built from a field with a volatile-looking name (``id``) is stable here —
+    # Backrest's plan id is the name the user typed, fixed once created. Without it such a
+    # uid is refused (invariant 8); with it the exception is written down where a reviewer
+    # sees it. Added 2026-10-03, optional: dashboard/v1-compatible.
+    uid_stable_reason: str | None = Field(default=None, min_length=20)
     kind: str
     name: str
     state: str = "unknown"
@@ -430,7 +444,9 @@ class ProviderDocument(Document):
                 template = getattr(res.map, key)
                 if template is None:
                     continue
-                problem = check_uid_template(self.metadata.name, res.map.kind, template)
+                problem = check_uid_template(
+                    self.metadata.name, res.map.kind, template, res.map.uid_stable_reason
+                )
                 if problem:
                     msg = f"spec.resources.{i}.map.{key}: {problem}"
                     raise ValueError(msg)
@@ -456,22 +472,41 @@ def _check_singleton_native_id(native: str) -> str | None:
     return None
 
 
-def check_uid_template(provider: str, kind: str, template: str) -> str | None:
-    """Return a problem description, or None when the template is acceptable."""
+def check_uid_template(
+    provider: str, kind: str, template: str, stable_reason: str | None = None
+) -> str | None:
+    """Return a problem description, or None when the template is acceptable. A uid from a
+    volatile-named field passes only with a ``stable_reason`` saying why it is stable."""
     prefix = f"{provider}:{kind}:"
     if not template.startswith(prefix):
         return f"must start with {prefix!r} (provider name and literal kind)"
     native = template.removeprefix(prefix)
     if not native.strip():
         return "native id part is empty"
-    refs = _ITEM_REF.findall(native)
-    if not refs:
+    fields = _referenced_fields(native)
+    if not fields:
         return _check_singleton_native_id(native)
-    m = _LAST_SEG.search(refs[-1])
-    last = (m.group(1) or m.group(2)) if m else None
-    if last in VOLATILE_UID_FIELDS:
+    last = fields[-1]
+    if last in VOLATILE_UID_FIELDS and stable_reason is None:
         return (
             f"derives from item.{last}, which is volatile; use a stable field such as the "
-            "name (invariant 8: an unstable uid forks the resource's history)"
+            "name (invariant 8: an unstable uid forks the resource's history) — or, when "
+            "this field is stable for this service, say why in map.uid_stable_reason"
         )
     return None
+
+
+def _referenced_fields(native: str) -> list[str]:
+    """The item fields a uid template reads, in order: ``item.a.b`` and ``item['b']`` give
+    ``b``, and ``item.get('b')`` gives ``b`` too (not ``get``)."""
+    found: list[tuple[int, str]] = []
+    for m in _ITEM_GET.finditer(native):
+        found.append((m.end(), m.group(1)))
+    for m in _ITEM_REF.finditer(native):
+        seg = _LAST_SEG.search(m.group(1))
+        name = (seg.group(1) or seg.group(2)) if seg else None
+        if name == "get" and native[m.end() :].lstrip().startswith("("):
+            continue  # a .get(...) call: counted above by the field it reads
+        if name:
+            found.append((m.end(), name))
+    return [name for _, name in sorted(found)]

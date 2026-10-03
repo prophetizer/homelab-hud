@@ -136,6 +136,10 @@ def test_uid_from_volatile_field_refused(manager: ConfigManager, config_dir: Pat
         ("demo:thing:{{ item.id }}", "volatile"),
         ("demo:thing:{{ item.ImageID }}", "volatile"),
         ("demo:thing:{{ item.meta.digest }}", "volatile"),
+        # Spelling the read as a call does not hide which field it reads.
+        ("demo:thing:{{ item.get('id') }}", "volatile"),
+        ('demo:thing:{{ item.meta.get("hash") }}', "volatile"),
+        ("demo:thing:{{ item.get('name') }}", None),
         # A singleton resource (one service, one status endpoint) keys on a literal.
         ("demo:thing:main", None),
         ("demo:thing:node-1/root", None),
@@ -152,6 +156,22 @@ def test_check_uid_template(template: str, problem: str | None) -> None:
         assert result is None
     else:
         assert result is not None and problem in result
+
+
+def test_a_stable_reason_admits_a_volatile_named_field_and_must_say_something() -> None:
+    reason = "the id is the name the user chose, fixed once created"
+    assert check_uid_template("demo", "thing", "demo:thing:{{ item.id }}", reason) is None
+    assert check_uid_template("demo", "thing", "demo:thing:{{ item.id }}") is not None
+
+
+def test_uid_stable_reason_in_a_provider_file(manager: ConfigManager, config_dir: Path) -> None:
+    named = MINIMAL.replace('uid: "demo:thing:{{ item.name }}"', 'uid: "demo:thing:{{ item.id }}"')
+    assert any("uid_stable_reason" in m for m in _issues(manager, config_dir, named))
+    short = named.replace(
+        'uid: "demo:thing:{{ item.id }}"',
+        'uid: "demo:thing:{{ item.id }}"\n        uid_stable_reason: "trust me"',
+    )
+    assert any("uid_stable_reason" in m for m in _issues(manager, config_dir, short))
 
 
 def test_kind_must_be_literal(manager: ConfigManager, config_dir: Path) -> None:

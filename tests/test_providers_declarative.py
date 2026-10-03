@@ -414,3 +414,39 @@ async def test_literal_uid_over_a_list_collapses_and_is_refused(config_dir: Path
         assert [r.name for r in result.resources] == ["One"]
     finally:
         await p.shutdown()
+
+
+@respx.mock
+@pytest.mark.parametrize("stored", ["k-123", "Token k-123"])
+async def test_header_auth_prefix_is_added_once(config_dir: Path, stored: str) -> None:
+    """Paperless wants ``Authorization: Token <key>``: the prefix lives in the template, so
+    the secret is the bare key a user copies — and one pasted with the prefix still works."""
+    doc_text = SINGLETON_DOC.replace(
+        "transport: { base_url: http://demo.lab }",
+        "transport:\n    base_url: http://demo.lab\n    auth: { type: header, name: Authorization,"
+        ' prefix: "Token ", value: "${secret:demo_token}" }',
+    )
+    route = respx.get("http://demo.lab/status").mock(
+        return_value=httpx.Response(200, json={"appName": "Demo"})
+    )
+    env = {"HUD_SECRET_DEMO_TOKEN": stored}
+    p = build_declarative(load_doc(config_dir, doc_text), make_ctx(config_dir, "demo", env))
+    await p.startup()
+    try:
+        await p.poll("service")
+    finally:
+        await p.shutdown()
+    assert route.calls.last.request.headers["Authorization"] == "Token k-123"
+
+
+def test_a_header_prefix_cannot_carry_a_secret_or_an_expression(config_dir: Path) -> None:
+    bad = SINGLETON_DOC.replace(
+        "transport: { base_url: http://demo.lab }",
+        "transport:\n    base_url: http://demo.lab\n    auth: { type: header, name: X-K,"
+        ' prefix: "${secret:x}", value: "${secret:demo_token}" }',
+    )
+    (config_dir / "settings.yaml").write_text("apiVersion: hud/v1\nkind: Settings\n")
+    (config_dir / "providers").mkdir(exist_ok=True)
+    (config_dir / "providers" / "p.yaml").write_text(bad)
+    snap = ConfigManager(config_dir).load()
+    assert not [d for d in snap.documents if isinstance(d.model, ProviderDocument)]
