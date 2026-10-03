@@ -1,0 +1,191 @@
+# Paperless-ngx — document archive: how many documents, what sits in the inbox, the media
+# disk, and whether consumption and the scheduled tasks are working.
+#
+# Copy to /config/providers/paperless-ngx.yaml, then supply:
+#   PAPERLESS_BASE_URL               e.g. http://paperless:8000 (environment)
+#   ${secret:paperless_token}        the API token from My Profile → API Auth Token (the key
+#                                    alone; HUD adds the "Token " in front)
+#     → /run/secrets/paperless_token, HUD_SECRET_PAPERLESS_TOKEN, or secrets.yaml
+#
+# Paperless tokens carry the full rights of their user; there are no read-only scopes. Use
+# a dedicated user that is staff, or has the "view system monitoring" and "view global
+# statistics" permissions plus view rights on tasks. Without global statistics the counts
+# cover only the documents that user may see; without system monitoring /api/status/
+# answers 403 and the service and storage resources fail.
+#
+# Mapped from Paperless-ngx's source (src/documents/views.py, permissions.py, filters.py,
+# models.py; src/paperless/settings.py) and docs/api.md at v3.2.1. DRF TokenAuthentication
+# wants "Authorization: Token <key>": the header auth's prefix adds "Token ", so the secret
+# is the bare key (one that already starts with "Token " is sent as is). The two task endpoints are API v10 (Paperless 3.x):
+# they pin it in Accept, so an older Paperless answers 406 and they fail loudly rather
+# than misread a v9 list.
+#
+# Degrade loudly: /api/status/ reports database, Redis, Celery, search index, classifier
+# and sanity check; a dead database or broker is down, any other non-OK degraded.
+# Unacknowledged failed or revoked tasks (the UI's "needs attention") degrade tasks until
+# dismissed; a task type whose last run failed is degraded until it next succeeds.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: paperless-ngx
+  labels: { category: documents }
+  template:
+    service: Paperless-ngx
+    icon: mdi:file-document-multiple
+    docs: https://docs.paperless-ngx.com/api/
+    images: [paperless-ngx]
+    port: 8000
+    requires:
+      - { name: PAPERLESS_BASE_URL, kind: env, hint: "Base URL of your Paperless-ngx instance" }
+      - name: paperless_token
+        kind: secret
+        hint: "API token from My Profile → API Auth Token (a staff user, or one with view system monitoring + view global statistics)"
+spec:
+  transport:
+    base_url: ${PAPERLESS_BASE_URL}
+    auth:
+      type: header
+      name: Authorization
+      prefix: "Token "
+      value: ${secret:paperless_token}
+    timeout: 15s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The instance and its moving parts (staff / view system monitoring only). The view
+    # pings Celery with retries, so it is polled gently. Singleton.
+    - name: service
+      request: { method: GET, path: /api/status/ }
+      interval: 5m
+      map:
+        uid:   "paperless-ngx:service:main"
+        kind:  service
+        name:  Paperless-ngx
+        state: >-
+          {% set t = item.tasks %}
+          {{ 'down' if item.database.status != 'OK' or t.redis_status != 'OK'
+                       or t.celery_status == 'ERROR'
+             else 'degraded' if t.celery_status != 'OK' or t.index_status != 'OK'
+                       or t.classifier_status != 'OK' or t.sanity_check_status != 'OK'
+                       or t.llmindex_status == 'ERROR'
+                       or item.database.migration_status.unapplied_migrations
+             else 'up' }}
+        attrs:
+          version:      "{{ item.pngx_version }}"
+          install_type: "{{ item.install_type }}"
+          database:     "{{ item.database.type }}"
+          database_status:     "{{ item.database.status }}"
+          redis_status:        "{{ item.tasks.redis_status }}"
+          celery_status:       "{{ item.tasks.celery_status }}"
+          index_status:        "{{ item.tasks.index_status }}"
+          classifier_status:   "{{ item.tasks.classifier_status }}"
+          sanity_check_status: "{{ item.tasks.sanity_check_status }}"
+          sanity_check_last_run:   "{{ item.tasks.sanity_check_last_run }}"
+          classifier_last_trained: "{{ item.tasks.classifier_last_trained }}"
+          error: >-
+            {{ item.database.error or item.tasks.redis_error or item.tasks.celery_error
+               or item.tasks.index_error or item.tasks.classifier_error
+               or item.tasks.sanity_check_error or item.tasks.llmindex_error or none }}
+        links:
+          ui: "${PAPERLESS_BASE_URL}/"
+
+    # The media directory's filesystem, from the same status call (statvfs of MEDIA_ROOT).
+    # Degraded at 90 % used, as in the Glances template. Singleton.
+    - name: storage
+      request: { method: GET, path: /api/status/ }
+      interval: 15m
+      map:
+        uid:   "paperless-ngx:storage:media"
+        kind:  storage
+        name:  Media storage
+        state: >-
+          {{ 'degraded' if item.storage.total | float > 0
+               and item.storage.available | float / item.storage.total | float <= 0.1
+             else 'up' }}
+        parent_uid: "paperless-ngx:service:main"
+      metrics:
+        - { name: free_bytes,  value: "{{ item.storage.available | float }}", unit: bytes }
+        - { name: total_bytes, value: "{{ item.storage.total | float }}",     unit: bytes }
+        - name: used_bytes
+          value: "{{ item.storage.total | float - item.storage.available | float }}"
+          unit: bytes
+        - name: used_pct
+          when: "{{ item.storage.total | float > 0 }}"
+          value: >-
+            {{ (item.storage.total | float - item.storage.available | float)
+               / item.storage.total | float }}
+          unit: ratio
+
+    # Archive totals. documents_inbox is null when no inbox tag exists, and then no inbox
+    # metric is written (not a zero). Singleton.
+    - name: documents
+      request: { method: GET, path: /api/statistics/ }
+      interval: 15m
+      map:
+        uid:   "paperless-ngx:library:main"
+        kind:  library
+        name:  Documents
+        state: up
+        parent_uid: "paperless-ngx:service:main"
+        attrs:
+          current_asn: "{{ item.current_asn }}"
+      metrics:
+        - { name: documents,      value: "{{ item.documents_total | float }}",     unit: count }
+        - { name: inbox,          when: "{{ item.documents_inbox is not none }}", value: "{{ item.documents_inbox | float }}", unit: count }
+        - { name: tags,           value: "{{ item.tag_count | float }}",           unit: count }
+        - { name: correspondents, value: "{{ item.correspondent_count | float }}", unit: count }
+        - { name: document_types, value: "{{ item.document_type_count | float }}", unit: count }
+        - { name: storage_paths,  value: "{{ item.storage_path_count | float }}",  unit: count }
+        - { name: characters,     value: "{{ item.character_count | float }}",     unit: count }
+
+    # Tasks nobody has dismissed yet. needs_attention = failed + revoked (Paperless's own
+    # grouping); dismissing them in the UI clears the degraded state. Singleton.
+    - name: tasks
+      request:
+        method: GET
+        path: /api/tasks/status_counts/
+        params: { acknowledged: "false" }
+        headers: { Accept: "application/json; version=10" }
+      map:
+        uid:   "paperless-ngx:tasks:main"
+        kind:  tasks
+        name:  Tasks
+        state: "{{ 'degraded' if item.needs_attention | float > 0 else 'up' }}"
+        parent_uid: "paperless-ngx:service:main"
+      metrics:
+        - { name: needs_attention, value: "{{ item.needs_attention | float }}", unit: count }
+        - { name: in_progress,     value: "{{ item.in_progress | float }}",     unit: count }
+
+    # Each task type that ran in the last 30 days (consume_file, train_classifier,
+    # sanity_check, mail_fetch, …), keyed on the type. Degraded when its latest failure is
+    # newer than its latest success. Timestamps are compared as ISO strings in the
+    # server's time zone — exact unless the two straddle a DST change. Durations seconds.
+    - name: task_types
+      request:
+        method: GET
+        path: /api/tasks/summary/
+        params: { days: "30" }
+        headers: { Accept: "application/json; version=10" }
+      interval: 15m
+      map:
+        uid:   "paperless-ngx:task_type:{{ item.task_type }}"
+        kind:  task_type
+        name:  "{{ item.task_type | replace('_', ' ') | capitalize }}"
+        state: >-
+          {{ 'degraded' if item.last_failure
+               and (not item.last_success or item.last_failure > item.last_success)
+             else 'up' }}
+        parent_uid: "paperless-ngx:tasks:main"
+        attrs:
+          last_run:     "{{ item.last_run }}"
+          last_success: "{{ item.last_success }}"
+          last_failure: "{{ item.last_failure }}"
+      metrics:
+        - { name: runs,      value: "{{ item.total_count | float }}",   unit: count }
+        - { name: succeeded, value: "{{ item.success_count | float }}", unit: count }
+        - { name: failed,    value: "{{ item.failure_count | float }}", unit: count }
+        - { name: pending,   value: "{{ item.pending_count | float }}", unit: count }
+        - { name: avg_duration_seconds, when: "{{ item.avg_duration_seconds is not none }}", value: "{{ item.avg_duration_seconds | float }}", unit: seconds }
+        - { name: avg_wait_seconds,     when: "{{ item.avg_wait_time_seconds is not none }}", value: "{{ item.avg_wait_time_seconds | float }}", unit: seconds }

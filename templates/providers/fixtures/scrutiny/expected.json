@@ -1,0 +1,32 @@
+{
+  "service": {
+    "resources": {
+      "scrutiny:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "devices": {
+    "resources": {
+      "scrutiny:disk:0x5000000000000001": "up",
+      "scrutiny:disk:0x5000000000000002": "degraded",
+      "scrutiny:disk:0x5000000000000003": "down",
+      "scrutiny:disk:SYNTH-SERIAL-0004": "unknown",
+      "scrutiny:disk:0x5000000000000005": "paused"
+    },
+    "metrics": {
+      "scrutiny:disk:0x5000000000000001/temperature_celsius": [34.0, "celsius"],
+      "scrutiny:disk:0x5000000000000001/power_on_seconds": [77220000.0, "seconds"],
+      "scrutiny:disk:0x5000000000000001/capacity_bytes": [8001563222016.0, "bytes"],
+      "scrutiny:disk:0x5000000000000002/temperature_celsius": [37.0, "celsius"],
+      "scrutiny:disk:0x5000000000000002/power_on_seconds": [136843200.0, "seconds"],
+      "scrutiny:disk:0x5000000000000002/capacity_bytes": [8001563222016.0, "bytes"],
+      "scrutiny:disk:0x5000000000000003/temperature_celsius": [41.0, "celsius"],
+      "scrutiny:disk:0x5000000000000003/power_on_seconds": [188028000.0, "seconds"],
+      "scrutiny:disk:0x5000000000000003/capacity_bytes": [4000787030016.0, "bytes"],
+      "scrutiny:disk:SYNTH-SERIAL-0004/capacity_bytes": [1000204886016.0, "bytes"],
+      "scrutiny:disk:0x5000000000000005/temperature_celsius": [30.0, "celsius"],
+      "scrutiny:disk:0x5000000000000005/power_on_seconds": [219600000.0, "seconds"],
+      "scrutiny:disk:0x5000000000000005/capacity_bytes": [2000398934016.0, "bytes"]
+    }
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "sessions": [
+    {
+      "id": "00000000-0000-4000-8000-00000000c001",
+      "userId": "00000000-0000-4000-8000-00000000a001",
+      "libraryId": "00000000-0000-4000-8000-00000000b001",
+      "libraryItemId": "00000000-0000-4000-8000-00000000d001",
+      "bookId": "00000000-0000-4000-8000-00000000e001",
+      "episodeId": null,
+      "mediaType": "book",
+      "mediaMetadata": {
+        "title": "The Example Book",
+        "authors": [{ "id": "00000000-0000-4000-8000-000000000a01", "name": "A. Writer" }],
+        "narrators": ["N. Reader"]
+      },
+      "chapters": [],
+      "displayTitle": "The Example Book",
+      "displayAuthor": "A. Writer",
+      "coverPath": "/metadata/items/00000000-0000-4000-8000-00000000d001/cover.jpg",
+      "duration": 41234.5,
+      "playMethod": 0,
+      "mediaPlayer": "html5",
+      "deviceInfo": {
+        "id": "00000000-0000-4000-8000-000000000d01",
+        "userId": "00000000-0000-4000-8000-00000000a001",
+        "deviceId": "00000000-0000-4000-8000-000000000e01",
+        "ipAddress": "192.0.2.10",
+        "browserName": "Firefox",
+        "browserVersion": "143.0",
+        "osName": "Linux",
+        "deviceType": "desktop",
+        "clientVersion": "2.37.1",
+        "clientName": "Abs Web"
+      },
+      "serverVersion": "2.37.1",
+      "date": "2026-10-02",
+      "dayOfWeek": "Friday",
+      "timeListening": 1820,
+      "startTime": 10550.35,
+      "currentTime": 12370.35,
+      "startedAt": 1759395600000,
+      "updatedAt": 1759397420000,
+      "user": { "id": "00000000-0000-4000-8000-00000000a001", "username": "listener" }
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000c002",
+      "userId": "00000000-0000-4000-8000-00000000a002",
+      "libraryId": "00000000-0000-4000-8000-00000000b002",
+      "libraryItemId": "00000000-0000-4000-8000-00000000d002",
+      "bookId": null,
+      "episodeId": "00000000-0000-4000-8000-00000000e012",
+      "mediaType": "podcast",
+      "mediaMetadata": {
+        "title": "Example Podcast",
+        "author": "Example Network"
+      },
+      "chapters": [],
+      "displayTitle": "Episode 12: Example Topic",
+      "displayAuthor": "Example Network",
+      "coverPath": "/metadata/items/00000000-0000-4000-8000-00000000d002/cover.jpg",
+      "duration": 3600,
+      "playMethod": 1,
+      "mediaPlayer": "exo-player",
+      "deviceInfo": {
+        "id": "00000000-0000-4000-8000-000000000d02",
+        "userId": "00000000-0000-4000-8000-00000000a002",
+        "deviceId": "00000000-0000-4000-8000-000000000e02",
+        "ipAddress": "192.0.2.11",
+        "osName": "Android",
+        "osVersion": "15",
+        "manufacturer": "Example",
+        "model": "Phone 8",
+        "sdkVersion": 35,
+        "clientVersion": "0.10.0-beta",
+        "clientName": "Abs Android",
+        "deviceName": "Example Phone 8"
+      },
+      "serverVersion": "2.37.1",
+      "date": "2026-10-02",
+      "dayOfWeek": "Friday",
+      "timeListening": 600,
+      "startTime": 300,
+      "currentTime": 900,
+      "startedAt": 1759396800000,
+      "updatedAt": 1759397400000,
+      "user": { "id": "00000000-0000-4000-8000-00000000a002", "username": "admin" }
+    }
+  ],
+  "shareSessions": []
+}

@@ -1,0 +1,35 @@
+{
+  "service": {
+    "resources": {
+      "beszel:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "systems": {
+    "resources": {
+      "beszel:system:nas": "up",
+      "beszel:system:pve-01": "degraded",
+      "beszel:system:pi-garage": "down",
+      "beszel:system:laptop": "paused",
+      "beszel:system:backup-box": "unknown"
+    },
+    "metrics": {
+      "beszel:system:nas/cpu_pct": [12.5, "pct"],
+      "beszel:system:nas/memory_used_pct": [41.27, "pct"],
+      "beszel:system:nas/disk_used_pct": [63.8, "pct"],
+      "beszel:system:nas/network_bps": [10000000.0, "bps"],
+      "beszel:system:nas/temperature_celsius": [47.5, "celsius"],
+      "beszel:system:nas/load_1m": [0.82, "none"],
+      "beszel:system:nas/uptime_seconds": [1814400.0, "seconds"],
+      "beszel:system:nas/services_failed": [0.0, "count"],
+      "beszel:system:pve-01/cpu_pct": [37.0, "pct"],
+      "beszel:system:pve-01/memory_used_pct": [78.5, "pct"],
+      "beszel:system:pve-01/disk_used_pct": [22.1, "pct"],
+      "beszel:system:pve-01/network_bps": [320000000.0, "bps"],
+      "beszel:system:pve-01/gpu_pct": [5.0, "pct"],
+      "beszel:system:pve-01/load_1m": [3.4, "none"],
+      "beszel:system:pve-01/uptime_seconds": [604800.0, "seconds"],
+      "beszel:system:pve-01/services_failed": [2.0, "count"]
+    }
+  }
+}

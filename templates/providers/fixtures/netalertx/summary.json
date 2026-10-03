@@ -1,0 +1,13 @@
+{
+  "data": {
+    "online": { "count": 3 },
+    "offline": { "count": 3 },
+    "down": { "count": 1 },
+    "new": { "count": 1 },
+    "known": { "count": 5 },
+    "unknown": { "count": 1 },
+    "favorites": { "count": 1 },
+    "archived": { "count": 2 },
+    "unstable": { "count": 1 }
+  }
+}

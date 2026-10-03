@@ -1,0 +1,59 @@
+{
+  "service": {
+    "resources": {
+      "tracearr:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "servers": {
+    "resources": {
+      "tracearr:media_server:Plex": "up",
+      "tracearr:media_server:Jellyfin": "down",
+      "tracearr:media_server:Old Emby": "paused"
+    },
+    "metrics": {
+      "tracearr:media_server:Plex/streams": [2.0, "count"],
+      "tracearr:media_server:Jellyfin/streams": [0.0, "count"],
+      "tracearr:media_server:Old Emby/streams": [0.0, "count"]
+    }
+  },
+  "activity": {
+    "resources": {
+      "tracearr:activity:main": "up"
+    },
+    "metrics": {
+      "tracearr:activity:main/streams": [2.0, "count"],
+      "tracearr:activity:main/direct_play": [1.0, "count"],
+      "tracearr:activity:main/direct_stream": [0.0, "count"],
+      "tracearr:activity:main/transcode": [1.0, "count"],
+      "tracearr:activity:main/audio_transcode": [0.0, "count"],
+      "tracearr:activity:main/bandwidth_bps": [12000000.0, "bps"]
+    }
+  },
+  "streams": {
+    "resources": {
+      "tracearr:stream:plex/alex/living-room-tv": "up",
+      "tracearr:stream:plex/sam/iphone": "paused"
+    },
+    "metrics": {
+      "tracearr:stream:plex/alex/living-room-tv/position_seconds": [1260.0, "seconds"],
+      "tracearr:stream:plex/alex/living-room-tv/duration_seconds": [2700.0, "seconds"],
+      "tracearr:stream:plex/alex/living-room-tv/progress_pct": [46.7, "pct"],
+      "tracearr:stream:plex/alex/living-room-tv/bitrate_bps": [8000000.0, "bps"],
+      "tracearr:stream:plex/sam/iphone/position_seconds": [600.0, "seconds"],
+      "tracearr:stream:plex/sam/iphone/duration_seconds": [6300.0, "seconds"],
+      "tracearr:stream:plex/sam/iphone/progress_pct": [9.5, "pct"],
+      "tracearr:stream:plex/sam/iphone/bitrate_bps": [4000000.0, "bps"]
+    }
+  },
+  "stats": {
+    "resources": {
+      "tracearr:stats:main": "up"
+    },
+    "metrics": {
+      "tracearr:stats:main/users": [6.0, "count"],
+      "tracearr:stats:main/plays_30d": [214.0, "count"],
+      "tracearr:stats:main/violations_7d": [1.0, "count"]
+    }
+  }
+}

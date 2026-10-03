@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "db_size_mb": 18.5,
+  "mem_usage_pct": 41,
+  "load_1m": 0.62,
+  "storage_pct": 37,
+  "cpu_temp": null,
+  "storage_gb": 120.0,
+  "mem_mb": 7841,
+  "process_cpu_pct": 1.4,
+  "process_rss_mb": 212.37
+}

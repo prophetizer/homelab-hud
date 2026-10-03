@@ -1,0 +1,78 @@
+{
+  "libraries": [
+    {
+      "id": "00000000-0000-4000-8000-00000000b001",
+      "name": "Audiobooks",
+      "folders": [
+        {
+          "id": "00000000-0000-4000-8000-00000000f001",
+          "fullPath": "/audiobooks",
+          "libraryId": "00000000-0000-4000-8000-00000000b001",
+          "addedAt": 1735689600000
+        }
+      ],
+      "displayOrder": 1,
+      "icon": "audiobookshelf",
+      "mediaType": "book",
+      "provider": "audible",
+      "settings": {
+        "coverAspectRatio": 1,
+        "disableWatcher": false,
+        "autoScanCronExpression": null,
+        "skipMatchingMediaWithAsin": false,
+        "skipMatchingMediaWithIsbn": false,
+        "audiobooksOnly": false,
+        "epubsAllowScriptedContent": false,
+        "hideSingleBookSeries": false,
+        "onlyShowLaterBooksInContinueSeries": false,
+        "metadataPrecedence": ["folderStructure", "audioMetatags", "nfoFile", "txtFiles", "opfFile", "absMetadata"],
+        "markAsFinishedPercentComplete": null,
+        "markAsFinishedTimeRemaining": 10
+      },
+      "lastScan": 1759363200000,
+      "lastScanVersion": "2.37.1",
+      "createdAt": 1735689600000,
+      "lastUpdate": 1759363200000,
+      "stats": {
+        "totalSize": 412000000000,
+        "totalDuration": 1843200.5,
+        "numAudioFiles": 4120,
+        "totalItems": 286
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000b002",
+      "name": "Podcasts",
+      "folders": [
+        {
+          "id": "00000000-0000-4000-8000-00000000f002",
+          "fullPath": "/podcasts",
+          "libraryId": "00000000-0000-4000-8000-00000000b002",
+          "addedAt": 1735689600000
+        }
+      ],
+      "displayOrder": 2,
+      "icon": "podcast",
+      "mediaType": "podcast",
+      "provider": "itunes",
+      "settings": {
+        "coverAspectRatio": 1,
+        "disableWatcher": false,
+        "autoScanCronExpression": null,
+        "podcastSearchRegion": "us",
+        "markAsFinishedPercentComplete": null,
+        "markAsFinishedTimeRemaining": 10
+      },
+      "lastScan": 1759276800000,
+      "lastScanVersion": "2.37.1",
+      "createdAt": 1735689600000,
+      "lastUpdate": 1759276800000,
+      "stats": {
+        "totalDuration": 950400.25,
+        "numAudioFiles": 1630,
+        "totalItems": 24,
+        "totalSize": 61000000000
+      }
+    }
+  ]
+}

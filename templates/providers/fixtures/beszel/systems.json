@@ -1,0 +1,114 @@
+{
+  "items": [
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "created": "2026-01-10 08:00:00.000Z",
+      "host": "192.0.2.10",
+      "id": "aaaaaaaaaaaaaa1",
+      "info": {
+        "u": 1814400,
+        "cpu": 12.5,
+        "mp": 41.27,
+        "dp": 63.8,
+        "v": "0.21.0",
+        "dt": 47.5,
+        "bb": 1250000,
+        "la": [0.82, 0.95, 1.01],
+        "ct": 2,
+        "sv": [42, 0]
+      },
+      "name": "nas",
+      "port": "45876",
+      "status": "up",
+      "updated": "2026-10-03 09:41:00.000Z",
+      "users": ["uuuuuuuuuuuuuu1"]
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "created": "2026-01-10 08:05:00.000Z",
+      "host": "192.0.2.11",
+      "id": "aaaaaaaaaaaaaa2",
+      "info": {
+        "u": 604800,
+        "cpu": 37.0,
+        "mp": 78.5,
+        "dp": 22.1,
+        "v": "0.21.0",
+        "g": 5.0,
+        "bb": 40000000,
+        "la": [3.4, 3.1, 2.9],
+        "ct": 1,
+        "sv": [58, 2]
+      },
+      "name": "pve-01",
+      "port": "45876",
+      "status": "up",
+      "updated": "2026-10-03 09:41:00.000Z",
+      "users": ["uuuuuuuuuuuuuu1"]
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "created": "2026-03-02 18:20:00.000Z",
+      "host": "192.0.2.12",
+      "id": "aaaaaaaaaaaaaa3",
+      "info": {
+        "u": 99000,
+        "cpu": 4.1,
+        "mp": 30.2,
+        "dp": 55.0,
+        "v": "0.20.0",
+        "dt": 52.0,
+        "bb": 2048,
+        "la": [0.1, 0.12, 0.09],
+        "ct": 2
+      },
+      "name": "pi-garage",
+      "port": "45876",
+      "status": "down",
+      "updated": "2026-10-03 07:12:30.000Z",
+      "users": ["uuuuuuuuuuuuuu1"]
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "created": "2026-05-14 12:00:00.000Z",
+      "host": "192.0.2.13",
+      "id": "aaaaaaaaaaaaaa4",
+      "info": {
+        "u": 3600,
+        "cpu": 9.0,
+        "mp": 60.0,
+        "dp": 70.0,
+        "v": "0.21.0",
+        "bb": 0,
+        "la": [0.5, 0.4, 0.3],
+        "ct": 2
+      },
+      "name": "laptop",
+      "port": "45876",
+      "status": "paused",
+      "updated": "2026-09-28 17:00:00.000Z",
+      "users": ["uuuuuuuuuuuuuu1"]
+    },
+    {
+      "collectionId": "2hz5ncl8tizk5nx",
+      "collectionName": "systems",
+      "created": "2026-10-03 09:40:00.000Z",
+      "host": "192.0.2.14",
+      "id": "aaaaaaaaaaaaaa5",
+      "info": null,
+      "name": "backup-box",
+      "port": "45876",
+      "status": "pending",
+      "updated": "2026-10-03 09:40:00.000Z",
+      "users": ["uuuuuuuuuuuuuu1"]
+    }
+  ],
+  "page": 1,
+  "perPage": 500,
+  "totalItems": 5,
+  "totalPages": 1
+}

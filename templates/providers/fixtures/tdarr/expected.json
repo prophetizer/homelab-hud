@@ -1,0 +1,42 @@
+{
+  "service": {
+    "resources": {
+      "tdarr:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "statistics": {
+    "resources": {
+      "tdarr:statistics:main": "up"
+    },
+    "metrics": {
+      "tdarr:statistics:main/transcodes_total": [841.0, "count"],
+      "tdarr:statistics:main/health_checks_total": [1203.0, "count"],
+      "tdarr:statistics:main/space_saved_bytes": [412730000000.0, "bytes"]
+    }
+  },
+  "libraries": {
+    "resources": {
+      "tdarr:library:Movies": "up",
+      "tdarr:library:TV": "paused"
+    },
+    "metrics": {
+      "tdarr:library:Movies/transcodes_total": [612.0, "count"],
+      "tdarr:library:Movies/health_checks_total": [980.0, "count"],
+      "tdarr:library:Movies/space_saved_bytes": [350500000000.0, "bytes"],
+      "tdarr:library:TV/transcodes_total": [229.0, "count"],
+      "tdarr:library:TV/health_checks_total": [223.0, "count"],
+      "tdarr:library:TV/space_saved_bytes": [62230000000.0, "bytes"]
+    }
+  },
+  "nodes": {
+    "resources": {
+      "tdarr:nodes:main": "up"
+    },
+    "metrics": {
+      "tdarr:nodes:main/nodes": [2.0, "count"],
+      "tdarr:nodes:main/nodes_paused": [1.0, "count"],
+      "tdarr:nodes:main/workers": [2.0, "count"]
+    }
+  }
+}

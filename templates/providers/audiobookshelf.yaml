@@ -1,0 +1,134 @@
+# Audiobookshelf — audiobooks and podcasts: each library's size and running time, and who
+# is listening right now.
+#
+# Copy to /config/providers/audiobookshelf.yaml, then supply:
+#   AUDIOBOOKSHELF_BASE_URL          e.g. http://audiobookshelf:80 (environment)
+#   ${secret:audiobookshelf_api_key} Settings → API Keys → Add API Key, acting as an ADMIN user
+#     → /run/secrets/audiobookshelf_api_key, HUD_SECRET_AUDIOBOOKSHELF_API_KEY, or secrets.yaml
+#
+# Mapped from Audiobookshelf's source (server/routers/ApiRouter.js, Server.js, Auth.js,
+# auth/TokenManager.js, controllers/LibraryController.js and SessionController.js,
+# utils/queries/libraryItems{Book,Podcast}Filters.js, objects/PlaybackSession.js) at
+# v2.37.1; api.audiobookshelf.org documents an older release. The key is a Bearer token.
+# An API key acts as the user it was made for, and /api/sessions/open is admin-only (a
+# non-admin gets 404), so the key's user must be an admin. Paths are given without
+# ROUTER_BASE_PATH (default /audiobookshelf): the server prefixes requests that lack it.
+#
+# Degrade loudly: /status answers without auth, so the service says whether the server is
+# set up at all (isInit); a bad key fails the libraries and listening resources with 401.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: audiobookshelf
+  labels: { category: media }
+  template:
+    service: Audiobookshelf
+    icon: mdi:headphones
+    docs: https://api.audiobookshelf.org/
+    images: [audiobookshelf]
+    port: 80
+    requires:
+      - { name: AUDIOBOOKSHELF_BASE_URL, kind: env, hint: "Base URL of your Audiobookshelf server" }
+      - { name: audiobookshelf_api_key, kind: secret, hint: "API key from Settings → API Keys, acting as an admin user" }
+spec:
+  transport:
+    base_url: ${AUDIOBOOKSHELF_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:audiobookshelf_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # The server. isInit is false until a root user exists — reachable but not usable,
+    # so degraded. Singleton.
+    - name: service
+      request: { method: GET, path: /status }
+      interval: 10m
+      map:
+        uid:   "audiobookshelf:service:main"
+        kind:  service
+        name:  Audiobookshelf
+        state: "{{ 'up' if item.isInit else 'degraded' }}"
+        attrs:
+          version:      "{{ item.serverVersion }}"
+          auth_methods: "{{ item.authMethods }}"
+        links:
+          ui: "${AUDIOBOOKSHELF_BASE_URL}/"
+
+    # Each library, keyed on its name (the only other key is its uuid; renaming one starts
+    # a new history). ?include=stats adds totals per library: items, audio files, duration
+    # (seconds) and size (bytes) — for a podcast library items are podcasts and audio files
+    # episodes. Libraries of another media type carry no stats and get no metrics.
+    - name: libraries
+      request: { method: GET, path: /api/libraries, params: { include: stats } }
+      select: "$.libraries[*]"
+      interval: 30m
+      map:
+        uid:   "audiobookshelf:library:{{ item.name }}"
+        kind:  library
+        name:  "{{ item.name }}"
+        state: up
+        parent_uid: "audiobookshelf:service:main"
+        attrs:
+          media_type: "{{ item.mediaType }}"
+          provider:   "{{ item.provider }}"
+          last_scan:  "{{ item.lastScan }}"
+      metrics:
+        - { name: items,            when: "{{ item.stats is defined }}", value: "{{ item.stats.totalItems | float }}",    unit: count }
+        - { name: audio_files,      when: "{{ item.stats is defined }}", value: "{{ item.stats.numAudioFiles | float }}", unit: count }
+        - { name: duration_seconds, when: "{{ item.stats is defined }}", value: "{{ item.stats.totalDuration | float }}", unit: seconds }
+        - { name: size_bytes,       when: "{{ item.stats is defined }}", value: "{{ item.stats.totalSize | float }}",     unit: bytes }
+
+    # Open playback sessions, counted: user sessions and share-link sessions. Singleton.
+    - name: listening
+      request: { method: GET, path: /api/sessions/open }
+      map:
+        uid:   "audiobookshelf:listening:main"
+        kind:  listening
+        name:  Listening
+        state: up
+        parent_uid: "audiobookshelf:service:main"
+      metrics:
+        - { name: sessions,       value: "{{ (item.sessions or []) | length }}",      unit: count }
+        - { name: share_sessions, value: "{{ (item.shareSessions or []) | length }}", unit: count }
+
+    # One resource per open session, keyed on user + item (+ episode for a podcast) — the
+    # session's own id is a fresh uuid each time. A second device on the same item adds its
+    # device name. The server has no paused state for a session, so all are up. Positions
+    # and durations are seconds; playMethod 0–3 per utils/constants.js.
+    - name: sessions
+      request: { method: GET, path: /api/sessions/open }
+      select: "$.sessions[*]"
+      map:
+        uid: >-
+          audiobookshelf:stream:{{ (item.user.username if item.user else item.userId)
+          ~ ':' ~ item.libraryItemId ~ (':' ~ item.episodeId if item.episodeId else '') }}
+        uid_on_collision: >-
+          audiobookshelf:stream:{{ (item.user.username if item.user else item.userId)
+          ~ ':' ~ item.libraryItemId ~ (':' ~ item.episodeId if item.episodeId else '')
+          ~ ':' ~ (item.deviceInfo.deviceName or item.deviceInfo.clientName) }}
+        kind:  stream
+        name:  "{{ item.displayTitle }}"
+        state: up
+        parent_uid: "audiobookshelf:listening:main"
+        attrs:
+          user:       "{{ item.user.username if item.user else none }}"
+          author:     "{{ item.displayAuthor }}"
+          player:     "{{ item.deviceInfo.deviceName or item.deviceInfo.clientName or item.mediaPlayer }}"
+          client:     "{{ item.deviceInfo.clientName }}"
+          platform:   "{{ item.deviceInfo.osName }}"
+          media_type: "{{ item.mediaType }}"
+          playback: >-
+            {{ {0: 'Direct play', 1: 'Direct stream', 2: 'Transcode', 3: 'Local'}
+               .get(item.playMethod, 'Unknown') }}
+      metrics:
+        - { name: position_seconds, value: "{{ item.currentTime | float }}",   unit: seconds }
+        - { name: duration_seconds, value: "{{ item.duration | float }}",      unit: seconds }
+        - { name: listened_seconds, value: "{{ item.timeListening | float }}", unit: seconds }
+        - name: progress_pct
+          when: "{{ item.duration | float > 0 }}"
+          value: "{{ item.currentTime | float / item.duration | float }}"
+          unit: ratio

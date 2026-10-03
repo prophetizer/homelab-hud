@@ -1,0 +1,25 @@
+{
+  "health": true,
+  "versions": [],
+  "title": "Homebox",
+  "message": "Track, Manage, and Organize your Things",
+  "build": {
+    "version": "v0.26.2",
+    "commit": "4e9b1c7",
+    "buildTime": "2026-06-14T01:41:09Z"
+  },
+  "latest": {
+    "version": "v0.26.2",
+    "date": "2026-06-14T01:57:51Z"
+  },
+  "demo": false,
+  "allowRegistration": false,
+  "labelPrinting": false,
+  "oidc": {
+    "enabled": false,
+    "allowLocal": true
+  },
+  "telemetry": {
+    "enabled": false
+  }
+}

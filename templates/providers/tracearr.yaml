@@ -1,0 +1,169 @@
+# Tracearr — Plex, Jellyfin and Emby activity in one place: which media servers Tracearr can
+# reach, live streams, and its 30-day totals.
+#
+# Copy to /config/providers/tracearr.yaml, then supply:
+#   TRACEARR_BASE_URL                e.g. http://tracearr:3000 (environment)
+#   ${secret:tracearr_api_key}       Settings → General → API key (trr_pub_…)
+#     → /run/secrets/tracearr_api_key, HUD_SECRET_TRACEARR_API_KEY, or secrets.yaml
+#
+# Mapped from Tracearr's public API source and its OpenAPI definition at v2.6.0
+# (apps/server/src/routes/public.ts, public.openapi.ts; served live at
+# /api/v1/public/docs). Every call is "Authorization: Bearer trr_pub_…". The key has no
+# scopes: it belongs to the owner account and can also terminate streams
+# (POST /streams/:id/terminate), which this template never calls — keep it in the secret
+# store. The public API is rate limited per key (240 requests/minute by default); this
+# template makes about eight.
+#
+# Degrade loudly: /health reports each media server's `online` from Tracearr's poller, and
+# an offline server reads as down. Tracearr reports a server it has not checked yet as
+# online ("benefit of doubt", public.ts), so a fresh start can look up for one poll. A
+# server Tracearr no longer contacts (`historical`) is paused, not down.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: tracearr
+  labels: { category: media }
+  template:
+    service: Tracearr
+    icon: mdi:radar
+    docs: https://github.com/connorgallopo/Tracearr
+    images: [tracearr]
+    port: 3000
+    requires:
+      - { name: TRACEARR_BASE_URL, kind: env, hint: "Base URL of your Tracearr instance" }
+      - { name: tracearr_api_key, kind: secret, hint: "Public API key (trr_pub_…) from Settings → General; owner-only, no read-only variant exists" }
+spec:
+  transport:
+    base_url: ${TRACEARR_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:tracearr_api_key}
+    timeout: 10s
+  defaults:
+    interval: 30s
+    jitter: 5s
+
+  resources:
+    # Tracearr itself. /health always answers status "ok" when it answers. Singleton.
+    - name: service
+      request: { method: GET, path: /api/v1/public/health }
+      interval: 5m
+      map:
+        uid:   "tracearr:service:main"
+        kind:  service
+        name:  Tracearr
+        state: "{{ 'up' if item.status == 'ok' else 'down' }}"
+        attrs:
+          version: "{{ item.version }}"
+        links:
+          ui: "${TRACEARR_BASE_URL}/"
+
+    # Each media server Tracearr watches, keyed on its name (renaming one in Tracearr starts
+    # a new history). Online is up, offline down, historical paused.
+    - name: servers
+      request: { method: GET, path: /api/v1/public/health }
+      select: "$.servers[*]"
+      interval: 60s
+      map:
+        uid:   "tracearr:media_server:{{ item.name }}"
+        kind:  media_server
+        name:  "{{ item.name }}"
+        state: >-
+          {{ 'paused' if item.historical else 'up' if item.online else 'down' }}
+        parent_uid: "tracearr:service:main"
+        attrs:
+          type: "{{ item.type }}"
+      metrics:
+        - { name: streams, value: "{{ item.activeStreams | float }}", unit: count }
+
+    # Activity totals across every server, as Tracearr counts them (an audio-only transcode
+    # is also a transcode). Its summary bitrate is a display string ("45.2 Mbps"), so the
+    # bandwidth is summed here from each stream's numeric kbps — the same sum Tracearr
+    # formats (utils/streamCounts.ts). Singleton.
+    - name: activity
+      request: { method: GET, path: /api/v1/public/streams }
+      map:
+        uid:   "tracearr:activity:main"
+        kind:  activity
+        name:  Activity
+        state: up
+        parent_uid: "tracearr:service:main"
+      metrics:
+        - { name: streams,         value: "{{ item.summary.total | float }}",           unit: count }
+        - { name: direct_play,     value: "{{ item.summary.directPlays | float }}",     unit: count }
+        - { name: direct_stream,   value: "{{ item.summary.directStreams | float }}",   unit: count }
+        - { name: transcode,       value: "{{ item.summary.transcodes | float }}",      unit: count }
+        - { name: audio_transcode, value: "{{ item.summary.audioTranscodes | float }}", unit: count }
+        - name: bandwidth_bps
+          value: "{{ item.data | selectattr('bitrate') | sum(attribute='bitrate') | float }}"
+          unit: kbps
+
+    # One resource per live stream. Tracearr's stream id is a database id (refused for a uid,
+    # invariant 8), so a stream is keyed on what it is: server, user and device. The same
+    # user twice on one device falls back to adding the start time. Playing is up, paused
+    # paused. Same attrs as the Tautulli/Plex streams, so one Now Playing widget shows any.
+    - name: streams
+      request: { method: GET, path: /api/v1/public/streams }
+      select: "$.data[*]"
+      map:
+        uid: >-
+          tracearr:stream:{{ (item.serverName ~ '/' ~ item.username ~ '/'
+                              ~ (item.device or item.player or item.platform))
+                             | lower | replace(' ', '-') }}
+        uid_on_collision: >-
+          tracearr:stream:{{ (item.serverName ~ '/' ~ item.username ~ '/'
+                              ~ (item.device or item.player or item.platform) ~ '/'
+                              ~ item.startedAt) | lower | replace(' ', '-') }}
+        kind:  stream
+        name: >-
+          {{ (item.showTitle ~ ' — ' ~ item.mediaTitle) if item.showTitle
+             else (item.artistName ~ ' — ' ~ item.mediaTitle) if item.artistName
+             else item.mediaTitle }}
+        state: >-
+          {{ 'up' if item.state == 'playing'
+             else 'paused' if item.state == 'paused'
+             else 'unknown' }}
+        parent_uid: "tracearr:activity:main"
+        attrs:
+          user:       "{{ item.username }}"
+          server:     "{{ item.serverName }}"
+          player:     "{{ item.player }}"
+          device:     "{{ item.device }}"
+          platform:   "{{ item.platform }}"
+          media_type: "{{ item.mediaType }}"
+          show:       "{{ item.showTitle }}"
+          year:       "{{ item.year }}"
+          started_at: "{{ item.startedAt }}"
+          # Tracearr's own rule (packages/shared/src/playbackDecision.ts).
+          playback: >-
+            {{ ('Audio transcode' if item.audioDecision == 'transcode'
+                                     and item.videoDecision != 'transcode'
+                else 'Transcode') if item.isTranscode
+               else 'Direct stream' if item.videoDecision == 'copy' or item.audioDecision == 'copy'
+               else 'Direct play' }}
+          resolution: "{{ item.resolution or none }}"
+      metrics:
+        - { name: position_seconds, value: "{{ item.progressMs | float }}", unit: ms }
+        - { name: duration_seconds, when: "{{ item.durationMs }}", value: "{{ item.durationMs | float }}", unit: ms }
+        - name: progress_pct
+          when: "{{ item.durationMs }}"
+          value: "{{ (item.progressMs / item.durationMs * 100) | round(1) }}"
+          unit: pct
+        - { name: bitrate_bps, when: "{{ item.bitrate is number }}", value: "{{ item.bitrate | float }}", unit: kbps }
+
+    # Tracearr's dashboard totals: distinct users, plays in the last 30 days, and rule
+    # violations in the last 7 (account sharing and the like — informational; Tracearr
+    # acts on them itself). Singleton.
+    - name: stats
+      request: { method: GET, path: /api/v1/public/stats }
+      interval: 5m
+      map:
+        uid:   "tracearr:stats:main"
+        kind:  stats
+        name:  Totals
+        state: up
+        parent_uid: "tracearr:service:main"
+      metrics:
+        - { name: users,         value: "{{ item.totalUsers | float }}",       unit: count }
+        - { name: plays_30d,     value: "{{ item.totalSessions | float }}",    unit: count }
+        - { name: violations_7d, value: "{{ item.recentViolations | float }}", unit: count }

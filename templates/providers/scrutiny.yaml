@@ -1,0 +1,93 @@
+# Scrutiny — disk S.M.A.R.T. health: every drive Scrutiny's collector reports, whether it
+# passes, its temperature and its power-on time.
+#
+# Copy to /config/providers/scrutiny.yaml, then supply:
+#   SCRUTINY_BASE_URL                e.g. http://scrutiny:8080 (environment); include
+#                                    web.listen.basepath if you set one
+#
+# Mapped from Scrutiny's source at v0.9.5 (commit 45e122c): webapp/backend/pkg/web/server.go
+# (routes), handler/get_devices_summary.go and models/device_summary.go, models/device.go
+# (response shapes), pkg/constants.go (device_status). Scrutiny's API has no authentication,
+# so neither does this template: keep it on a trusted network. /api/summary answers
+# {"success", "data": {"summary": {<scrutiny_uuid>: {"device", "smart"}}}}; a drive the
+# collector has registered but not yet read has no "smart" block.
+#
+# Degrade loudly: device_status is a bit set — 1 SMART failed (the drive itself says it is
+# failing) → down; 2 Scrutiny failed (an attribute past Backblaze-derived failure-rate
+# thresholds, without a SMART failure) → degraded. Scrutiny's own UI shows both as "failed"
+# under its default threshold; the split here keeps a predicted failure visible without
+# reading it as a dead drive. Archived drives are paused; no SMART data yet is unknown.
+# Uids key on the drive's WWN (its serial when it has none): hardware identity, unchanged
+# by a reboot that renames /dev/sdX, and present in summaries from before v0.9's uuid key.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: scrutiny
+  labels: { category: infrastructure }
+  template:
+    service: Scrutiny
+    icon: mdi:harddisk
+    docs: https://github.com/AnalogJ/scrutiny
+    images: [scrutiny]
+    port: 8080
+    requires:
+      - { name: SCRUTINY_BASE_URL, kind: env, hint: "Base URL of your Scrutiny web app (plus its basepath, if set)" }
+spec:
+  transport:
+    base_url: ${SCRUTINY_BASE_URL}
+    timeout: 10s
+  defaults:
+    interval: 5m
+    jitter: 15s
+
+  resources:
+    # Scrutiny itself: /api/health checks its SQLite and InfluxDB and answers 500 when
+    # either fails, which fails this poll. Singleton.
+    - name: service
+      request: { method: GET, path: /api/health }
+      interval: 2m
+      map:
+        uid:   "scrutiny:service:main"
+        kind:  service
+        name:  Scrutiny
+        state: "{{ 'up' if item.success else 'down' }}"
+        links:
+          ui: "${SCRUTINY_BASE_URL}/web/dashboard"
+
+    # One resource per drive. The collector runs on its own schedule (daily by default),
+    # so polling faster than a few minutes only rereads the same numbers.
+    - name: devices
+      request: { method: GET, path: /api/summary }
+      select: "$.data.summary.*"
+      map:
+        uid:   "scrutiny:disk:{{ item.device.wwn or item.device.serial_number }}"
+        kind:  disk
+        name:  "{{ item.device.label or item.device.device_name }}"
+        state: >-
+          {{ 'paused' if item.device.archived
+             else 'down' if item.device.device_status % 2 == 1
+             else 'degraded' if item.device.device_status >= 2
+             else 'unknown' if item.smart is not defined
+             else 'up' }}
+        parent_uid: "scrutiny:service:main"
+        attrs:
+          status: >-
+            {{ 'no data' if item.smart is not defined and item.device.device_status == 0
+               else {0: 'passed', 1: 'failed: smart', 2: 'failed: scrutiny', 3: 'failed: both'}
+                    .get(item.device.device_status, 'unknown') }}
+          model:        "{{ item.device.model_name }}"
+          manufacturer: "{{ item.device.manufacturer or none }}"
+          device:       "{{ item.device.device_name }}"
+          host:         "{{ item.device.host_id or none }}"
+          protocol:     "{{ item.device.device_protocol }}"
+          form_factor:  "{{ item.device.form_factor or none }}"
+          firmware:     "{{ item.device.firmware }}"
+          collected_at: "{{ item.smart.collector_date or none }}"
+        links:
+          ui: >-
+            {{ ('${SCRUTINY_BASE_URL}/web/device/' ~ item.device.scrutiny_uuid)
+               if item.device.scrutiny_uuid else '' }}
+      metrics:
+        - { name: temperature_celsius, when: "{{ item.smart.temp is defined }}",           value: "{{ item.smart.temp | float }}",           unit: celsius }
+        - { name: power_on_seconds,    when: "{{ item.smart.power_on_hours is defined }}", value: "{{ item.smart.power_on_hours | float }}", unit: hours }
+        - { name: capacity_bytes,      when: "{{ item.device.capacity }}",                 value: "{{ item.device.capacity | float }}",      unit: bytes }

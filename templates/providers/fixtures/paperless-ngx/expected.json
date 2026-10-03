@@ -1,0 +1,75 @@
+{
+  "service": {
+    "resources": {
+      "paperless-ngx:service:main": "degraded"
+    },
+    "metrics": {}
+  },
+  "storage": {
+    "resources": {
+      "paperless-ngx:storage:media": "up"
+    },
+    "metrics": {
+      "paperless-ngx:storage:media/free_bytes": [1500299200512.0, "bytes"],
+      "paperless-ngx:storage:media/total_bytes": [2000398934016.0, "bytes"],
+      "paperless-ngx:storage:media/used_bytes": [500099733504.0, "bytes"],
+      "paperless-ngx:storage:media/used_pct": [25.0, "pct"]
+    }
+  },
+  "documents": {
+    "resources": {
+      "paperless-ngx:library:main": "up"
+    },
+    "metrics": {
+      "paperless-ngx:library:main/documents": [3482.0, "count"],
+      "paperless-ngx:library:main/inbox": [17.0, "count"],
+      "paperless-ngx:library:main/tags": [42.0, "count"],
+      "paperless-ngx:library:main/correspondents": [118.0, "count"],
+      "paperless-ngx:library:main/document_types": [23.0, "count"],
+      "paperless-ngx:library:main/storage_paths": [4.0, "count"],
+      "paperless-ngx:library:main/characters": [18234117.0, "count"]
+    }
+  },
+  "tasks": {
+    "resources": {
+      "paperless-ngx:tasks:main": "degraded"
+    },
+    "metrics": {
+      "paperless-ngx:tasks:main/needs_attention": [2.0, "count"],
+      "paperless-ngx:tasks:main/in_progress": [1.0, "count"]
+    }
+  },
+  "task_types": {
+    "resources": {
+      "paperless-ngx:task_type:consume_file": "up",
+      "paperless-ngx:task_type:sanity_check": "degraded",
+      "paperless-ngx:task_type:train_classifier": "up",
+      "paperless-ngx:task_type:index_optimize": "up"
+    },
+    "metrics": {
+      "paperless-ngx:task_type:consume_file/runs": [120.0, "count"],
+      "paperless-ngx:task_type:consume_file/succeeded": [117.0, "count"],
+      "paperless-ngx:task_type:consume_file/failed": [2.0, "count"],
+      "paperless-ngx:task_type:consume_file/pending": [1.0, "count"],
+      "paperless-ngx:task_type:consume_file/avg_duration_seconds": [14.6, "seconds"],
+      "paperless-ngx:task_type:consume_file/avg_wait_seconds": [0.8, "seconds"],
+      "paperless-ngx:task_type:sanity_check/runs": [4.0, "count"],
+      "paperless-ngx:task_type:sanity_check/succeeded": [3.0, "count"],
+      "paperless-ngx:task_type:sanity_check/failed": [1.0, "count"],
+      "paperless-ngx:task_type:sanity_check/pending": [0.0, "count"],
+      "paperless-ngx:task_type:sanity_check/avg_duration_seconds": [95.5, "seconds"],
+      "paperless-ngx:task_type:sanity_check/avg_wait_seconds": [1.2, "seconds"],
+      "paperless-ngx:task_type:train_classifier/runs": [720.0, "count"],
+      "paperless-ngx:task_type:train_classifier/succeeded": [720.0, "count"],
+      "paperless-ngx:task_type:train_classifier/failed": [0.0, "count"],
+      "paperless-ngx:task_type:train_classifier/pending": [0.0, "count"],
+      "paperless-ngx:task_type:train_classifier/avg_duration_seconds": [3.2, "seconds"],
+      "paperless-ngx:task_type:train_classifier/avg_wait_seconds": [0.4, "seconds"],
+      "paperless-ngx:task_type:index_optimize/runs": [30.0, "count"],
+      "paperless-ngx:task_type:index_optimize/succeeded": [30.0, "count"],
+      "paperless-ngx:task_type:index_optimize/failed": [0.0, "count"],
+      "paperless-ngx:task_type:index_optimize/pending": [0.0, "count"],
+      "paperless-ngx:task_type:index_optimize/avg_duration_seconds": [6.0, "seconds"]
+    }
+  }
+}

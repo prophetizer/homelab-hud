@@ -1,0 +1,95 @@
+{
+  "service": {
+    "resources": {
+      "backrest:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "plans": {
+    "resources": {
+      "backrest:plan:daily-docs": "up",
+      "backrest:plan:photos": "down",
+      "backrest:plan:vm-images": "degraded",
+      "backrest:plan:nightly-db": "up",
+      "backrest:plan:laptop": "degraded",
+      "backrest:plan:music": "unknown"
+    },
+    "metrics": {
+      "backrest:plan:daily-docs/backups_success_30d": [2.0, "count"],
+      "backrest:plan:daily-docs/backups_warning_30d": [0.0, "count"],
+      "backrest:plan:daily-docs/backups_failed_30d": [0.0, "count"],
+      "backrest:plan:daily-docs/added_bytes_30d": [157286400.0, "bytes"],
+      "backrest:plan:daily-docs/scanned_bytes_30d": [42949672960.0, "bytes"],
+      "backrest:plan:daily-docs/protected_bytes": [21474836480.0, "bytes"],
+      "backrest:plan:daily-docs/last_backup_added_bytes": [52428800.0, "bytes"],
+      "backrest:plan:daily-docs/last_backup_duration_seconds": [95.0, "seconds"],
+
+      "backrest:plan:photos/backups_success_30d": [1.0, "count"],
+      "backrest:plan:photos/backups_warning_30d": [0.0, "count"],
+      "backrest:plan:photos/backups_failed_30d": [1.0, "count"],
+      "backrest:plan:photos/added_bytes_30d": [2147483648.0, "bytes"],
+      "backrest:plan:photos/scanned_bytes_30d": [536870912000.0, "bytes"],
+      "backrest:plan:photos/protected_bytes": [536870912000.0, "bytes"],
+      "backrest:plan:photos/last_backup_added_bytes": [0.0, "bytes"],
+      "backrest:plan:photos/last_backup_duration_seconds": [12.0, "seconds"],
+
+      "backrest:plan:vm-images/backups_success_30d": [0.0, "count"],
+      "backrest:plan:vm-images/backups_warning_30d": [1.0, "count"],
+      "backrest:plan:vm-images/backups_failed_30d": [0.0, "count"],
+      "backrest:plan:vm-images/added_bytes_30d": [3221225472.0, "bytes"],
+      "backrest:plan:vm-images/scanned_bytes_30d": [214748364800.0, "bytes"],
+      "backrest:plan:vm-images/protected_bytes": [214748364800.0, "bytes"],
+      "backrest:plan:vm-images/last_backup_added_bytes": [3221225472.0, "bytes"],
+      "backrest:plan:vm-images/last_backup_duration_seconds": [1260.0, "seconds"],
+
+      "backrest:plan:nightly-db/backups_success_30d": [1.0, "count"],
+      "backrest:plan:nightly-db/backups_warning_30d": [0.0, "count"],
+      "backrest:plan:nightly-db/backups_failed_30d": [0.0, "count"],
+      "backrest:plan:nightly-db/added_bytes_30d": [10485760.0, "bytes"],
+      "backrest:plan:nightly-db/scanned_bytes_30d": [1073741824.0, "bytes"],
+      "backrest:plan:nightly-db/protected_bytes": [1073741824.0, "bytes"],
+      "backrest:plan:nightly-db/last_backup_added_bytes": [10485760.0, "bytes"],
+      "backrest:plan:nightly-db/last_backup_duration_seconds": [30.0, "seconds"],
+
+      "backrest:plan:laptop/backups_success_30d": [1.0, "count"],
+      "backrest:plan:laptop/backups_warning_30d": [0.0, "count"],
+      "backrest:plan:laptop/backups_failed_30d": [0.0, "count"],
+      "backrest:plan:laptop/added_bytes_30d": [268435456.0, "bytes"],
+      "backrest:plan:laptop/scanned_bytes_30d": [128849018880.0, "bytes"],
+      "backrest:plan:laptop/protected_bytes": [128849018880.0, "bytes"],
+      "backrest:plan:laptop/last_backup_added_bytes": [268435456.0, "bytes"],
+      "backrest:plan:laptop/last_backup_duration_seconds": [600.0, "seconds"],
+
+      "backrest:plan:music/backups_success_30d": [0.0, "count"],
+      "backrest:plan:music/backups_warning_30d": [0.0, "count"],
+      "backrest:plan:music/backups_failed_30d": [0.0, "count"],
+      "backrest:plan:music/added_bytes_30d": [0.0, "bytes"],
+      "backrest:plan:music/scanned_bytes_30d": [0.0, "bytes"]
+    }
+  },
+  "repos": {
+    "resources": {
+      "backrest:repo:local-nas": "up",
+      "backrest:repo:b2-offsite": "down"
+    },
+    "metrics": {
+      "backrest:repo:local-nas/backups_success_30d": [4.0, "count"],
+      "backrest:repo:local-nas/backups_warning_30d": [0.0, "count"],
+      "backrest:repo:local-nas/backups_failed_30d": [0.0, "count"],
+      "backrest:repo:local-nas/added_bytes_30d": [436207616.0, "bytes"],
+      "backrest:repo:local-nas/scanned_bytes_30d": [172872433664.0, "bytes"],
+      "backrest:repo:local-nas/protected_bytes": [21474836480.0, "bytes"],
+      "backrest:repo:local-nas/last_backup_added_bytes": [52428800.0, "bytes"],
+      "backrest:repo:local-nas/last_backup_duration_seconds": [95.0, "seconds"],
+
+      "backrest:repo:b2-offsite/backups_success_30d": [1.0, "count"],
+      "backrest:repo:b2-offsite/backups_warning_30d": [1.0, "count"],
+      "backrest:repo:b2-offsite/backups_failed_30d": [1.0, "count"],
+      "backrest:repo:b2-offsite/added_bytes_30d": [5368709120.0, "bytes"],
+      "backrest:repo:b2-offsite/scanned_bytes_30d": [751619276800.0, "bytes"],
+      "backrest:repo:b2-offsite/protected_bytes": [214748364800.0, "bytes"],
+      "backrest:repo:b2-offsite/last_backup_added_bytes": [0.0, "bytes"],
+      "backrest:repo:b2-offsite/last_backup_duration_seconds": [12.0, "seconds"]
+    }
+  }
+}

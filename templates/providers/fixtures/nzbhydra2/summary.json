@@ -1,0 +1,217 @@
+{
+  "after": "2026-10-02T10:00:00Z",
+  "before": "2026-10-03T10:00:00Z",
+  "includeDisabled": false,
+  "numberOfConfiguredIndexers": 5,
+  "numberOfEnabledIndexers": 4,
+  "indexerApiAccessStats": null,
+  "indexerScores": null,
+  "avgResponseTimes": null,
+  "indexerDownloadShares": null,
+  "downloadsPerDayOfWeek": null,
+  "downloadsPerHourOfDay": [
+    {
+      "hour": 0,
+      "count": 0
+    },
+    {
+      "hour": 1,
+      "count": 0
+    },
+    {
+      "hour": 2,
+      "count": 0
+    },
+    {
+      "hour": 3,
+      "count": 0
+    },
+    {
+      "hour": 4,
+      "count": 0
+    },
+    {
+      "hour": 5,
+      "count": 0
+    },
+    {
+      "hour": 6,
+      "count": 0
+    },
+    {
+      "hour": 7,
+      "count": 1
+    },
+    {
+      "hour": 8,
+      "count": 0
+    },
+    {
+      "hour": 9,
+      "count": 0
+    },
+    {
+      "hour": 10,
+      "count": 2
+    },
+    {
+      "hour": 11,
+      "count": 0
+    },
+    {
+      "hour": 12,
+      "count": 1
+    },
+    {
+      "hour": 13,
+      "count": 0
+    },
+    {
+      "hour": 14,
+      "count": 0
+    },
+    {
+      "hour": 15,
+      "count": 0
+    },
+    {
+      "hour": 16,
+      "count": 1
+    },
+    {
+      "hour": 17,
+      "count": 0
+    },
+    {
+      "hour": 18,
+      "count": 2
+    },
+    {
+      "hour": 19,
+      "count": 3
+    },
+    {
+      "hour": 20,
+      "count": 1
+    },
+    {
+      "hour": 21,
+      "count": 0
+    },
+    {
+      "hour": 22,
+      "count": 1
+    },
+    {
+      "hour": 23,
+      "count": 0
+    }
+  ],
+  "searchesPerDayOfWeek": null,
+  "searchesPerHourOfDay": [
+    {
+      "hour": 0,
+      "count": 3
+    },
+    {
+      "hour": 1,
+      "count": 1
+    },
+    {
+      "hour": 2,
+      "count": 0
+    },
+    {
+      "hour": 3,
+      "count": 0
+    },
+    {
+      "hour": 4,
+      "count": 0
+    },
+    {
+      "hour": 5,
+      "count": 0
+    },
+    {
+      "hour": 6,
+      "count": 2
+    },
+    {
+      "hour": 7,
+      "count": 5
+    },
+    {
+      "hour": 8,
+      "count": 8
+    },
+    {
+      "hour": 9,
+      "count": 6
+    },
+    {
+      "hour": 10,
+      "count": 4
+    },
+    {
+      "hour": 11,
+      "count": 7
+    },
+    {
+      "hour": 12,
+      "count": 9
+    },
+    {
+      "hour": 13,
+      "count": 5
+    },
+    {
+      "hour": 14,
+      "count": 3
+    },
+    {
+      "hour": 15,
+      "count": 4
+    },
+    {
+      "hour": 16,
+      "count": 6
+    },
+    {
+      "hour": 17,
+      "count": 10
+    },
+    {
+      "hour": 18,
+      "count": 12
+    },
+    {
+      "hour": 19,
+      "count": 15
+    },
+    {
+      "hour": 20,
+      "count": 11
+    },
+    {
+      "hour": 21,
+      "count": 8
+    },
+    {
+      "hour": 22,
+      "count": 6
+    },
+    {
+      "hour": 23,
+      "count": 4
+    }
+  ],
+  "successfulDownloadsPerIndexer": null,
+  "downloadSharesPerUser": null,
+  "downloadSharesPerIp": null,
+  "searchSharesPerUser": null,
+  "searchSharesPerIp": null,
+  "userAgentSearchShares": null,
+  "userAgentDownloadShares": null,
+  "downloadsPerAgeStats": null
+}

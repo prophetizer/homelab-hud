@@ -1,0 +1,188 @@
+# Backrest — restic backups: did each plan's last backup succeed, is one overdue, and how
+# much each plan and repository took in over the last 30 days.
+#
+# Copy to /config/providers/backrest.yaml, then supply:
+#   BACKREST_BASE_URL                e.g. http://backrest:9898 (environment)
+#   ${secret:backrest_password}      the Backrest login's password (Settings → Users)
+#     → /run/secrets/backrest_password, HUD_SECRET_BACKREST_PASSWORD, or secrets.yaml
+# and set auth.username below to that login's name.
+#
+# Mapped from Backrest's source at v1.14.1 (commit 875c9cb): proto/v1/service.proto
+# (SummaryDashboardResponse), internal/api/summarydashboard.go (how it is filled),
+# internal/auth/middleware.go (auth), and docs/src/docs/api.md. The API is Connect-RPC:
+# POST JSON to /v1.Backrest/<Method>, HTTP basic auth with a Backrest login (the docs'
+# `curl -u USERNAME:PASSWORD`); with auth disabled in Backrest the header is ignored.
+# Every resource reads one call, GetSummaryDashboard — the numbers Backrest's own summary
+# page shows. GetConfig is deliberately not read: it carries repository passwords.
+#
+# The JSON is protobuf's canonical mapping: camelCase keys, int64 as strings, enums by
+# name, and zero values omitted (a plan with no failures has no backupsFailed30days key),
+# hence `default(0)`. recentBackups is newest first and holds up to 60 backups from the
+# last 30 days, including one still running; historyLast30days ends with today.
+#
+# Degrade loudly: a plan's state is its newest finished backup — error → down; warning,
+# or cancelled by the system or a user → degraded; success → up — and a plan Backrest
+# marks overdue today (no good backup for 1.25× its schedule's period) is degraded however
+# its last run ended. A plan with no backup in 30 days and none overdue is unknown. A
+# repository gets the same reading over every plan that writes to it.
+#
+# Plan and repo ids are the names you gave them in Backrest ("unique but human readable",
+# config.proto) and are fixed once created, so they are the uid. A field named `id` is
+# refused as a uid unless the template says why it is stable: map.uid_stable_reason.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: backrest
+  labels: { category: infrastructure }
+  template:
+    service: Backrest
+    icon: mdi:backup-restore
+    docs: https://garethgeorge.github.io/backrest/docs/api
+    images: [backrest]
+    port: 9898
+    requires:
+      - { name: BACKREST_BASE_URL, kind: env, hint: "Base URL of your Backrest instance" }
+      - { name: backrest_password, kind: secret, hint: "Password of the Backrest login named in auth.username (Settings → Users)" }
+spec:
+  transport:
+    base_url: ${BACKREST_BASE_URL}
+    auth:
+      type: basic
+      username: admin      # change to your Backrest login
+      password: ${secret:backrest_password}
+    timeout: 15s
+  defaults:
+    interval: 5m
+    jitter: 15s
+
+  resources:
+    # Backrest itself: answering the summary call at all means it is up and the login
+    # works. Singleton.
+    - name: service
+      request:
+        method: POST
+        path: /v1.Backrest/GetSummaryDashboard
+        headers: { Connect-Protocol-Version: "1" }
+        body: {}
+      interval: 10m
+      map:
+        uid:   "backrest:service:main"
+        kind:  service
+        name:  Backrest
+        state: up
+        attrs:
+          plans: "{{ (item.planSummaries or []) | length }}"
+          repos: "{{ (item.repoSummaries or []) | length }}"
+        links:
+          ui: "${BACKREST_BASE_URL}/"
+
+    # One resource per backup plan.
+    - name: plans
+      request:
+        method: POST
+        path: /v1.Backrest/GetSummaryDashboard
+        headers: { Connect-Protocol-Version: "1" }
+        body: {}
+      select: "$.planSummaries[*]"
+      map:
+        uid:   "backrest:plan:{{ item.id }}"
+        uid_stable_reason: "Backrest ids are the names the user chose, fixed once created (config.proto)"
+        kind:  plan
+        name:  "{{ item.id }}"
+        state: >-
+          {%- set last = (item.recentBackups.status or []) | reject('equalto', 'STATUS_INPROGRESS') | first -%}
+          {%- set overdue = ((item.historyLast30days or []) | last).overdue -%}
+          {{ 'down' if last == 'STATUS_ERROR'
+             else 'degraded' if overdue
+                  or last in ('STATUS_WARNING', 'STATUS_SYSTEM_CANCELLED', 'STATUS_USER_CANCELLED')
+             else 'up' if last == 'STATUS_SUCCESS'
+             else 'unknown' }}
+        parent_uid: "backrest:service:main"
+        attrs:
+          last_status: >-
+            {%- set last = (item.recentBackups.status or []) | reject('equalto', 'STATUS_INPROGRESS') | first -%}
+            {{ last | replace('STATUS_', '') | lower if last else none }}
+          last_backup_ms: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ item.recentBackups.timestampMs[st.index(done[0])] if done else none }}
+          running: "{{ 'STATUS_INPROGRESS' in (item.recentBackups.status or []) }}"
+          overdue: "{{ ((item.historyLast30days or []) | last).overdue is sameas true }}"
+          next_backup_ms: "{{ item.nextBackupTimeMs or none }}"
+      metrics:
+        - { name: backups_success_30d, value: "{{ item.backupsSuccessLast30days | default(0) | float }}", unit: count }
+        - { name: backups_warning_30d, value: "{{ item.backupsWarningLast30days | default(0) | float }}", unit: count }
+        - { name: backups_failed_30d,  value: "{{ item.backupsFailed30days | default(0) | float }}",      unit: count }
+        - { name: added_bytes_30d,     value: "{{ item.bytesAddedLast30days | default(0) | float }}",     unit: bytes }
+        - { name: scanned_bytes_30d,   value: "{{ item.bytesScannedLast30days | default(0) | float }}",   unit: bytes }
+        # Total size of the newest good (success or warning) backup; absent until one exists.
+        - { name: protected_bytes, when: "{{ item.protectedBytes is defined }}", value: "{{ item.protectedBytes | float }}", unit: bytes }
+        # The newest finished backup: what it added and how long it took.
+        - name: last_backup_added_bytes
+          unit: bytes
+          value: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ (item.recentBackups.bytesAdded[st.index(done[0])] | float) if done else none }}
+        - name: last_backup_duration_seconds
+          unit: ms
+          value: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ (item.recentBackups.durationMs[st.index(done[0])] | float) if done else none }}
+
+    # One resource per repository, read the same way over every plan that writes to it.
+    - name: repos
+      request:
+        method: POST
+        path: /v1.Backrest/GetSummaryDashboard
+        headers: { Connect-Protocol-Version: "1" }
+        body: {}
+      select: "$.repoSummaries[*]"
+      map:
+        uid:   "backrest:repo:{{ item.id }}"
+        uid_stable_reason: "Backrest ids are the names the user chose, fixed once created (config.proto)"
+        kind:  repo
+        name:  "{{ item.id }}"
+        state: >-
+          {%- set last = (item.recentBackups.status or []) | reject('equalto', 'STATUS_INPROGRESS') | first -%}
+          {%- set overdue = ((item.historyLast30days or []) | last).overdue -%}
+          {{ 'down' if last == 'STATUS_ERROR'
+             else 'degraded' if overdue
+                  or last in ('STATUS_WARNING', 'STATUS_SYSTEM_CANCELLED', 'STATUS_USER_CANCELLED')
+             else 'up' if last == 'STATUS_SUCCESS'
+             else 'unknown' }}
+        parent_uid: "backrest:service:main"
+        attrs:
+          last_status: >-
+            {%- set last = (item.recentBackups.status or []) | reject('equalto', 'STATUS_INPROGRESS') | first -%}
+            {{ last | replace('STATUS_', '') | lower if last else none }}
+          last_backup_ms: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ item.recentBackups.timestampMs[st.index(done[0])] if done else none }}
+          running: "{{ 'STATUS_INPROGRESS' in (item.recentBackups.status or []) }}"
+          overdue: "{{ ((item.historyLast30days or []) | last).overdue is sameas true }}"
+          next_backup_ms: "{{ item.nextBackupTimeMs or none }}"
+      metrics:
+        - { name: backups_success_30d, value: "{{ item.backupsSuccessLast30days | default(0) | float }}", unit: count }
+        - { name: backups_warning_30d, value: "{{ item.backupsWarningLast30days | default(0) | float }}", unit: count }
+        - { name: backups_failed_30d,  value: "{{ item.backupsFailed30days | default(0) | float }}",      unit: count }
+        - { name: added_bytes_30d,     value: "{{ item.bytesAddedLast30days | default(0) | float }}",     unit: bytes }
+        - { name: scanned_bytes_30d,   value: "{{ item.bytesScannedLast30days | default(0) | float }}",   unit: bytes }
+        # Total size of the newest good (success or warning) backup; absent until one exists.
+        - { name: protected_bytes, when: "{{ item.protectedBytes is defined }}", value: "{{ item.protectedBytes | float }}", unit: bytes }
+        # The newest finished backup: what it added and how long it took.
+        - name: last_backup_added_bytes
+          unit: bytes
+          value: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ (item.recentBackups.bytesAdded[st.index(done[0])] | float) if done else none }}
+        - name: last_backup_duration_seconds
+          unit: ms
+          value: >-
+            {%- set st = item.recentBackups.status or [] -%}
+            {%- set done = st | reject('equalto', 'STATUS_INPROGRESS') | list -%}
+            {{ (item.recentBackups.durationMs[st.index(done[0])] | float) if done else none }}
+

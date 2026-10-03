@@ -1,0 +1,49 @@
+{
+  "service": {
+    "resources": {
+      "audiobookshelf:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "libraries": {
+    "resources": {
+      "audiobookshelf:library:Audiobooks": "up",
+      "audiobookshelf:library:Podcasts": "up"
+    },
+    "metrics": {
+      "audiobookshelf:library:Audiobooks/items": [286.0, "count"],
+      "audiobookshelf:library:Audiobooks/audio_files": [4120.0, "count"],
+      "audiobookshelf:library:Audiobooks/duration_seconds": [1843200.5, "seconds"],
+      "audiobookshelf:library:Audiobooks/size_bytes": [412000000000.0, "bytes"],
+      "audiobookshelf:library:Podcasts/items": [24.0, "count"],
+      "audiobookshelf:library:Podcasts/audio_files": [1630.0, "count"],
+      "audiobookshelf:library:Podcasts/duration_seconds": [950400.25, "seconds"],
+      "audiobookshelf:library:Podcasts/size_bytes": [61000000000.0, "bytes"]
+    }
+  },
+  "listening": {
+    "resources": {
+      "audiobookshelf:listening:main": "up"
+    },
+    "metrics": {
+      "audiobookshelf:listening:main/sessions": [2.0, "count"],
+      "audiobookshelf:listening:main/share_sessions": [0.0, "count"]
+    }
+  },
+  "sessions": {
+    "resources": {
+      "audiobookshelf:stream:listener:00000000-0000-4000-8000-00000000d001": "up",
+      "audiobookshelf:stream:admin:00000000-0000-4000-8000-00000000d002:00000000-0000-4000-8000-00000000e012": "up"
+    },
+    "metrics": {
+      "audiobookshelf:stream:listener:00000000-0000-4000-8000-00000000d001/position_seconds": [12370.35, "seconds"],
+      "audiobookshelf:stream:listener:00000000-0000-4000-8000-00000000d001/duration_seconds": [41234.5, "seconds"],
+      "audiobookshelf:stream:listener:00000000-0000-4000-8000-00000000d001/listened_seconds": [1820.0, "seconds"],
+      "audiobookshelf:stream:listener:00000000-0000-4000-8000-00000000d001/progress_pct": [30.0, "pct"],
+      "audiobookshelf:stream:admin:00000000-0000-4000-8000-00000000d002:00000000-0000-4000-8000-00000000e012/position_seconds": [900.0, "seconds"],
+      "audiobookshelf:stream:admin:00000000-0000-4000-8000-00000000d002:00000000-0000-4000-8000-00000000e012/duration_seconds": [3600.0, "seconds"],
+      "audiobookshelf:stream:admin:00000000-0000-4000-8000-00000000d002:00000000-0000-4000-8000-00000000e012/listened_seconds": [600.0, "seconds"],
+      "audiobookshelf:stream:admin:00000000-0000-4000-8000-00000000d002:00000000-0000-4000-8000-00000000e012/progress_pct": [25.0, "pct"]
+    }
+  }
+}

@@ -1,0 +1,126 @@
+# Forgejo — the git forge: server version, every repository the token's user can see with
+# its open issues and pull requests, and the Actions runners that build them.
+#
+# Copy to /config/providers/forgejo.yaml, then supply:
+#   FORGEJO_BASE_URL                 e.g. http://forgejo:3000 (environment)
+#   ${secret:forgejo_token}          User settings → Applications → Generate new token, with
+#                                    scopes read:user and read:repository (nothing else)
+#     → /run/secrets/forgejo_token, HUD_SECRET_FORGEJO_TOKEN, or secrets.yaml
+#
+# Mapped from Forgejo's swagger document and source at v16.0.5 (templates/swagger/
+# v1_json.tmpl, routers/api/v1/api.go, services/convert/repository.go). The token goes in
+# "Authorization: Bearer …", which Forgejo accepts beside its own "token …" form
+# (services/auth/method/util.go). /user/repos needs read:user (its route group) plus
+# read:repository; /user/actions/runners needs read:user and exists from Forgejo v15 — on an
+# older Forgejo the runners resource fails with HTTP 404, the rest still works.
+#
+# /user/repos is the user's own repos plus those it collaborates on or reaches through an
+# org, at most 50 per page (Forgejo's MAX_RESPONSE_ITEMS default), paged here until empty.
+# `size` is KiB (repo.Size / 1024 in the converter).
+#
+# Not mapped: CI run results. Forgejo lists Actions runs per repository only
+# (/repos/{owner}/{repo}/actions/runs); a declarative request cannot fan out over the repo
+# list, so a failed run does not show here. A runner that has stopped checking in does:
+# Forgejo reports it offline, and it reads as down.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: forgejo
+  labels: { category: development }
+  template:
+    service: Forgejo
+    icon: mdi:git
+    docs: https://forgejo.org/docs/latest/user/api/usage/
+    images: [forgejo]
+    port: 3000
+    requires:
+      - { name: FORGEJO_BASE_URL, kind: env, hint: "Base URL of your Forgejo instance" }
+      - { name: forgejo_token, kind: secret, hint: "Access token (User settings → Applications) with scopes read:user and read:repository only" }
+spec:
+  transport:
+    base_url: ${FORGEJO_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:forgejo_token}
+    timeout: 10s
+  defaults:
+    interval: 5m
+    jitter: 30s
+
+  resources:
+    # The forge. Answering /version at all means it is up. Singleton.
+    - name: service
+      request: { method: GET, path: /api/v1/version }
+      interval: 10m
+      map:
+        uid:   "forgejo:service:main"
+        kind:  service
+        name:  Forgejo
+        state: up
+        attrs:
+          version: "{{ item.version }}"
+        links:
+          ui: "${FORGEJO_BASE_URL}/"
+
+    # One resource per repository, keyed on owner/name (a rename or transfer starts a new
+    # history). Archived repositories are paused: read-only by choice, not broken.
+    - name: repos
+      request:
+        method: GET
+        path: /api/v1/user/repos
+        params: { limit: "50", order_by: name }
+      paginate: { style: page, param: page, max_pages: 10 }
+      map:
+        uid:   "forgejo:repo:{{ item.full_name }}"
+        kind:  repo
+        name:  "{{ item.full_name }}"
+        state: "{{ 'paused' if item.archived else 'up' }}"
+        parent_uid: "forgejo:service:main"
+        attrs:
+          description:    "{{ item.description }}"
+          default_branch: "{{ item.default_branch }}"
+          language:       "{{ item.language }}"
+          private:        "{{ item.private }}"
+          fork:           "{{ item.fork }}"
+          mirror:         "{{ item.mirror }}"
+          archived:       "{{ item.archived }}"
+          empty:          "{{ item.empty }}"
+          actions:        "{{ item.has_actions }}"
+          updated_at:     "{{ item.updated_at }}"
+        links:
+          ui: "{{ item.html_url }}"
+      metrics:
+        - { name: open_issues, value: "{{ item.open_issues_count | float }}", unit: count }
+        - { name: open_prs,    value: "{{ item.open_pr_counter | float }}",   unit: count }
+        - { name: stars,       value: "{{ item.stars_count | float }}",       unit: count }
+        - { name: forks,       value: "{{ item.forks_count | float }}",       unit: count }
+        - { name: releases,    value: "{{ item.release_counter | float }}",   unit: count }
+        - { name: size_bytes,  value: "{{ item.size | float }}",              unit: kib }
+
+    # Actions runners the user owns, plus the instance-wide ones (visible=true). Forgejo
+    # derives status from the last check-in: offline is down, idle and active are up.
+    # Runner names are not unique, so a second runner of the same name keys on its uuid.
+    - name: runners
+      request:
+        method: GET
+        path: /api/v1/user/actions/runners
+        params: { visible: "true", limit: "50" }
+      interval: 60s
+      jitter: 10s
+      map:
+        uid:   "forgejo:runner:{{ item.name }}"
+        uid_on_collision: "forgejo:runner:{{ item.name }}/{{ item.uuid }}"
+        kind:  runner
+        name:  "{{ item.name }}"
+        state: >-
+          {{ {'offline': 'down', 'idle': 'up', 'active': 'up'}.get(item.status, 'unknown') }}
+        parent_uid: "forgejo:service:main"
+        attrs:
+          status:    "{{ item.status }}"
+          busy:      "{{ item.status == 'active' }}"
+          version:   "{{ item.version }}"
+          labels:    "{{ item.labels | join(', ') if item.labels else none }}"
+          ephemeral: "{{ item.ephemeral }}"
+          scope: >-
+            {{ 'repo' if item.repo_id else 'owner' if item.owner_id else 'instance' }}
+          description: "{{ item.description }}"

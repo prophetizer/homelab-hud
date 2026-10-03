@@ -1,0 +1,41 @@
+{
+  "service": {
+    "resources": {
+      "netalertx:service:main": "up"
+    },
+    "metrics": {
+      "netalertx:service:main/db_size_bytes": [19398656.0, "bytes"],
+      "netalertx:service:main/mem_used_pct": [41.0, "pct"],
+      "netalertx:service:main/storage_used_pct": [37.0, "pct"],
+      "netalertx:service:main/storage_total_bytes": [128849018880.0, "bytes"],
+      "netalertx:service:main/load_1m": [0.62, "none"]
+    }
+  },
+  "summary": {
+    "resources": {
+      "netalertx:summary:main": "degraded"
+    },
+    "metrics": {
+      "netalertx:summary:main/devices": [6.0, "count"],
+      "netalertx:summary:main/online": [3.0, "count"],
+      "netalertx:summary:main/offline": [3.0, "count"],
+      "netalertx:summary:main/down": [1.0, "count"],
+      "netalertx:summary:main/new": [1.0, "count"],
+      "netalertx:summary:main/unknown": [1.0, "count"],
+      "netalertx:summary:main/favorites": [1.0, "count"],
+      "netalertx:summary:main/archived": [2.0, "count"],
+      "netalertx:summary:main/unstable": [1.0, "count"]
+    }
+  },
+  "devices": {
+    "resources": {
+      "netalertx:device:02:00:00:00:00:01": "up",
+      "netalertx:device:02:00:00:00:00:02": "degraded",
+      "netalertx:device:02:00:00:00:00:03": "down",
+      "netalertx:device:02:00:00:00:00:04": "paused",
+      "netalertx:device:02:00:00:00:00:05": "paused",
+      "netalertx:device:02:00:00:00:00:06": "up"
+    },
+    "metrics": {}
+  }
+}

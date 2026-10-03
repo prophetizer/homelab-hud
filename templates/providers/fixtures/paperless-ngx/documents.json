@@ -1,0 +1,17 @@
+{
+  "documents_total": 3482,
+  "documents_inbox": 17,
+  "inbox_tag": 1,
+  "inbox_tags": [1],
+  "document_file_type_counts": [
+    { "mime_type": "application/pdf", "mime_type_count": 3301 },
+    { "mime_type": "image/jpeg", "mime_type_count": 151 },
+    { "mime_type": "message/rfc822", "mime_type_count": 30 }
+  ],
+  "character_count": 18234117,
+  "tag_count": 42,
+  "correspondent_count": 118,
+  "document_type_count": 23,
+  "storage_path_count": 4,
+  "current_asn": 2950
+}

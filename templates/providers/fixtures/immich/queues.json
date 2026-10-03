@@ -1,0 +1,27 @@
+[
+  {
+    "name": "thumbnailGeneration",
+    "isPaused": false,
+    "statistics": { "active": 2, "completed": 0, "failed": 0, "delayed": 0, "waiting": 140, "paused": 0 }
+  },
+  {
+    "name": "metadataExtraction",
+    "isPaused": false,
+    "statistics": { "active": 0, "completed": 0, "failed": 0, "delayed": 0, "waiting": 0, "paused": 0 }
+  },
+  {
+    "name": "videoConversion",
+    "isPaused": false,
+    "statistics": { "active": 1, "completed": 0, "failed": 3, "delayed": 0, "waiting": 12, "paused": 0 }
+  },
+  {
+    "name": "smartSearch",
+    "isPaused": true,
+    "statistics": { "active": 0, "completed": 0, "failed": 0, "delayed": 0, "waiting": 0, "paused": 57 }
+  },
+  {
+    "name": "backgroundTask",
+    "isPaused": false,
+    "statistics": { "active": 0, "completed": 0, "failed": 0, "delayed": 4, "waiting": 0, "paused": 0 }
+  }
+]

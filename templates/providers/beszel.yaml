@@ -1,0 +1,108 @@
+# Beszel — lightweight host monitoring: each system the hub watches, whether its agent is
+# reporting, and its CPU, memory, disk, network, temperature and load.
+#
+# Copy to /config/providers/beszel.yaml, then supply:
+#   BESZEL_BASE_URL                  e.g. http://beszel:8090 (environment)
+#   ${secret:beszel_token}           a long-lived PocketBase auth token (below)
+#     → /run/secrets/beszel_token, HUD_SECRET_BESZEL_TOKEN, or secrets.yaml
+#
+# The token. Beszel's API is PocketBase's, and a normal sign-in returns a short-lived token
+# that HUD would have to renew by logging in again — which a declarative provider cannot
+# do. PocketBase's impersonate tokens are static instead: open <beszel>/_/ (PocketBase's
+# admin UI, as a Beszel admin), Collections → users → pick the user HUD should read as →
+# the ⋯ menu → Impersonate, set a duration in seconds (31536000 is a year), Generate, and
+# store the token. Prefer a user with Beszel's "readonly" role: the token reads only the
+# systems that user can see (all of them under SHARE_ALL_SYSTEMS). It stops working when it
+# expires or that user's password changes — HUD then shows the provider failed (HTTP 401),
+# never stale numbers.
+#
+# Mapped from Beszel's source at v0.21.0 (commit ec96c13): internal/hub/api.go (/api/beszel
+# routes), internal/hub/collections.go (who may list systems), internal/migrations (the
+# systems collection: name, status up|down|paused|pending, host, port, info),
+# internal/entities/system/system.go (Info's JSON keys), internal/hub/systems/system.go
+# (when status and info are written); and PocketBase v0.40.4 (Beszel's pinned version):
+# apis/record_auth_impersonate.go, apis/middlewares.go (the Authorization header, "Bearer "
+# accepted). Beszel's docs warn the API's data "may change in minor releases".
+#
+# Degrade loudly: status down → down, paused → paused, pending (never connected) → unknown;
+# up with failed systemd services (info.sv = [total, failed]) → degraded. When a system goes
+# down Beszel keeps its last info, so every metric here requires status up: a down host
+# shows no numbers, never its last good ones. One request reads up to 500 systems.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: beszel
+  labels: { category: infrastructure }
+  template:
+    service: Beszel
+    icon: mdi:server-network
+    docs: https://beszel.dev/guide/rest-api
+    images: [beszel]
+    port: 8090
+    requires:
+      - { name: BESZEL_BASE_URL, kind: env, hint: "Base URL of your Beszel hub" }
+      - { name: beszel_token, kind: secret, hint: "PocketBase impersonate token: <hub>/_/ → users → a (readonly) user → ⋯ → Impersonate, long duration" }
+spec:
+  transport:
+    base_url: ${BESZEL_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:beszel_token}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 5s
+
+  resources:
+    # The hub itself. /api/beszel/info requires auth, so this also proves the token still
+    # works. Singleton.
+    - name: service
+      request: { method: GET, path: /api/beszel/info }
+      interval: 10m
+      map:
+        uid:   "beszel:service:main"
+        kind:  service
+        name:  Beszel
+        state: up
+        attrs:
+          version: "{{ item.v }}"
+        links:
+          ui: "${BESZEL_BASE_URL}/"
+
+    # One resource per monitored system. info is the agent's latest summary: cpu, mp (memory)
+    # and dp (root disk) are already percentages, bb is network bytes per second sent plus
+    # received, dt the dashboard temperature in °C (absent without sensors), la the load
+    # averages, u uptime in seconds.
+    - name: systems
+      request:
+        method: GET
+        path: /api/collections/systems/records
+        params: { perPage: "500", sort: name }
+      select: "$.items[*]"
+      map:
+        uid:   "beszel:system:{{ item.name }}"
+        kind:  system
+        name:  "{{ item.name }}"
+        state: >-
+          {{ 'down' if item.status == 'down'
+             else 'paused' if item.status == 'paused'
+             else 'degraded' if item.status == 'up' and item.info.sv and item.info.sv[1] > 0
+             else 'up' if item.status == 'up'
+             else 'unknown' }}
+        parent_uid: "beszel:service:main"
+        attrs:
+          status:     "{{ item.status }}"
+          host:       "{{ item.host }}"
+          agent:      "{{ item.info.v or none }}"
+          connection: "{{ {1: 'ssh', 2: 'websocket'}.get(item.info.ct) }}"
+          updated:    "{{ item.updated }}"
+      metrics:
+        - { name: cpu_pct,             when: "{{ item.status == 'up' }}",                                value: "{{ item.info.cpu | float }}",   unit: pct }
+        - { name: memory_used_pct,     when: "{{ item.status == 'up' }}",                                value: "{{ item.info.mp | float }}",    unit: pct }
+        - { name: disk_used_pct,       when: "{{ item.status == 'up' }}",                                value: "{{ item.info.dp | float }}",    unit: pct }
+        - { name: network_bps,         when: "{{ item.status == 'up' and item.info.bb is defined }}",    value: "{{ item.info.bb | float }}",    unit: bytes_per_sec }
+        - { name: temperature_celsius, when: "{{ item.status == 'up' and item.info.dt is defined }}",    value: "{{ item.info.dt | float }}",    unit: celsius }
+        - { name: gpu_pct,             when: "{{ item.status == 'up' and item.info.g is defined }}",     value: "{{ item.info.g | float }}",     unit: pct }
+        - { name: load_1m,             when: "{{ item.status == 'up' and item.info.la }}",               value: "{{ item.info.la[0] | float }}", unit: none }
+        - { name: uptime_seconds,      when: "{{ item.status == 'up' and item.info.u is defined }}",     value: "{{ item.info.u | float }}",     unit: seconds }
+        - { name: services_failed,     when: "{{ item.status == 'up' and item.info.sv }}",               value: "{{ item.info.sv[1] | float }}", unit: count }

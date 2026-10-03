@@ -1,0 +1,29 @@
+{
+  "photos": 48213,
+  "videos": 1934,
+  "usage": 412345678901,
+  "usagePhotos": 287654321098,
+  "usageVideos": 124691357803,
+  "usageByUser": [
+    {
+      "userId": "00000000-0000-4000-8000-000000000001",
+      "userName": "Admin",
+      "photos": 40100,
+      "videos": 1500,
+      "usage": 350000000000,
+      "usagePhotos": 245000000000,
+      "usageVideos": 105000000000,
+      "quotaSizeInBytes": null
+    },
+    {
+      "userId": "00000000-0000-4000-8000-000000000002",
+      "userName": "Viewer",
+      "photos": 8113,
+      "videos": 434,
+      "usage": 62345678901,
+      "usagePhotos": 42654321098,
+      "usageVideos": 19691357803,
+      "quotaSizeInBytes": 107374182400
+    }
+  ]
+}

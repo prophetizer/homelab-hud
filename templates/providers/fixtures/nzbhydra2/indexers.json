@@ -1,0 +1,48 @@
+{
+  "after": "2026-10-02T10:00:00Z",
+  "before": "2026-10-03T10:00:00Z",
+  "includeDisabled": false,
+  "numberOfConfiguredIndexers": 5,
+  "numberOfEnabledIndexers": 4,
+  "indexerApiAccessStats": [
+    {
+      "indexerName": "Example Indexer",
+      "percentSuccessful": 98.5,
+      "percentConnectionError": 1.5,
+      "averageAccessesPerDay": 64.5
+    },
+    {
+      "indexerName": "Sample Indexer",
+      "percentSuccessful": 82.0,
+      "percentConnectionError": 18.0,
+      "averageAccessesPerDay": 40.0
+    },
+    {
+      "indexerName": "Broken Indexer",
+      "percentSuccessful": null,
+      "percentConnectionError": 100.0,
+      "averageAccessesPerDay": 12.0
+    },
+    {
+      "indexerName": "Quiet Indexer",
+      "percentSuccessful": null,
+      "percentConnectionError": null,
+      "averageAccessesPerDay": null
+    }
+  ],
+  "indexerScores": null,
+  "avgResponseTimes": null,
+  "indexerDownloadShares": null,
+  "downloadsPerDayOfWeek": null,
+  "downloadsPerHourOfDay": null,
+  "searchesPerDayOfWeek": null,
+  "searchesPerHourOfDay": null,
+  "successfulDownloadsPerIndexer": null,
+  "downloadSharesPerUser": null,
+  "downloadSharesPerIp": null,
+  "searchSharesPerUser": null,
+  "searchSharesPerIp": null,
+  "userAgentSearchShares": null,
+  "userAgentDownloadShares": null,
+  "downloadsPerAgeStats": null
+}

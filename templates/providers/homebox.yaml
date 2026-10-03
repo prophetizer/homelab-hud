@@ -1,0 +1,98 @@
+# Homebox — home inventory: whether it is healthy, how much is in it and what it is worth,
+# and the value held in each location.
+#
+# Copy to /config/providers/homebox.yaml, then supply:
+#   HOMEBOX_BASE_URL                 e.g. http://homebox:7745 (environment)
+#   ${secret:homebox_api_key}        Profile → API Keys → Create API Key (Homebox v0.26+)
+#     → /run/secrets/homebox_api_key, HUD_SECRET_HOMEBOX_API_KEY, or secrets.yaml
+#
+# Mapped from Homebox's swagger document and source at v0.26.2 (sysadminsmedia/homebox:
+# backend/app/api/static/docs/swagger.json, app/api/routes.go, app/api/middleware.go,
+# internal/data/repo/repo_group.go). API keys arrived in v0.26.0; before that the API takes
+# only a login session token that expires, which a declarative provider cannot renew — use
+# v0.26 or later. The key goes in "Authorization: Bearer …" (the only place Homebox accepts
+# one). It has no scopes: it carries its user's full access, so create it for a user whose
+# access you are content to hand HUD; this template only reads.
+#
+# Statistics cover the key's user's default collection (Homebox's "group"). Values are in
+# that collection's currency, recorded unitless; `quantity` counts toward the total value
+# but not toward the per-location value (Homebox sums purchase price only there).
+#
+# Not mapped: items whose warranty is about to expire — Homebox has no endpoint for that.
+# with_warranty counts items under a live warranty (lifetime, or expiring after today).
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: homebox
+  labels: { category: documents }
+  template:
+    service: Homebox
+    icon: mdi:package-variant-closed
+    docs: https://homebox.software/en/api/
+    images: [homebox]
+    port: 7745
+    requires:
+      - { name: HOMEBOX_BASE_URL, kind: env, hint: "Base URL of your Homebox instance" }
+      - { name: homebox_api_key, kind: secret, hint: "API key from Profile → API Keys (Homebox v0.26+); it has its user's full access" }
+spec:
+  transport:
+    base_url: ${HOMEBOX_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:homebox_api_key}
+    timeout: 10s
+  defaults:
+    interval: 15m
+    jitter: 1m
+
+  resources:
+    # Homebox itself. /status reports its own readiness as `health`; false is down.
+    # Singleton.
+    - name: service
+      request: { method: GET, path: /api/v1/status }
+      interval: 5m
+      jitter: 15s
+      map:
+        uid:   "homebox:service:main"
+        kind:  service
+        name:  "{{ item.title | default('Homebox') }}"
+        state: "{{ 'up' if item.health else 'down' }}"
+        attrs:
+          version:        "{{ item.build.version }}"
+          commit:         "{{ item.build.commit }}"
+          latest_version: "{{ item.latest.version or none }}"
+          demo:           "{{ item.demo }}"
+        links:
+          ui: "${HOMEBOX_BASE_URL}/"
+
+    # Collection totals. Items exclude archived ones and locations (Homebox counts them
+    # separately); value is purchase price × quantity over the same items. Singleton.
+    - name: inventory
+      request: { method: GET, path: /api/v1/groups/statistics }
+      map:
+        uid:   "homebox:inventory:main"
+        kind:  inventory
+        name:  Inventory
+        state: up
+        parent_uid: "homebox:service:main"
+      metrics:
+        - { name: items,         value: "{{ item.totalItems | float }}",        unit: count }
+        - { name: locations,     value: "{{ item.totalLocations | float }}",    unit: count }
+        - { name: tags,          value: "{{ item.totalTags | float }}",         unit: count }
+        - { name: users,         value: "{{ item.totalUsers | float }}",        unit: count }
+        - { name: with_warranty, value: "{{ item.totalWithWarranty | float }}", unit: count }
+        - { name: value,         value: "{{ item.totalItemPrice | float }}",    unit: none }
+
+    # Purchase value of the items directly in each location, keyed on its name (renaming
+    # one starts a new history). Homebox lists only locations whose value is above zero, so
+    # an emptied location drops out of this list rather than reading 0.
+    - name: locations
+      request: { method: GET, path: /api/v1/groups/statistics/locations }
+      map:
+        uid:   "homebox:location:{{ item.name }}"
+        kind:  location
+        name:  "{{ item.name }}"
+        state: up
+        parent_uid: "homebox:inventory:main"
+      metrics:
+        - { name: value, value: "{{ item.total | float }}", unit: none }

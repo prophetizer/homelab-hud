@@ -1,0 +1,46 @@
+{
+  "pngx_version": "3.2.1",
+  "server_os": "Linux-6.8.0-x86_64-with-glibc2.41",
+  "install_type": "docker",
+  "storage": {
+    "total": 2000398934016,
+    "available": 1500299200512
+  },
+  "database": {
+    "type": "postgresql",
+    "url": "paperless",
+    "status": "OK",
+    "error": null,
+    "migration_status": {
+      "latest_migration": "documents.0001_example",
+      "unapplied_migrations": []
+    }
+  },
+  "tasks": {
+    "redis_url": "redis://broker:6379",
+    "redis_status": "OK",
+    "redis_error": null,
+    "celery_status": "OK",
+    "celery_url": "celery@worker.lab.example",
+    "celery_error": null,
+    "index_status": "OK",
+    "index_last_modified": "2026-10-02T09:15:04.551203Z",
+    "index_error": null,
+    "classifier_status": "OK",
+    "classifier_last_trained": "2026-10-02T09:05:01.004112Z",
+    "classifier_error": null,
+    "sanity_check_status": "ERROR",
+    "sanity_check_last_run": "2026-09-28T00:30:12.880415Z",
+    "sanity_check_error": "Sanity check reported 1 error(s); see the task for details",
+    "llmindex_status": "DISABLED",
+    "llmindex_last_modified": null,
+    "llmindex_error": null,
+    "summary": {
+      "days": 30,
+      "total_count": 874,
+      "pending_count": 1,
+      "success_count": 870,
+      "failure_count": 3
+    }
+  }
+}

@@ -1,0 +1,120 @@
+# Immich — self-hosted photos and videos: library size, the disk it lives on, and the
+# background job queues (thumbnails, metadata, transcoding, machine learning).
+#
+# Copy to /config/providers/immich.yaml, then supply:
+#   IMMICH_BASE_URL                  e.g. http://immich-server:2283 (environment)
+#   ${secret:immich_api_key}         Account Settings → API Keys → New API Key, created by an
+#                                    ADMIN user, with only these permissions ticked:
+#                                    server.about, server.statistics, server.storage, queue.read
+#     → /run/secrets/immich_api_key, HUD_SECRET_IMMICH_API_KEY, or secrets.yaml
+#
+# Mapped from Immich's OpenAPI document (open-api/immich-openapi-specs.json) and server
+# source (repositories/config.repository.ts, services/queue.service.ts) at v3.2.4. The key
+# goes in the x-api-key header. /server/statistics and /queues are admin-only: a key owned
+# by a non-admin gets 403 on them, which shows as a failed resource, never as an empty one.
+# /queues was added in v2.4.0 (marked Alpha) and replaces /jobs, deprecated since v2.4.0;
+# on an older Immich the queues resource fails loudly — upgrade rather than map /jobs.
+#
+# Degrade loudly: Immich keeps failed jobs (removeOnFail: false) until someone clears them
+# in Administration → Job Queues, so a queue holding failed jobs is degraded until then.
+# The storage disk is degraded at 90 % used, as in the Glances template.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: immich
+  labels: { category: media }
+  template:
+    service: Immich
+    icon: mdi:image-multiple
+    docs: https://api.immich.app/
+    images: [immich-server]
+    port: 2283
+    requires:
+      - { name: IMMICH_BASE_URL, kind: env, hint: "Base URL of your Immich server" }
+      - name: immich_api_key
+        kind: secret
+        hint: "API key from Account Settings → API Keys, made by an admin user with server.about, server.statistics, server.storage and queue.read"
+spec:
+  transport:
+    base_url: ${IMMICH_BASE_URL}
+    auth:
+      type: api_key
+      header: x-api-key
+      key: ${secret:immich_api_key}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The server. Reaching /server/about at all means it is up. Singleton.
+    - name: service
+      request: { method: GET, path: /api/server/about }
+      interval: 10m
+      map:
+        uid:   "immich:service:main"
+        kind:  service
+        name:  Immich
+        state: up
+        attrs:
+          version:  "{{ item.version }}"
+          licensed: "{{ item.licensed }}"
+          nodejs:   "{{ item.nodejs }}"
+          ffmpeg:   "{{ item.ffmpeg }}"
+        links:
+          ui: "${IMMICH_BASE_URL}/"
+
+    # Every asset on the instance (admin-only): counts and bytes, photos and videos apart.
+    # Per-user usage (usageByUser) is left out: it carries account names. Singleton.
+    - name: statistics
+      request: { method: GET, path: /api/server/statistics }
+      interval: 30m
+      map:
+        uid:   "immich:library:main"
+        kind:  library
+        name:  Library
+        state: up
+        parent_uid: "immich:service:main"
+      metrics:
+        - { name: photos,       value: "{{ item.photos | float }}",      unit: count }
+        - { name: videos,       value: "{{ item.videos | float }}",      unit: count }
+        - { name: size_bytes,   value: "{{ item.usage | float }}",       unit: bytes }
+        - { name: photos_bytes, value: "{{ item.usagePhotos | float }}", unit: bytes }
+        - { name: videos_bytes, value: "{{ item.usageVideos | float }}", unit: bytes }
+
+    # The disk holding the upload location, in raw bytes (the unsuffixed fields are
+    # human-readable strings). Singleton.
+    - name: storage
+      request: { method: GET, path: /api/server/storage }
+      interval: 5m
+      map:
+        uid:   "immich:storage:main"
+        kind:  storage
+        name:  Storage
+        state: "{{ 'degraded' if item.diskUsagePercentage | float >= 90 else 'up' }}"
+        parent_uid: "immich:service:main"
+      metrics:
+        - { name: used_bytes,  value: "{{ item.diskUseRaw | float }}",          unit: bytes }
+        - { name: free_bytes,  value: "{{ item.diskAvailableRaw | float }}",    unit: bytes }
+        - { name: total_bytes, value: "{{ item.diskSizeRaw | float }}",         unit: bytes }
+        - { name: used_pct,    value: "{{ item.diskUsagePercentage | float }}", unit: pct }
+
+    # One resource per job queue, keyed on its fixed name (QueueName enum). Failed jobs
+    # degrade it; a queue paused from the admin page is paused. `completed` is always 0
+    # (removeOnComplete) and is not mapped.
+    - name: queues
+      request: { method: GET, path: /api/queues }
+      map:
+        uid:   "immich:queue:{{ item.name }}"
+        kind:  queue
+        name:  "{{ item.name }}"
+        state: >-
+          {{ 'degraded' if item.statistics.failed | float > 0
+             else 'paused' if item.isPaused
+             else 'up' }}
+        parent_uid: "immich:service:main"
+      metrics:
+        - { name: active,  value: "{{ item.statistics.active | float }}",  unit: count }
+        - { name: waiting, value: "{{ item.statistics.waiting | float }}", unit: count }
+        - { name: delayed, value: "{{ item.statistics.delayed | float }}", unit: count }
+        - { name: failed,  value: "{{ item.statistics.failed | float }}",  unit: count }

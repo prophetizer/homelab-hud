@@ -1,0 +1,128 @@
+# Tdarr — distributed transcoding: lifetime transcodes, health checks and space saved, per
+# library and overall, and whether any node is connected to do the work.
+#
+# Copy to /config/providers/tdarr.yaml, then supply:
+#   TDARR_BASE_URL                   the server port: e.g. http://tdarr:8266 (environment)
+#   ${secret:tdarr_api_key}          an API key (tapi_…) — required when the server runs with
+#                                    auth=true; with auth off Tdarr is not known to check it
+#     → /run/secrets/tdarr_api_key, HUD_SECRET_TDARR_API_KEY, or secrets.yaml
+#
+# Tdarr's server is closed source, so this is mapped from what Tdarr publishes:
+#   - routes and request bodies: the API reference (tdarr.readme.io/reference, "as of
+#     2.24.05", linked from docs.tdarr.io/docs/api; 2.25.01+ serves it in-app, Tools → API Docs)
+#   - x-api-key header and the get-nodes shape (an object keyed by node id, each node with
+#     a `workers` object and `nodePaused`): Tdarr_Plugins FlowHelpers/1.0.0/automationUtils.ts
+#     and tools/pauseUnpauseAllNodes (master, 2026-10)
+#   - statistics fields totalTranscodeCount, totalHealthCheckCount and sizeDiff ("space saved
+#     in GB"), and the library object: tdarr_docs_public "Restoring statistics" and
+#     "librarySettings" (commit b071ba0)
+# Not mapped, because Tdarr documents no field names for them: queue sizes and the
+# succeeded/failed transcode and health-check tables, /api/v2/status fields (version), and
+# per-node names — no node field is documented as a stable key. Tdarr 2.24.01 moved the
+# per-library pie charts out of StatisticsJSONDB (HaveAGitGat/Tdarr#1072); the totals read
+# here are not the pies. Unverified against a running instance.
+#
+# Degrade loudly: no connected node means nothing can be processed — the nodes resource is
+# down. All nodes paused is paused (an operator choice, not a fault).
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: tdarr
+  labels: { category: media }
+  template:
+    service: Tdarr
+    icon: mdi:movie-cog
+    docs: https://docs.tdarr.io/docs/api
+    images: [tdarr]
+    port: 8266
+    requires:
+      - { name: TDARR_BASE_URL, kind: env, hint: "Base URL of the Tdarr server (serverPort, default 8266)" }
+      - { name: tdarr_api_key, kind: secret, hint: "A Tdarr API key (tapi_…), needed when auth is enabled" }
+spec:
+  transport:
+    base_url: ${TDARR_BASE_URL}
+    auth:
+      type: api_key
+      header: x-api-key
+      key: ${secret:tdarr_api_key}
+    timeout: 15s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # The server. GET /api/v2/status answering at all means it is up. Singleton.
+    - name: service
+      request: { method: GET, path: /api/v2/status }
+      interval: 5m
+      map:
+        uid:   "tdarr:service:main"
+        kind:  service
+        name:  Tdarr
+        state: up
+
+    # Lifetime totals across all libraries (the StatisticsJSONDB "statistics" document).
+    # Counts can arrive as floats (841.0); sizeDiff is space saved, in GB. A missing field is
+    # no number, never a zero; a document without them reads as unknown. Singleton.
+    - name: statistics
+      request:
+        method: POST
+        path: /api/v2/cruddb
+        body: { data: { collection: StatisticsJSONDB, mode: getById, docID: statistics } }
+      interval: 5m
+      map:
+        uid:   "tdarr:statistics:main"
+        kind:  statistics
+        name:  Statistics
+        state: "{{ 'up' if item.totalTranscodeCount is number else 'unknown' }}"
+        parent_uid: "tdarr:service:main"
+      metrics:
+        - { name: transcodes_total,    when: "{{ item.totalTranscodeCount is number }}",   value: "{{ item.totalTranscodeCount | float }}",   unit: count }
+        - { name: health_checks_total, when: "{{ item.totalHealthCheckCount is number }}", value: "{{ item.totalHealthCheckCount | float }}", unit: count }
+        - { name: space_saved_bytes,   when: "{{ item.sizeDiff is number }}",              value: "{{ item.sizeDiff | float }}",              unit: gb }
+
+    # Each library, keyed on its name (renaming one starts a new history). The filter reads
+    # the getAll answer whether Tdarr returns an array or an object keyed by library id (the
+    # reference only says "Object"). A library with processing switched off is paused.
+    - name: libraries
+      request:
+        method: POST
+        path: /api/v2/cruddb
+        body: { data: { collection: LibrarySettingsJSONDB, mode: getAll } }
+      select: "$[?(@.name)]"
+      interval: 15m
+      map:
+        uid:   "tdarr:library:{{ item.name }}"
+        kind:  library
+        name:  "{{ item.name }}"
+        state: "{{ 'paused' if item.processLibrary == false else 'up' }}"
+        parent_uid: "tdarr:service:main"
+        attrs:
+          container:       "{{ item.container }}"
+          folder_watching: "{{ item.folderWatching }}"
+          priority:        "{{ item.priority }}"
+      metrics:
+        - { name: transcodes_total,    when: "{{ item.totalTranscodeCount is number }}",   value: "{{ item.totalTranscodeCount | float }}",   unit: count }
+        - { name: health_checks_total, when: "{{ item.totalHealthCheckCount is number }}", value: "{{ item.totalHealthCheckCount | float }}", unit: count }
+        - { name: space_saved_bytes,   when: "{{ item.sizeDiff is number }}",              value: "{{ item.sizeDiff | float }}",              unit: gb }
+
+    # The connected nodes, as one summary: the answer is an object keyed by node id, and no
+    # node field is documented as stable, so nodes are counted rather than tracked one by
+    # one. `workers` is an object keyed by worker id: its size is the node's running jobs.
+    # Singleton.
+    - name: nodes
+      request: { method: GET, path: /api/v2/get-nodes }
+      interval: 30s
+      map:
+        uid:   "tdarr:nodes:main"
+        kind:  nodes
+        name:  Nodes
+        state: >-
+          {{ 'down' if (item | length) == 0
+             else 'paused' if (item.values() | selectattr('nodePaused') | list | length) == (item | length)
+             else 'up' }}
+        parent_uid: "tdarr:service:main"
+      metrics:
+        - { name: nodes,        value: "{{ item | length }}",                                                    unit: count }
+        - { name: nodes_paused, value: "{{ item.values() | selectattr('nodePaused') | list | length }}",         unit: count }
+        - { name: workers,      value: "{{ item.values() | map(attribute='workers') | map('length') | sum }}",   unit: count }

@@ -1,0 +1,137 @@
+# NZBHydra2 — indexer meta-search: how many indexers are enabled, what went through it in
+# the last day, and how each indexer is answering.
+#
+# Copy to /config/providers/nzbhydra2.yaml, then supply:
+#   NZBHYDRA2_BASE_URL               e.g. http://nzbhydra2:5076 (environment)
+#   ${secret:nzbhydra2_api_key}      Config → Main → API key (the one Sonarr and friends use)
+#     → /run/secrets/nzbhydra2_api_key, HUD_SECRET_NZBHYDRA2_API_KEY, or secrets.yaml
+#
+# Mapped from NZBHydra2's source at v9.1.1 (commit 8ef3e64): externalapi/ExternalApiV1Controller,
+# ExternalApiKeyFilter and ExternalStatsMapper, the externalapi.v1 contract classes, and
+# historystats/Stats.java; docs/external-api.md. This is the external API, new in v9.0.0 and
+# stable within /externalapi/v1. A missing or wrong key is a bare 404, not 401: if every
+# poll fails with 404, check the key first.
+#
+# Every stats call asks for one day (after = now − 24 h) and only the sections it reads;
+# several sections go comma-separated in one `section` parameter, which Spring binds as a
+# list. Not mapped: whether a disabled indexer was switched off by you or by Hydra after
+# errors — the external API reports only how many are enabled, and Hydra's own indexer
+# status (/internalapi, /api/stats/indexers with the key in the POST body) is not a public
+# interface or not expressible here. An indexer whose calls fail shows up below instead.
+#
+# Degrade loudly: no enabled indexer means Hydra cannot search — the summary is down. An
+# indexer whose every call failed in the last day is down; under 90 % successful, degraded.
+# A section Hydra failed to compute is null in the answer, and reads as no number, never 0.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: nzbhydra2
+  labels: { category: media }
+  template:
+    service: NZBHydra2
+    icon: mdi:database-search
+    docs: https://github.com/theotherp/nzbhydra2/blob/master/docs/external-api.md
+    images: [nzbhydra2]
+    port: 5076
+    requires:
+      - { name: NZBHYDRA2_BASE_URL, kind: env, hint: "Base URL of your NZBHydra2 instance" }
+      - { name: nzbhydra2_api_key, kind: secret, hint: "API key from Config → Main" }
+spec:
+  transport:
+    base_url: ${NZBHYDRA2_BASE_URL}
+    auth:
+      type: api_key
+      header: X-Api-Key
+      key: ${secret:nzbhydra2_api_key}
+    timeout: 20s
+  defaults:
+    interval: 5m
+    jitter: 30s
+
+  resources:
+    # The service: /ping proves the key and the instance. Singleton.
+    - name: service
+      request: { method: GET, path: /externalapi/v1/ping }
+      map:
+        uid:   "nzbhydra2:service:main"
+        kind:  service
+        name:  NZBHydra2
+        state: up
+        attrs:
+          version: "{{ item.version }}"
+        links:
+          ui: "${NZBHYDRA2_BASE_URL}/"
+
+    # Indexer counts (in every stats answer) and the last day's searches and grabs, summed
+    # over the hour-of-day buckets of the window. Singleton.
+    - name: summary
+      request:
+        method: GET
+        path: /externalapi/v1/stats
+        params:
+          section: SEARCHES_PER_HOUR_OF_DAY,DOWNLOADS_PER_HOUR_OF_DAY
+          after: "{{ utcnow(days=-1) }}"
+      map:
+        uid:   "nzbhydra2:summary:main"
+        kind:  summary
+        name:  Indexers
+        state: >-
+          {{ 'down' if (item.numberOfEnabledIndexers | int) == 0
+             else 'up' }}
+        parent_uid: "nzbhydra2:service:main"
+      metrics:
+        - { name: indexers_configured, value: "{{ item.numberOfConfiguredIndexers }}", unit: count }
+        - { name: indexers_enabled,    value: "{{ item.numberOfEnabledIndexers }}",    unit: count }
+        - { name: indexers_disabled,   value: "{{ item.numberOfConfiguredIndexers - item.numberOfEnabledIndexers }}", unit: count }
+        - name: searches_24h
+          when: "{{ item.searchesPerHourOfDay is defined and item.searchesPerHourOfDay is not none }}"
+          value: "{{ item.searchesPerHourOfDay | sum(attribute='count') }}"
+          unit: count
+        - name: grabs_24h
+          when: "{{ item.downloadsPerHourOfDay is defined and item.downloadsPerHourOfDay is not none }}"
+          value: "{{ item.downloadsPerHourOfDay | sum(attribute='count') }}"
+          unit: count
+
+    # Each enabled indexer's calls in the last day, keyed on its name (renaming one starts a
+    # new history). percentSuccessful is null both when it had no calls and when none
+    # succeeded; averageAccessesPerDay tells them apart.
+    - name: indexers
+      request:
+        method: GET
+        path: /externalapi/v1/stats
+        params:
+          section: INDEXER_API_ACCESS
+          after: "{{ utcnow(days=-1) }}"
+      select: "$.indexerApiAccessStats[*]"
+      map:
+        uid:   "nzbhydra2:indexer:{{ item.indexerName }}"
+        kind:  indexer
+        name:  "{{ item.indexerName }}"
+        state: >-
+          {{ 'up' if item.averageAccessesPerDay is not number
+             else 'down' if item.percentSuccessful is not number
+             else 'degraded' if (item.percentSuccessful | float) < 90
+             else 'up' }}
+        parent_uid: "nzbhydra2:summary:main"
+      metrics:
+        - { name: success_pct,          when: "{{ item.percentSuccessful is number }}",      value: "{{ item.percentSuccessful }}",      unit: pct }
+        - { name: connection_error_pct, when: "{{ item.percentConnectionError is number }}", value: "{{ item.percentConnectionError }}", unit: pct }
+        - { name: calls_per_day,        when: "{{ item.averageAccessesPerDay is number }}",  value: "{{ item.averageAccessesPerDay }}",  unit: count }
+
+    # Each enabled indexer's average response time over the last day, in milliseconds.
+    - name: response_times
+      request:
+        method: GET
+        path: /externalapi/v1/stats
+        params:
+          section: AVG_RESPONSE_TIMES
+          after: "{{ utcnow(days=-1) }}"
+      select: "$.avgResponseTimes[*]"
+      map:
+        uid:   "nzbhydra2:indexer_stats:{{ item.indexer }}"
+        kind:  indexer_stats
+        name:  "{{ item.indexer }}"
+        state: up
+        parent_uid: "nzbhydra2:indexer:{{ item.indexer }}"
+      metrics:
+        - { name: response_seconds, value: "{{ item.avgResponseTime }}", unit: ms }

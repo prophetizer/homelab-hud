@@ -1,0 +1,62 @@
+{
+  "service": {
+    "resources": {
+      "immich:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "statistics": {
+    "resources": {
+      "immich:library:main": "up"
+    },
+    "metrics": {
+      "immich:library:main/photos": [48213.0, "count"],
+      "immich:library:main/videos": [1934.0, "count"],
+      "immich:library:main/size_bytes": [412345678901.0, "bytes"],
+      "immich:library:main/photos_bytes": [287654321098.0, "bytes"],
+      "immich:library:main/videos_bytes": [124691357803.0, "bytes"]
+    }
+  },
+  "storage": {
+    "resources": {
+      "immich:storage:main": "up"
+    },
+    "metrics": {
+      "immich:storage:main/used_bytes": [2880566661611.0, "bytes"],
+      "immich:storage:main/free_bytes": [1120220368405.0, "bytes"],
+      "immich:storage:main/total_bytes": [4000787030016.0, "bytes"],
+      "immich:storage:main/used_pct": [72.0, "pct"]
+    }
+  },
+  "queues": {
+    "resources": {
+      "immich:queue:thumbnailGeneration": "up",
+      "immich:queue:metadataExtraction": "up",
+      "immich:queue:videoConversion": "degraded",
+      "immich:queue:smartSearch": "paused",
+      "immich:queue:backgroundTask": "up"
+    },
+    "metrics": {
+      "immich:queue:thumbnailGeneration/active": [2.0, "count"],
+      "immich:queue:thumbnailGeneration/waiting": [140.0, "count"],
+      "immich:queue:thumbnailGeneration/delayed": [0.0, "count"],
+      "immich:queue:thumbnailGeneration/failed": [0.0, "count"],
+      "immich:queue:metadataExtraction/active": [0.0, "count"],
+      "immich:queue:metadataExtraction/waiting": [0.0, "count"],
+      "immich:queue:metadataExtraction/delayed": [0.0, "count"],
+      "immich:queue:metadataExtraction/failed": [0.0, "count"],
+      "immich:queue:videoConversion/active": [1.0, "count"],
+      "immich:queue:videoConversion/waiting": [12.0, "count"],
+      "immich:queue:videoConversion/delayed": [0.0, "count"],
+      "immich:queue:videoConversion/failed": [3.0, "count"],
+      "immich:queue:smartSearch/active": [0.0, "count"],
+      "immich:queue:smartSearch/waiting": [0.0, "count"],
+      "immich:queue:smartSearch/delayed": [0.0, "count"],
+      "immich:queue:smartSearch/failed": [0.0, "count"],
+      "immich:queue:backgroundTask/active": [0.0, "count"],
+      "immich:queue:backgroundTask/waiting": [0.0, "count"],
+      "immich:queue:backgroundTask/delayed": [4.0, "count"],
+      "immich:queue:backgroundTask/failed": [0.0, "count"]
+    }
+  }
+}

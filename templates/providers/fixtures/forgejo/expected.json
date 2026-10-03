@@ -1,0 +1,43 @@
+{
+  "service": {
+    "resources": {
+      "forgejo:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "repos": {
+    "resources": {
+      "forgejo:repo:homelab/ansible-roles": "up",
+      "forgejo:repo:homelab/dotfiles": "paused",
+      "forgejo:repo:homelab/infra": "up"
+    },
+    "metrics": {
+      "forgejo:repo:homelab/ansible-roles/open_issues": [2.0, "count"],
+      "forgejo:repo:homelab/ansible-roles/open_prs": [0.0, "count"],
+      "forgejo:repo:homelab/ansible-roles/stars": [1.0, "count"],
+      "forgejo:repo:homelab/ansible-roles/forks": [0.0, "count"],
+      "forgejo:repo:homelab/ansible-roles/releases": [0.0, "count"],
+      "forgejo:repo:homelab/ansible-roles/size_bytes": [1572864.0, "bytes"],
+      "forgejo:repo:homelab/dotfiles/open_issues": [0.0, "count"],
+      "forgejo:repo:homelab/dotfiles/open_prs": [0.0, "count"],
+      "forgejo:repo:homelab/dotfiles/stars": [0.0, "count"],
+      "forgejo:repo:homelab/dotfiles/forks": [0.0, "count"],
+      "forgejo:repo:homelab/dotfiles/releases": [0.0, "count"],
+      "forgejo:repo:homelab/dotfiles/size_bytes": [430080.0, "bytes"],
+      "forgejo:repo:homelab/infra/open_issues": [4.0, "count"],
+      "forgejo:repo:homelab/infra/open_prs": [1.0, "count"],
+      "forgejo:repo:homelab/infra/stars": [3.0, "count"],
+      "forgejo:repo:homelab/infra/forks": [1.0, "count"],
+      "forgejo:repo:homelab/infra/releases": [6.0, "count"],
+      "forgejo:repo:homelab/infra/size_bytes": [2097152.0, "bytes"]
+    }
+  },
+  "runners": {
+    "resources": {
+      "forgejo:runner:lab-runner-01": "up",
+      "forgejo:runner:lab-runner-02": "down",
+      "forgejo:runner:lab-runner-03": "up"
+    },
+    "metrics": {}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "node-fixture-a": {
+    "_id": "node-fixture-a",
+    "nodeName": "InternalNode",
+    "nodePaused": false,
+    "workers": {
+      "worker-fixture-1": { "file": "/media/movies/Example Film (2001)/Example Film (2001).mkv", "percentage": 42 },
+      "worker-fixture-2": { "file": "/media/tv/Sample Show/Season 01/Sample Show - S01E02.mkv", "percentage": 7 }
+    }
+  },
+  "node-fixture-b": {
+    "_id": "node-fixture-b",
+    "nodeName": "GpuNode",
+    "nodePaused": true,
+    "workers": {}
+  }
+}

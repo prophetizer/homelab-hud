@@ -1,0 +1,48 @@
+{
+  "service": {
+    "resources": {
+      "nzbhydra2:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "summary": {
+    "resources": {
+      "nzbhydra2:summary:main": "up"
+    },
+    "metrics": {
+      "nzbhydra2:summary:main/indexers_configured": [5.0, "count"],
+      "nzbhydra2:summary:main/indexers_enabled": [4.0, "count"],
+      "nzbhydra2:summary:main/indexers_disabled": [1.0, "count"],
+      "nzbhydra2:summary:main/searches_24h": [129.0, "count"],
+      "nzbhydra2:summary:main/grabs_24h": [12.0, "count"]
+    }
+  },
+  "indexers": {
+    "resources": {
+      "nzbhydra2:indexer:Example Indexer": "up",
+      "nzbhydra2:indexer:Sample Indexer": "degraded",
+      "nzbhydra2:indexer:Broken Indexer": "down",
+      "nzbhydra2:indexer:Quiet Indexer": "up"
+    },
+    "metrics": {
+      "nzbhydra2:indexer:Example Indexer/success_pct": [98.5, "pct"],
+      "nzbhydra2:indexer:Example Indexer/connection_error_pct": [1.5, "pct"],
+      "nzbhydra2:indexer:Example Indexer/calls_per_day": [64.5, "count"],
+      "nzbhydra2:indexer:Sample Indexer/success_pct": [82.0, "pct"],
+      "nzbhydra2:indexer:Sample Indexer/connection_error_pct": [18.0, "pct"],
+      "nzbhydra2:indexer:Sample Indexer/calls_per_day": [40.0, "count"],
+      "nzbhydra2:indexer:Broken Indexer/connection_error_pct": [100.0, "pct"],
+      "nzbhydra2:indexer:Broken Indexer/calls_per_day": [12.0, "count"]
+    }
+  },
+  "response_times": {
+    "resources": {
+      "nzbhydra2:indexer_stats:Example Indexer": "up",
+      "nzbhydra2:indexer_stats:Sample Indexer": "up"
+    },
+    "metrics": {
+      "nzbhydra2:indexer_stats:Example Indexer/response_seconds": [0.8125, "seconds"],
+      "nzbhydra2:indexer_stats:Sample Indexer/response_seconds": [1.45, "seconds"]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "status": "ok",
+  "version": "2.6.0",
+  "timestamp": "2026-10-03T14:05:12.481Z",
+  "servers": [
+    {
+      "id": "3f2a9c1e-7b4d-4e8a-9c61-2d5f8a7b1e03",
+      "name": "Plex",
+      "type": "plex",
+      "online": true,
+      "historical": false,
+      "activeStreams": 2
+    },
+    {
+      "id": "a81c5e7f-2d9b-4f36-b0e4-6c3a1d8f9b52",
+      "name": "Jellyfin",
+      "type": "jellyfin",
+      "online": false,
+      "historical": false,
+      "activeStreams": 0
+    },
+    {
+      "id": "d4b7e2a9-1c6f-4a83-8e5d-9f0b3c7a2e61",
+      "name": "Old Emby",
+      "type": "emby",
+      "online": false,
+      "historical": true,
+      "activeStreams": 0
+    }
+  ]
+}

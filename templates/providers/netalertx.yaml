@@ -1,0 +1,131 @@
+# NetAlertX — network presence scanner: how many devices are on the network, which are
+# new or unnamed, and whether any device you asked to be alerted about has gone down.
+#
+# Copy to /config/providers/netalertx.yaml, then supply:
+#   NETALERTX_BASE_URL               the API server, not the web UI: e.g. http://netalertx:20212
+#                                    (GRAPHQL_PORT, default 20212; the UI is PORT, 20211) (environment)
+#   ${secret:netalertx_api_token}    Settings → General → API token (API_TOKEN)
+#     → /run/secrets/netalertx_api_token, HUD_SECRET_NETALERTX_API_TOKEN, or secrets.yaml
+#
+# Mapped from NetAlertX's source and docs at v26.10.0 (commit 19aa886): server/api_server/
+# api_server_start.py, graphql_endpoint.py, health_endpoint.py, server/db/db_helper.py and
+# the DevicesView in db_upgrade.py; docs/API*.md. Every call carries the token as
+# "Authorization: Bearer"; a wrong token is HTTP 403. /health needs NetAlertX v26.3.7 or later.
+#
+# Degrade loudly: NetAlertX's "down" is its own alert condition — a device with "Alert
+# Down" switched on that missed the last scan and is not sleeping. Only those devices read
+# as down, and any of them degrades the summary. A device that is merely absent (a phone
+# that left) is paused, never down and never up. A GraphQL error answers HTTP 200 with
+# {"errors": […]}; the summary reads that as degraded with the error, not as zero devices.
+apiVersion: hud/v1
+kind: Provider
+metadata:
+  name: netalertx
+  labels: { category: network }
+  template:
+    service: NetAlertX
+    icon: mdi:lan
+    docs: https://github.com/netalertx/NetAlertX/blob/main/docs/API.md
+    images: [netalertx]
+    port: 20212
+    requires:
+      - { name: NETALERTX_BASE_URL, kind: env, hint: "Base URL of NetAlertX's API server (GRAPHQL_PORT, default 20212)" }
+      - { name: netalertx_api_token, kind: secret, hint: "API token from Settings → General → API token" }
+spec:
+  transport:
+    base_url: ${NETALERTX_BASE_URL}
+    auth:
+      type: bearer
+      token: ${secret:netalertx_api_token}
+    timeout: 10s
+  defaults:
+    interval: 60s
+    jitter: 10s
+
+  resources:
+    # NetAlertX itself: /health answers with the container's vitals. Sizes are computed as
+    # bytes / 1024², so "mb" there is MiB; cpu_temp is null without a sensor. Singleton.
+    - name: service
+      request: { method: GET, path: /health }
+      interval: 5m
+      map:
+        uid:   "netalertx:service:main"
+        kind:  service
+        name:  NetAlertX
+        state: up
+      metrics:
+        - { name: db_size_bytes,       value: "{{ item.db_size_mb }}",    unit: mib }
+        - { name: mem_used_pct,        value: "{{ item.mem_usage_pct }}", unit: pct }
+        - { name: storage_used_pct,    value: "{{ item.storage_pct }}",   unit: pct }
+        - { name: storage_total_bytes, value: "{{ item.storage_gb }}",    unit: gib }
+        - { name: load_1m,             value: "{{ item.load_1m }}",       unit: none }
+        - { name: cpu_temp_celsius,    value: "{{ item.cpu_temp }}",      unit: celsius }
+
+    # Device counts in one GraphQL call, one alias per status filter NetAlertX defines
+    # (graphql_endpoint.py resolve_devices). `count` is taken before paging, so limit: 1 keeps
+    # the answer small. Every filter but "connected" excludes archived devices, so `devices`
+    # is known + unknown (all non-archived); "unknown" is a device with no name yet.
+    - name: summary
+      request:
+        method: POST
+        path: /graphql
+        body:
+          query: >-
+            { online: devices(options: {status: "connected", page: 1, limit: 1}) { count }
+              offline: devices(options: {status: "offline", page: 1, limit: 1}) { count }
+              down: devices(options: {status: "down", page: 1, limit: 1}) { count }
+              new: devices(options: {status: "new", page: 1, limit: 1}) { count }
+              known: devices(options: {status: "known", page: 1, limit: 1}) { count }
+              unknown: devices(options: {status: "unknown", page: 1, limit: 1}) { count }
+              favorites: devices(options: {status: "favorites", page: 1, limit: 1}) { count }
+              archived: devices(options: {status: "archived", page: 1, limit: 1}) { count }
+              unstable: devices(options: {status: "unstable_devices", page: 1, limit: 1}) { count } }
+      map:
+        uid:   "netalertx:summary:main"
+        kind:  summary
+        name:  Network devices
+        state: >-
+          {{ 'degraded' if item.errors or item.data is not defined
+             else 'degraded' if (item.data.down.count | int) > 0
+             else 'up' }}
+        parent_uid: "netalertx:service:main"
+        attrs:
+          error: "{{ item.errors[0] if item.errors else none }}"
+      metrics:
+        - { name: devices,   when: "{{ item.data is defined }}", value: "{{ (item.data.known.count | int) + (item.data.unknown.count | int) }}", unit: count }
+        - { name: online,    when: "{{ item.data is defined }}", value: "{{ item.data.online.count }}",    unit: count }
+        - { name: offline,   when: "{{ item.data is defined }}", value: "{{ item.data.offline.count }}",   unit: count }
+        - { name: down,      when: "{{ item.data is defined }}", value: "{{ item.data.down.count }}",      unit: count }
+        - { name: new,       when: "{{ item.data is defined }}", value: "{{ item.data.new.count }}",       unit: count }
+        - { name: unknown,   when: "{{ item.data is defined }}", value: "{{ item.data.unknown.count }}",   unit: count }
+        - { name: favorites, when: "{{ item.data is defined }}", value: "{{ item.data.favorites.count }}", unit: count }
+        - { name: archived,  when: "{{ item.data is defined }}", value: "{{ item.data.archived.count }}",  unit: count }
+        - { name: unstable,  when: "{{ item.data is defined }}", value: "{{ item.data.unstable.count }}",  unit: count }
+
+    # Every non-archived device (status "all" is devIsArchived=0), keyed on its MAC — the
+    # identity NetAlertX itself keys devices on (DevicesView lower-cases it). Present is up,
+    # or degraded while NetAlertX flags it as flapping; absent is paused while sleeping or
+    # when nobody asked to be alerted, down only when "Alert Down" is on.
+    - name: devices
+      request: { method: GET, path: /devices/by-status, params: { status: all } }
+      interval: 2m
+      map:
+        uid:   "netalertx:device:{{ item.devMac }}"
+        kind:  device
+        name:  "{{ item.devName or item.devMac }}"
+        state: >-
+          {{ ('degraded' if (item.devFlapping | int) == 1 else 'up')
+               if (item.devPresentLastScan | int) == 1
+             else 'paused' if (item.devIsSleeping | int) == 1
+             else 'down' if (item.devAlertDown | int) != 0
+             else 'paused' }}
+        parent_uid: "netalertx:summary:main"
+        attrs:
+          status:     "{{ item.devStatus }}"
+          ip:         "{{ item.devLastIP }}"
+          vendor:     "{{ item.devVendor }}"
+          type:       "{{ item.devType }}"
+          favorite:   "{{ (item.devFavorite | int) == 1 }}"
+          alert_down: "{{ (item.devAlertDown | int) != 0 }}"
+          new:        "{{ (item.devIsNew | int) == 1 }}"
+          last_seen:  "{{ item.devLastConnection }}"

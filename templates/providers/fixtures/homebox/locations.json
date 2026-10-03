@@ -1,0 +1,17 @@
+[
+  {
+    "id": "0b6f3d2a-8e14-4c7b-9a51-3f2e7d9c1a84",
+    "name": "Garage",
+    "total": 4210.5
+  },
+  {
+    "id": "6a2c9e1f-4b7d-4d38-8f06-c1e5a9b3d270",
+    "name": "Office",
+    "total": 7389.99
+  },
+  {
+    "id": "e3d1b8c4-2f6a-4e95-b7c0-9a4f1e6d2b35",
+    "name": "Server Rack",
+    "total": 5120
+  }
+]

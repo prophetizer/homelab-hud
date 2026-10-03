@@ -1,0 +1,33 @@
+{
+  "service": {
+    "resources": {
+      "homebox:service:main": "up"
+    },
+    "metrics": {}
+  },
+  "inventory": {
+    "resources": {
+      "homebox:inventory:main": "up"
+    },
+    "metrics": {
+      "homebox:inventory:main/items": [148.0, "count"],
+      "homebox:inventory:main/locations": [9.0, "count"],
+      "homebox:inventory:main/tags": [14.0, "count"],
+      "homebox:inventory:main/users": [2.0, "count"],
+      "homebox:inventory:main/with_warranty": [23.0, "count"],
+      "homebox:inventory:main/value": [18342.75, "none"]
+    }
+  },
+  "locations": {
+    "resources": {
+      "homebox:location:Garage": "up",
+      "homebox:location:Office": "up",
+      "homebox:location:Server Rack": "up"
+    },
+    "metrics": {
+      "homebox:location:Garage/value": [4210.5, "none"],
+      "homebox:location:Office/value": [7389.99, "none"],
+      "homebox:location:Server Rack/value": [5120.0, "none"]
+    }
+  }
+}

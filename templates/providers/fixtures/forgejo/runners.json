@@ -1,0 +1,46 @@
+[
+  {
+    "id": 4,
+    "uuid": "8c6f2d1e-3b7a-4e95-a0c2-5d9e1f7b3a60",
+    "name": "lab-runner-01",
+    "owner_id": 0,
+    "repo_id": 0,
+    "description": "Docker runner on the build host",
+    "version": "v11.1.2",
+    "status": "idle",
+    "labels": [
+      "docker",
+      "ubuntu-latest"
+    ],
+    "ephemeral": false
+  },
+  {
+    "id": 9,
+    "uuid": "1f4b7e2c-9d3a-4c68-b5e0-7a2d6c9f8e14",
+    "name": "lab-runner-02",
+    "owner_id": 2,
+    "repo_id": 0,
+    "description": "",
+    "version": "v11.0.0",
+    "status": "offline",
+    "labels": [
+      "docker"
+    ],
+    "ephemeral": false
+  },
+  {
+    "id": 11,
+    "uuid": "c2e9a7d4-5f1b-4a3e-8d60-b4f7e1c2a953",
+    "name": "lab-runner-03",
+    "owner_id": 2,
+    "repo_id": 0,
+    "description": "",
+    "version": "v11.1.2",
+    "status": "active",
+    "labels": [
+      "docker",
+      "arm64"
+    ],
+    "ephemeral": false
+  }
+]

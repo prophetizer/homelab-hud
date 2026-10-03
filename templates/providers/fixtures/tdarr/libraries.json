@@ -1,0 +1,38 @@
+[
+  {
+    "_id": "lib-fixture-01",
+    "name": "Movies",
+    "priority": 0,
+    "folder": "/media/movies",
+    "cache": "/temp",
+    "output": "/media/movies",
+    "container": ".mkv",
+    "createdAt": 1700000000000,
+    "folderWatching": true,
+    "processLibrary": true,
+    "scanOnStart": false,
+    "totalHealthCheckCount": 980,
+    "totalTranscodeCount": 612,
+    "sizeDiff": 350.5,
+    "holdNewFiles": false,
+    "holdFor": 3600
+  },
+  {
+    "_id": "lib-fixture-02",
+    "name": "TV",
+    "priority": 1,
+    "folder": "/media/tv",
+    "cache": "/temp",
+    "output": "/media/tv",
+    "container": ".mkv",
+    "createdAt": 1700000500000,
+    "folderWatching": false,
+    "processLibrary": false,
+    "scanOnStart": false,
+    "totalHealthCheckCount": 223,
+    "totalTranscodeCount": 229,
+    "sizeDiff": 62.23,
+    "holdNewFiles": false,
+    "holdFor": 3600
+  }
+]

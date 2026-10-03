@@ -1,0 +1,176 @@
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "00000000-0000-5000-8000-000000000001": {
+        "device": {
+          "archived": false,
+          "CreatedAt": "2026-01-10T08:00:00Z",
+          "UpdatedAt": "2026-10-02T00:15:04Z",
+          "DeletedAt": null,
+          "wwn": "0x5000000000000001",
+          "device_name": "sda",
+          "device_uuid": "",
+          "device_serial_id": "",
+          "device_label": "",
+          "manufacturer": "ATA",
+          "model_name": "Example HDD 8TB",
+          "interface_type": "",
+          "interface_speed": "6.0 Gb/s",
+          "serial_number": "SYNTH-SERIAL-0001",
+          "firmware": "EX01",
+          "rotational_speed": 7200,
+          "capacity": 8001563222016,
+          "form_factor": "3.5 inches",
+          "smart_support": false,
+          "device_protocol": "ATA",
+          "device_type": "sat",
+          "label": "parity",
+          "host_id": "nas",
+          "device_status": 0,
+          "scrutiny_uuid": "00000000-0000-5000-8000-000000000001"
+        },
+        "smart": {
+          "collector_date": "2026-10-02T00:15:00Z",
+          "temp": 34,
+          "power_on_hours": 21450
+        },
+        "temp_history": [
+          { "date": "2026-10-01T00:15:00Z", "temp": 33 },
+          { "date": "2026-10-02T00:15:00Z", "temp": 34 }
+        ]
+      },
+      "00000000-0000-5000-8000-000000000002": {
+        "device": {
+          "archived": false,
+          "CreatedAt": "2026-01-10T08:00:00Z",
+          "UpdatedAt": "2026-10-02T00:15:04Z",
+          "DeletedAt": null,
+          "wwn": "0x5000000000000002",
+          "device_name": "sdb",
+          "device_uuid": "",
+          "device_serial_id": "",
+          "device_label": "",
+          "manufacturer": "ATA",
+          "model_name": "Example HDD 8TB",
+          "interface_type": "",
+          "interface_speed": "6.0 Gb/s",
+          "serial_number": "SYNTH-SERIAL-0002",
+          "firmware": "EX01",
+          "rotational_speed": 7200,
+          "capacity": 8001563222016,
+          "form_factor": "3.5 inches",
+          "smart_support": false,
+          "device_protocol": "ATA",
+          "device_type": "sat",
+          "label": "",
+          "host_id": "nas",
+          "device_status": 2,
+          "scrutiny_uuid": "00000000-0000-5000-8000-000000000002"
+        },
+        "smart": {
+          "collector_date": "2026-10-02T00:15:00Z",
+          "temp": 37,
+          "power_on_hours": 38012
+        }
+      },
+      "00000000-0000-5000-8000-000000000003": {
+        "device": {
+          "archived": false,
+          "CreatedAt": "2026-01-10T08:00:00Z",
+          "UpdatedAt": "2026-10-02T00:15:04Z",
+          "DeletedAt": null,
+          "wwn": "0x5000000000000003",
+          "device_name": "sdc",
+          "device_uuid": "",
+          "device_serial_id": "",
+          "device_label": "",
+          "manufacturer": "ATA",
+          "model_name": "Example HDD 4TB",
+          "interface_type": "",
+          "interface_speed": "6.0 Gb/s",
+          "serial_number": "SYNTH-SERIAL-0003",
+          "firmware": "EX02",
+          "rotational_speed": 5400,
+          "capacity": 4000787030016,
+          "form_factor": "3.5 inches",
+          "smart_support": false,
+          "device_protocol": "ATA",
+          "device_type": "sat",
+          "label": "",
+          "host_id": "nas",
+          "device_status": 3,
+          "scrutiny_uuid": "00000000-0000-5000-8000-000000000003"
+        },
+        "smart": {
+          "collector_date": "2026-10-02T00:15:00Z",
+          "temp": 41,
+          "power_on_hours": 52230
+        }
+      },
+      "00000000-0000-5000-8000-000000000004": {
+        "device": {
+          "archived": false,
+          "CreatedAt": "2026-10-02T00:14:00Z",
+          "UpdatedAt": "2026-10-02T00:14:00Z",
+          "DeletedAt": null,
+          "wwn": "",
+          "device_name": "nvme0",
+          "device_uuid": "",
+          "device_serial_id": "",
+          "device_label": "",
+          "manufacturer": "",
+          "model_name": "Example NVMe SSD 1TB",
+          "interface_type": "",
+          "interface_speed": "",
+          "serial_number": "SYNTH-SERIAL-0004",
+          "firmware": "NV10",
+          "rotational_speed": 0,
+          "capacity": 1000204886016,
+          "form_factor": "",
+          "smart_support": false,
+          "device_protocol": "NVMe",
+          "device_type": "nvme",
+          "label": "",
+          "host_id": "",
+          "device_status": 0,
+          "scrutiny_uuid": "00000000-0000-5000-8000-000000000004"
+        }
+      },
+      "00000000-0000-5000-8000-000000000005": {
+        "device": {
+          "archived": true,
+          "CreatedAt": "2026-01-10T08:00:00Z",
+          "UpdatedAt": "2026-06-01T00:15:04Z",
+          "DeletedAt": null,
+          "wwn": "0x5000000000000005",
+          "device_name": "sdd",
+          "device_uuid": "",
+          "device_serial_id": "",
+          "device_label": "",
+          "manufacturer": "ATA",
+          "model_name": "Example HDD 2TB",
+          "interface_type": "",
+          "interface_speed": "3.0 Gb/s",
+          "serial_number": "SYNTH-SERIAL-0005",
+          "firmware": "EX00",
+          "rotational_speed": 7200,
+          "capacity": 2000398934016,
+          "form_factor": "3.5 inches",
+          "smart_support": false,
+          "device_protocol": "ATA",
+          "device_type": "sat",
+          "label": "old-backup",
+          "host_id": "nas",
+          "device_status": 0,
+          "scrutiny_uuid": "00000000-0000-5000-8000-000000000005"
+        },
+        "smart": {
+          "collector_date": "2026-06-01T00:15:00Z",
+          "temp": 30,
+          "power_on_hours": 61000
+        }
+      }
+    }
+  }
+}
