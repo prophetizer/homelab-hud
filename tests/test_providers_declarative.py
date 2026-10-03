@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The §7.1 Home Assistant document works end-to-end from YAML alone (Phase 1 milestone)."""
 
+import base64
 import json
 from pathlib import Path
 
@@ -450,3 +451,25 @@ def test_a_header_prefix_cannot_carry_a_secret_or_an_expression(config_dir: Path
     (config_dir / "providers" / "p.yaml").write_text(bad)
     snap = ConfigManager(config_dir).load()
     assert not [d for d in snap.documents if isinstance(d.model, ProviderDocument)]
+
+
+@respx.mock
+async def test_basic_auth_login_name_may_come_from_the_environment(config_dir: Path) -> None:
+    """The Connect form fills ${DEMO_USERNAME}; set by hand it resolves like a base URL."""
+    doc_text = SINGLETON_DOC.replace(
+        "transport: { base_url: http://demo.lab }",
+        "transport:\n    base_url: http://demo.lab\n    auth: { type: basic, username: "
+        '"${DEMO_USERNAME}", password: "${secret:demo_password}" }',
+    )
+    route = respx.get("http://demo.lab/status").mock(
+        return_value=httpx.Response(200, json={"appName": "Demo"})
+    )
+    env = {"DEMO_USERNAME": "operator", "HUD_SECRET_DEMO_PASSWORD": "pw"}
+    p = build_declarative(load_doc(config_dir, doc_text), make_ctx(config_dir, "demo", env))
+    await p.startup()
+    try:
+        await p.poll("service")
+    finally:
+        await p.shutdown()
+    sent = route.calls.last.request.headers["Authorization"]
+    assert sent == "Basic " + base64.b64encode(b"operator:pw").decode()

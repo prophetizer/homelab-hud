@@ -49,7 +49,9 @@ def build_http_options(ctx: ProviderContext, spec: Transport) -> HttpOptions:
             case AuthApiKey(header=header, key=ref):
                 headers[header] = ctx.secrets.resolve(secret_name(ref))
             case AuthBasic(username=user, password=ref):
-                auth = httpx.BasicAuth(user, ctx.secrets.resolve(secret_name(ref)))
+                # The login name may be ${ENV} (the Connect form fills it in); never a secret.
+                login = interpolate_env(user, ctx.env)
+                auth = httpx.BasicAuth(login, ctx.secrets.resolve(secret_name(ref)))
             case AuthHeader(name=name, value=ref, prefix=prefix):
                 value = ctx.secrets.resolve(secret_name(ref))
                 headers[name] = value if value.startswith(prefix) else prefix + value

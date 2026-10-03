@@ -3,9 +3,9 @@
 #
 # Copy to /config/providers/backrest.yaml, then supply:
 #   BACKREST_BASE_URL                e.g. http://backrest:9898 (environment)
-#   ${secret:backrest_password}      the Backrest login's password (Settings → Users)
+#   BACKREST_USERNAME                the Backrest login's name (environment; not secret)
+#   ${secret:backrest_password}      that login's password (Settings → Users)
 #     → /run/secrets/backrest_password, HUD_SECRET_BACKREST_PASSWORD, or secrets.yaml
-# and set auth.username below to that login's name.
 #
 # Mapped from Backrest's source at v1.14.1 (commit 875c9cb): proto/v1/service.proto
 # (SummaryDashboardResponse), internal/api/summarydashboard.go (how it is filled),
@@ -42,13 +42,14 @@ metadata:
     port: 9898
     requires:
       - { name: BACKREST_BASE_URL, kind: env, hint: "Base URL of your Backrest instance" }
-      - { name: backrest_password, kind: secret, hint: "Password of the Backrest login named in auth.username (Settings → Users)" }
+      - { name: BACKREST_USERNAME, kind: env, hint: "Your Backrest login name (Settings → Users)" }
+      - { name: backrest_password, kind: secret, hint: "That login's password" }
 spec:
   transport:
     base_url: ${BACKREST_BASE_URL}
     auth:
       type: basic
-      username: admin      # change to your Backrest login
+      username: ${BACKREST_USERNAME}
       password: ${secret:backrest_password}
     timeout: 15s
   defaults:

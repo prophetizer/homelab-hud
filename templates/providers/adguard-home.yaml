@@ -2,10 +2,9 @@
 #
 # Copy to /config/providers/adguard-home.yaml, then supply:
 #   ADGUARD_BASE_URL                 e.g. http://adguardhome:80 (environment)
-#   ${secret:adguard_password}       the password of the AdGuard Home login below
+#   ADGUARD_USERNAME                 the AdGuard Home login's name (environment; not secret)
+#   ${secret:adguard_password}       that login's password
 #     → /run/secrets/adguard_password, HUD_SECRET_ADGUARD_PASSWORD, or secrets.yaml
-# and set transport.auth.username to that login (a plain value — only the password is
-# secret).
 #
 # Mapped from AdGuard Home's published OpenAPI document (openapi/openapi.yaml, 0.107):
 # every path is under /control and authenticated with HTTP basic auth.
@@ -22,13 +21,14 @@ metadata:
     port: 80
     requires:
       - { name: ADGUARD_BASE_URL, kind: env, hint: "Base URL of AdGuard Home's web interface" }
+      - { name: ADGUARD_USERNAME, kind: env, hint: "Your AdGuard Home login name" }
       - { name: adguard_password, kind: secret, hint: "Password of the AdGuard Home login" }
 spec:
   transport:
     base_url: ${ADGUARD_BASE_URL}
     auth:
       type: basic
-      username: admin      # change to your AdGuard Home login
+      username: ${ADGUARD_USERNAME}
       password: ${secret:adguard_password}
     timeout: 5s
   defaults:
