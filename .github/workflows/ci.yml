@@ -27,6 +27,12 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen
+      # The PDF tests need what the image installs (Dockerfile): pango and HarfBuzz subset.
+      # Without the latter WeasyPrint warns, and pytest treats warnings as errors.
+      - run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy hud
