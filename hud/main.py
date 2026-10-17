@@ -28,6 +28,7 @@ from hud.config import ConfigError, ConfigManager, ConfigSnapshot, SecretResolve
 from hud.providers import ProviderContext, ProviderRegistry
 from hud.providers.factory import ProviderFactory
 from hud.providers.sdk.loader import PluginLoader
+from hud.providers.status import SNAPSHOT_NAME, write_snapshots
 from hud.reporting.runner import ReportRunner
 from hud.settings import HudEnv
 from hud.store import StorePaths, create_store_engine, upgrade_all
@@ -151,6 +152,13 @@ def create_app(env: HudEnv | None = None) -> FastAPI:
 
         async with asyncio.TaskGroup() as tg:
             background = _start_background(tg, config, cache, app.state.engine)
+            # What `python -m hud.providers.status` reads, from a shell, without a session.
+            snapshot_path = env.data_dir / SNAPSHOT_NAME
+            background.append(
+                tg.create_task(
+                    write_snapshots(collector.health, snapshot_path), name="provider-status"
+                )
+            )
             log.info("HUD %s ready on port %d", __version__, env.port)
             try:
                 yield
